@@ -33,4 +33,4 @@ Delete the row (`delete from sessions where token_hash = '<H>'`) when done.
 
 ## Releases
 
-Run the manual `bump.yml` workflow on `main`. It sets one version in `package.json` and `cli/package.json`, commits `Release vX.Y.Z`, pushes the tag and starts `release.yml`, which publishes the multi-arch image, the CLI and a GitHub release whose notes list the commits since the previous version and link the packages. Only `bump.yml` starts `release.yml`, so a tag or release made by hand publishes nothing. The repository needs the `DOCKER_PASSWORD` and `NPM_TOKEN` secrets.
+Run the manual `bump.yml` workflow on `main`. It sets one version in `package.json` and `cli/package.json`, commits `Release vX.Y.Z`, pushes the tag and starts `release.yml`, which publishes the multi-arch image, the CLI and a GitHub release whose notes list the commits since the previous version and link the packages. Only `bump.yml` starts `release.yml`, so a tag or release made by hand publishes nothing. The repository needs the `DOCKER_PASSWORD` secret; npmjs accepts `release.yml` as a trusted publisher, so it needs no token.
