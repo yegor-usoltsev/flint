@@ -51,11 +51,12 @@ export const signIn = async (profile: GiteaProfile) =>
     await tx`
       insert into workspace_members (workspace_id, user_id, role)
       select workspace_id, ${user.id}, role from invites
-      where gitea_id = ${profile.giteaId}
+      where lower(gitea_username) = lower(${profile.username})
       on conflict do nothing
     `;
     await tx`
-      delete from invites where gitea_id = ${profile.giteaId}
+      delete from invites
+      where lower(gitea_username) = lower(${profile.username})
     `;
 
     return user.id;

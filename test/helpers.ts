@@ -17,39 +17,19 @@ export const resetDatabase = async () => {
 
 const giteaIds = new Map<string, number>();
 
-export const setGiteaId = (username: string, id: number) => {
-  giteaIds.set(username.toLowerCase(), id);
-};
-
 const giteaIdOf = (username: string) => {
   const key = username.toLowerCase();
   const id = giteaIds.get(key) ?? 1000 + giteaIds.size;
 
-  setGiteaId(key, id);
+  giteaIds.set(key, id);
 
   return id;
 };
 
-const fakeGiteaUsers = async (input: RequestInfo | URL) => {
-  const url = new URL(input instanceof Request ? input.url : input);
-
-  const name = /^\/api\/v1\/users\/(?<name>[^/]+)$/u.exec(url.pathname)
-    ?.groups?.["name"];
-
-  if (
-    url.origin !== "http://gitea.test" ||
-    name === undefined ||
-    name.startsWith("ghost")
-  ) {
-    return await Promise.resolve(
-      Response.json({ message: "not found" }, { status: 404 })
-    );
-  }
-
-  return await Promise.resolve(
-    Response.json({ id: giteaIdOf(name), login: decodeURIComponent(name) })
+const fakeGiteaUsers = async () =>
+  await Promise.resolve(
+    Response.json({ message: "not found" }, { status: 404 })
   );
-};
 
 export const stubGiteaUsers = () =>
   spyOn(globalThis, "fetch").mockImplementation(

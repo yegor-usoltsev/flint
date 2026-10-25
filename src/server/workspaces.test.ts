@@ -20,7 +20,6 @@ import {
   callRoute,
   createUser,
   resetDatabase,
-  setGiteaId,
   stubGiteaUsers,
   sessionCookieFor,
 } from "../../test/helpers";
@@ -539,24 +538,21 @@ test("withdrawing or re-roling an invite during its first login is serialized", 
   ]);
 });
 
-test("adding a member resolves the username through Gitea", async () => {
+test("adding a member matches the username without asking Gitea", async () => {
   const { root } = await setup();
+  const spy = stubGiteaUsers();
 
   await createUser("carol");
-  setGiteaId("carol", 4242);
 
-  expect(await addMember(root, "acme", "carol")).toMatchObject({
-    body: { pending: true, userId: null, username: "carol" },
+  expect(await addMember(root, "acme", "Carol")).toMatchObject({
+    body: { pending: false, username: "carol" },
     status: 201,
   });
   expect(await addMember(root, "acme", "ghost")).toMatchObject({
-    body: { error: { code: "not_found" } },
-    status: 404,
-  });
-  expect(await addMember(root, "acme", "bob")).toMatchObject({
-    body: { pending: false, username: "bob" },
+    body: { pending: true, userId: null, username: "ghost" },
     status: 201,
   });
+  expect(spy).not.toHaveBeenCalled();
 });
 
 test("a member added to a workspace hears it on a stream of another workspace", async () => {

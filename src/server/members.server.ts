@@ -12,7 +12,6 @@ import {
 import { ApiError } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
-import { env } from "~/server/env.server";
 import { disconnect, publish, publishToUser } from "~/server/realtime.server";
 import { lockUsers } from "~/server/users.server";
 
@@ -32,29 +31,6 @@ export const UpdateMemberSchema = v.object({ role: RoleSchema });
 
 const memberChanged = (workspaceId: string, username: string) => {
   publish(workspaceId, { entity: "member", id: username, projectId: null });
-};
-
-const GiteaUserSchema = v.object({ id: v.number(), login: v.string() });
-
-const findGiteaUser = async (username: string) => {
-  const response = await fetch(
-    new URL(`/api/v1/users/${encodeURIComponent(username)}`, env.GITEA_URL)
-  ).catch(() => null);
-
-  if (response?.status === 404) {
-    throw new ApiError(404, "not_found", `Gitea has no user @${username}`);
-  }
-
-  const user = v.safeParse(
-    GiteaUserSchema,
-    response?.ok === true ? await response.json() : null
-  );
-
-  if (!user.success) {
-    throw new ApiError(502, "gitea_unavailable", "Gitea did not answer");
-  }
-
-  return user.output;
 };
 
 const lastAdmin = () =>
@@ -111,7 +87,6 @@ export const addMember = async (
   { role, username }: v.InferOutput<typeof AddMemberSchema>
 ) => {
   const workspace = await requireWorkspace(actor, slug, "admin");
-  const giteaUser = await findGiteaUser(username);
 
   const member = await db.begin(async (tx): Promise<Member> => {
     await lockUsers(tx);
@@ -119,7 +94,9 @@ export const addMember = async (
     const [user] = await tx<Omit<Member, "joinedAt" | "pending" | "role">[]>`
       select id as "userId", username, display_name as "displayName",
         avatar_url as "avatarUrl"
-      from users where gitea_id = ${String(giteaUser.id)}
+      from users where lower(username) = lower(${username})
+      order by updated_at desc
+      limit 1
     `;
 
     if (user !== undefined) {
@@ -139,32 +116,28 @@ export const addMember = async (
 
     const [invited] = await tx<{ joinedAt: string }[]>`
       insert into invites (
-        id, workspace_id, gitea_id, gitea_username, role, created_by
+        id, workspace_id, gitea_username, role, created_by
       )
       values (
-        ${Bun.randomUUIDv7()}, ${workspace.id}, ${String(giteaUser.id)},
-        ${giteaUser.login}, ${role}, ${actor.userId}
+        ${Bun.randomUUIDv7()}, ${workspace.id}, ${username}, ${role},
+        ${actor.userId}
       )
       on conflict do nothing
       returning created_at as "joinedAt"
     `;
 
     if (invited === undefined) {
-      throw new ApiError(
-        409,
-        "conflict",
-        `@${giteaUser.login} is already invited`
-      );
+      throw new ApiError(409, "conflict", `@${username} is already invited`);
     }
 
     return {
       avatarUrl: "",
-      displayName: giteaUser.login,
+      displayName: username,
       joinedAt: invited.joinedAt,
       pending: true,
       role,
       userId: null,
-      username: giteaUser.login,
+      username,
     };
   });
 

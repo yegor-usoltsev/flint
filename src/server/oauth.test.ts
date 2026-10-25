@@ -194,12 +194,8 @@ test("login applies pending invites and refreshes the profile", async () => {
   const workspaceId = Bun.randomUUIDv7();
   await db`insert into workspaces (id, slug, name, color) values (${workspaceId}, 'acme', 'Acme', 'blue')`;
   await db`
-    insert into invites (
-      id, workspace_id, gitea_id, gitea_username, role, created_by
-    )
-    values (
-      ${Bun.randomUUIDv7()}, ${workspaceId}, '1', 'Alice', 'member', ${ownerId}
-    )
+    insert into invites (id, workspace_id, gitea_username, role, created_by)
+    values (${Bun.randomUUIDv7()}, ${workspaceId}, 'Alice', 'member', ${ownerId})
   `;
 
   await login();
@@ -220,21 +216,16 @@ test("login applies pending invites and refreshes the profile", async () => {
   ).toHaveLength(1);
 });
 
-test("an invite applies only to the Gitea account it was made for", async () => {
+test("an invite applies only to the username it was made for", async () => {
   const ownerId = await createUser("owner");
   const workspaceId = Bun.randomUUIDv7();
   await db`insert into workspaces (id, slug, name, color) values (${workspaceId}, 'acme', 'Acme', 'blue')`;
   await db`
-    insert into invites (
-      id, workspace_id, gitea_id, gitea_username, role, created_by
-    )
-    values (
-      ${Bun.randomUUIDv7()}, ${workspaceId}, '4242', 'alice', 'member',
-      ${ownerId}
-    )
+    insert into invites (id, workspace_id, gitea_username, role, created_by)
+    values (${Bun.randomUUIDv7()}, ${workspaceId}, 'alice2', 'member', ${ownerId})
   `;
 
-  giteaUser = { name: "Other Alice", sub: "9999", username: "alice" };
+  giteaUser = { name: "Alice", sub: "1", username: "alice" };
   const { response } = await login();
   const [, session = ""] = cookiesOf(response);
 
