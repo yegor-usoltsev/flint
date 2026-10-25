@@ -43,9 +43,9 @@ jobs:
             ghcr.io/yegor-usoltsev/flint
             yusoltsev/flint
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -90,8 +90,8 @@ jobs:
             git log --reverse --no-merges --invert-grep --grep="^Release v[0-9]" --format="* %H %s" "${previous:+$previous..}$GITHUB_REF_NAME"
             echo
             echo "## Docker images"
-            echo "- [\`yusoltsev/flint:$version\`](https://hub.docker.com/r/yusoltsev/flint/tags?name=$version)"
-            echo "- [\`ghcr.io/$GITHUB_REPOSITORY:$version\`](https://github.com/$GITHUB_REPOSITORY/pkgs/container/flint)"
+            echo "- [\`yusoltsev/flint:$GITHUB_REF_NAME\`](https://hub.docker.com/r/yusoltsev/flint/tags?name=$GITHUB_REF_NAME)"
+            echo "- [\`ghcr.io/$GITHUB_REPOSITORY:$GITHUB_REF_NAME\`](https://github.com/$GITHUB_REPOSITORY/pkgs/container/flint)"
             echo
             echo "## npm packages"
             echo "- [\`@yusoltsev/flint-cli@$version\`](https://www.npmjs.com/package/@yusoltsev/flint-cli/v/$version)"
