@@ -1,10 +1,8 @@
 ---
 name: Release
 
+# Only bump.yml starts a release, so a tag or release made by hand publishes nothing.
 on:
-  push:
-    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
-  # bump.yml starts it this way, because a tag pushed with GITHUB_TOKEN triggers no workflow.
   workflow_dispatch: {}
 
 jobs:
@@ -18,6 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
@@ -68,7 +67,8 @@ jobs:
         with:
           registry-url: https://npm.pkg.github.com
           package-manager-cache: false
-      - run: npm publish
+      # The checks let a failed release run again.
+      - run: test -n "$(npm view "@yegor-usoltsev/flint-cli@${GITHUB_REF_NAME#v}" version)" || npm publish
         working-directory: cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -76,12 +76,27 @@ jobs:
         with:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm pkg set name=@yusoltsev/flint-cli && npm publish --access public
+      - run: >-
+          test -n "$(npm view "@yusoltsev/flint-cli@${GITHUB_REF_NAME#v}" version)" || (npm pkg set name=@yusoltsev/flint-cli && npm publish --access public --provenance)
         working-directory: cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # npm provenance needs a public repository.
-          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.visibility == 'public' }}
-      - run: gh release create "$GITHUB_REF_NAME" --generate-notes
+      - run: |
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 && exit
+          version=${GITHUB_REF_NAME#v}
+          previous=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-*" "$GITHUB_REF_NAME^" 2> /dev/null || true)
+          {
+            echo "## Changelog"
+            git log --reverse --no-merges --invert-grep --grep="^Release v[0-9]" --format="* %H %s" "${previous:+$previous..}$GITHUB_REF_NAME"
+            echo
+            echo "## Docker images"
+            echo "- [\`yusoltsev/flint:$version\`](https://hub.docker.com/r/yusoltsev/flint/tags?name=$version)"
+            echo "- [\`ghcr.io/$GITHUB_REPOSITORY:$version\`](https://github.com/$GITHUB_REPOSITORY/pkgs/container/flint)"
+            echo
+            echo "## npm packages"
+            echo "- [\`@yusoltsev/flint-cli@$version\`](https://www.npmjs.com/package/@yusoltsev/flint-cli/v/$version)"
+            echo "- [\`@yegor-usoltsev/flint-cli@$version\`](https://github.com/$GITHUB_REPOSITORY/pkgs/npm/flint-cli)"
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

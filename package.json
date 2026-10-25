@@ -1,6 +1,6 @@
 {
   "name": "@yegor-usoltsev/flint",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "private": true,
   "description": "Self-hosted issue tracker and Markdown wiki for teams that run Gitea",
   "homepage": "https://github.com/yegor-usoltsev/flint#readme",
