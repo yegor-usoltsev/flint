@@ -1,0 +1,43 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md,mdx"]
+  - repo: https://github.com/yegor-usoltsev/pre-commit-hooks
+    rev: v1.0.2
+    hooks:
+      - id: gitleaks
+      - id: shellcheck
+      - id: shfmt
+      - id: hadolint
+      - id: actionlint
+      - id: zizmor
+      - id: check-renovate
+  - repo: local
+    hooks:
+      - id: lint
+        name: bun run lint
+        entry: bun run lint
+        language: system
+        pass_filenames: false
+      # A formatter run before resolving a merge rewrites conflict markers (indented, or "> > > > > > >"), which check-merge-conflict misses.
+      - id: formatted-merge-conflict
+        name: check for formatter-mangled merge conflicts
+        entry: '^\s+(<<<<<<<|>>>>>>>)( |$)|^(> ){6}>|^\s*\|{7}( |$)'
+        language: pygrep

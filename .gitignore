@@ -1,0 +1,19 @@
+# Dependencies
+/node_modules
+
+# Build output and caches
+/.nitro
+/.output
+/.tanstack
+/dist
+
+# Environment files
+.env*
+!.env.example
+
+# Misc
+/tmp
+.DS_Store
+*.log
+*.pem
+/cli/dist

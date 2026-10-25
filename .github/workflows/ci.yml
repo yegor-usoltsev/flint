@@ -1,0 +1,24 @@
+---
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - uses: j178/prek-action@v3.1.0
+      - run: docker compose up -d --wait postgres silo && docker compose run --rm silo-init
+      - run: bun test
+      - run: bun run cli:build
+      - run: bun run build
+      - run: docker build -t flint .

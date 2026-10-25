@@ -1,0 +1,142 @@
+import { cn } from "cn";
+import {
+  AnchorIcon,
+  BellIcon,
+  BookOpenIcon,
+  BoxIcon,
+  BriefcaseIcon,
+  BugIcon,
+  Building2Icon,
+  CalendarIcon,
+  CameraIcon,
+  ChartColumnIcon,
+  CloudIcon,
+  CodeIcon,
+  CoffeeIcon,
+  CompassIcon,
+  CpuIcon,
+  CreditCardIcon,
+  DatabaseIcon,
+  FilmIcon,
+  FlagIcon,
+  FlameIcon,
+  FlaskConicalIcon,
+  Gamepad2Icon,
+  GiftIcon,
+  GitBranchIcon,
+  GlobeIcon,
+  GraduationCapIcon,
+  HammerIcon,
+  HeartIcon,
+  HouseIcon,
+  ImageIcon,
+  KeyRoundIcon,
+  LayersIcon,
+  LeafIcon,
+  LightbulbIcon,
+  LockIcon,
+  MapIcon,
+  MegaphoneIcon,
+  MusicIcon,
+  PackageIcon,
+  PaletteIcon,
+  PlaneIcon,
+  PuzzleIcon,
+  RocketIcon,
+  ServerIcon,
+  SettingsIcon,
+  ShieldIcon,
+  ShoppingCartIcon,
+  SmartphoneIcon,
+  StarIcon,
+  TargetIcon,
+  TerminalIcon,
+  TruckIcon,
+  UserIcon,
+  UsersIcon,
+  WrenchIcon,
+  ZapIcon,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+import type { Color } from "~/lib/colors";
+import type { ProjectIcon as IconName } from "~/lib/project-icons";
+
+const icons: Record<IconName, LucideIcon> = {
+  anchor: AnchorIcon,
+  bell: BellIcon,
+  "book-open": BookOpenIcon,
+  box: BoxIcon,
+  briefcase: BriefcaseIcon,
+  bug: BugIcon,
+  "building-2": Building2Icon,
+  calendar: CalendarIcon,
+  camera: CameraIcon,
+  "chart-column": ChartColumnIcon,
+  cloud: CloudIcon,
+  code: CodeIcon,
+  coffee: CoffeeIcon,
+  compass: CompassIcon,
+  cpu: CpuIcon,
+  "credit-card": CreditCardIcon,
+  database: DatabaseIcon,
+  film: FilmIcon,
+  flag: FlagIcon,
+  flame: FlameIcon,
+  "flask-conical": FlaskConicalIcon,
+  "gamepad-2": Gamepad2Icon,
+  gift: GiftIcon,
+  "git-branch": GitBranchIcon,
+  globe: GlobeIcon,
+  "graduation-cap": GraduationCapIcon,
+  hammer: HammerIcon,
+  heart: HeartIcon,
+  house: HouseIcon,
+  image: ImageIcon,
+  "key-round": KeyRoundIcon,
+  layers: LayersIcon,
+  leaf: LeafIcon,
+  lightbulb: LightbulbIcon,
+  lock: LockIcon,
+  map: MapIcon,
+  megaphone: MegaphoneIcon,
+  music: MusicIcon,
+  package: PackageIcon,
+  palette: PaletteIcon,
+  plane: PlaneIcon,
+  puzzle: PuzzleIcon,
+  rocket: RocketIcon,
+  server: ServerIcon,
+  settings: SettingsIcon,
+  shield: ShieldIcon,
+  "shopping-cart": ShoppingCartIcon,
+  smartphone: SmartphoneIcon,
+  star: StarIcon,
+  target: TargetIcon,
+  terminal: TerminalIcon,
+  truck: TruckIcon,
+  user: UserIcon,
+  users: UsersIcon,
+  wrench: WrenchIcon,
+  zap: ZapIcon,
+};
+
+export const ProjectIcon = ({
+  className,
+  color,
+  icon,
+}: {
+  className?: string;
+  color: Color;
+  icon: IconName;
+}) => {
+  const Icon = icons[icon];
+
+  return (
+    <Icon
+      aria-hidden
+      className={cn("text-swatch size-4 shrink-0", className)}
+      data-color={color}
+    />
+  );
+};

@@ -1,0 +1,31 @@
+---
+name: Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        type: choice
+        options: [patch, minor, major]
+
+jobs:
+  bump:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v7 # zizmor: ignore[artipacked] the job pushes the release commit and tag
+      - run: |
+          version=$(npm version "$BUMP" --no-git-tag-version)
+          npm version "$version" --no-git-tag-version --prefix cli
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release $version"
+          git tag "$version"
+          git push --atomic origin HEAD:main "$version"
+          gh workflow run release.yml --ref "$version"
+        env:
+          BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

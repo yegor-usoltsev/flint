@@ -1,0 +1,36 @@
+{
+  "name": "@yegor-usoltsev/flint-cli",
+  "version": "0.0.1",
+  "description": "Command-line client for the Flint issue tracker and wiki",
+  "keywords": [
+    "ai-agents",
+    "cli",
+    "flint",
+    "gitea",
+    "issue-tracker",
+    "wiki"
+  ],
+  "homepage": "https://github.com/yegor-usoltsev/flint/tree/main/cli#readme",
+  "bugs": "https://github.com/yegor-usoltsev/flint/issues",
+  "license": "MIT",
+  "author": "Yegor Usoltsev (https://github.com/yegor-usoltsev)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yegor-usoltsev/flint.git",
+    "directory": "cli"
+  },
+  "bin": {
+    "flint": "dist/flint.js"
+  },
+  "files": [
+    "dist/flint.js",
+    "dist/licenses.md"
+  ],
+  "type": "module",
+  "scripts": {
+    "prepack": "cd .. && bun run cli:build"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

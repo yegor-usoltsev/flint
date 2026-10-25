@@ -1,0 +1,4 @@
+[tools]
+bun = "1.4"
+# Installs the Git hook on every `mise install` and turns off a global `hook.prek`, which would run prek twice.
+prek = { version = "latest", postinstall = { run = "prek install && git config hook.prek.enabled false", when = "always" } }
