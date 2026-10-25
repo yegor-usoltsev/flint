@@ -1,6 +1,6 @@
 {
   "name": "@yegor-usoltsev/flint-cli",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Command-line client for the Flint issue tracker and wiki",
   "keywords": [
     "ai-agents",
