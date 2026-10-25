@@ -32,7 +32,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       silo-init: { condition: service_completed_successfully }
-      flint-init: { condition: service_completed_successfully }
+      flint-init-app: { condition: service_completed_successfully }
 
   postgres:
     image: pgvector/pgvector:pg18
@@ -135,18 +135,24 @@ services:
       <<: *flint-env
       GITEA_ADMIN_PASSWORD: password
       GITEA_ADMIN_USER: alice
+      GITEA_STALE_WEBHOOK_URL: http://app:4700/api/webhooks/gitea
+      GITEA_WEBHOOK_URL: http://host-relay:4700/api/webhooks/gitea
     volumes:
       - .:/app
-    # One system webhook for `bun run dev` on the host, one for the app profile.
-    command:
-      - sh
-      - -c
-      - |
-        set -e
-        GITEA_WEBHOOK_URL=http://host-relay:4700/api/webhooks/gitea bun scripts/gitea-bootstrap.ts
-        GITEA_WEBHOOK_URL=http://app:4700/api/webhooks/gitea bun scripts/gitea-bootstrap.ts
+    # Keeps one system webhook: this one for `bun run dev` on the host, flint-init-app's for the
+    # app profile.
+    command: ["bun", "scripts/gitea-bootstrap.ts"]
     depends_on:
       gitea-init: { condition: service_completed_successfully }
+
+  flint-init-app:
+    extends: flint-init
+    profiles: [app]
+    environment:
+      GITEA_STALE_WEBHOOK_URL: http://host-relay:4700/api/webhooks/gitea
+      GITEA_WEBHOOK_URL: http://app:4700/api/webhooks/gitea
+    depends_on:
+      flint-init: { condition: service_completed_successfully }
 
   runner:
     image: gitea/runner:5
