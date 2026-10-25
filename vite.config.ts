@@ -77,7 +77,7 @@ export default defineConfig({
   optimizeDeps: { exclude: ["bun"] },
   resolve: { tsconfigPaths: true },
   server: {
-    allowedHosts: ["host.docker.internal"],
+    allowedHosts: ["host-relay"],
     host: true,
     port: 4700,
     strictPort: true,
