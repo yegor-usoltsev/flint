@@ -40,7 +40,7 @@ In Gitea's `app.ini`, raise `[ui] FEED_MAX_COMMIT_NUM` (Gitea lists only that ma
 
 **How links work.** A branch, commit message or pull request (title, body or head branch) that contains a project key such as `ENG-12` or `feature/eng-12-fix` links to the issue, with the pull request's state and the commit statuses any CI reports to Gitea. Every repository on the Gitea instance counts, private ones included, and every workspace member sees the links. Flint never writes to Gitea and never changes an issue's status.
 
-**Keys in Gitea.** To turn `ENG-12` in Gitea into a link to Flint, point repositories' external issue tracker at it. The script takes owners (all their repositories) or single repositories and needs no rerun for new projects. Wrap a key in brackets, as in `[ENG-12]`, to get a link in Gitea; Flint links bare keys in branches, commits and pull request titles:
+**Keys in Gitea.** To turn `ENG-12` in Gitea into a link to Flint, point repositories' external issue tracker at it. The script takes owners (all their repositories) or single repositories and needs no rerun for new projects. Wrap a key in brackets, as in `[ENG-12]`, to get a link in Gitea; Flint links bare keys in branches, commits and pull request titles. A Gitea repository has either its own issues or an external tracker, so the script hides a repository's existing issues, and Renovate stops keeping its Dependency Dashboard there:
 
 ```sh
 GITEA_URL=https://gitea.example.com GITEA_ADMIN_TOKEN=<token> \
