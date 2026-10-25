@@ -288,7 +288,9 @@ const describeIssue = async (lookup: Lookups, issue: Issue) => {
     lookup.labels(project.workspaceSlug),
   ]);
 
-  const assignee = members.find((member) => member.userId === issue.assigneeId);
+  const assignee = members.find(
+    (member) => member.userId !== null && member.userId === issue.assigneeId
+  );
 
   const labelIds = new Set(issue.labelIds);
 
@@ -326,7 +328,7 @@ const issueRows = async (lookup: Lookups, issues: IssueSummary[]) => {
       const members = await lookup.members(project.workspaceSlug);
 
       const assignee = members.find(
-        (member) => member.userId === issue.assigneeId
+        (member) => member.userId !== null && member.userId === issue.assigneeId
       );
 
       return [

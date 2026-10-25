@@ -16,6 +16,7 @@ type Answer = (request: Request) => Promise<Response> | Response;
 
 const FieldsSchema = v.partial(
   v.object({
+    assigneeId: v.nullable(v.string()),
     description: v.string(),
     labelIds: v.array(v.string()),
     priority: v.number(),
@@ -114,6 +115,47 @@ const labels = reply([
   { id: "a", name: "Bug" },
   { id: "b", name: "Docs" },
 ]);
+
+test.each([
+  ["view", ["ENG-1"]],
+  ["list", ["-p", "ENG"]],
+] as const)(
+  "issue %s never displays an invite as an assignee",
+  async (command, args) => {
+    const { argv } = process;
+
+    process.argv = [...argv, "--human"];
+
+    try {
+      stubApi({
+        "GET /issues/ENG-1": reply(issue("ENG-1")),
+        "GET /projects/ENG": project,
+        "GET /projects/ENG/issues": reply([
+          issue("ENG-1"),
+          issue("ENG-2", { assigneeId: "alice-id" }),
+        ]),
+        "GET /workspaces/acme/labels": labels,
+        "GET /workspaces/acme/members": reply([
+          { userId: null, username: "vadim" },
+          { userId: null, username: "carol" },
+          { userId: "alice-id", username: "alice" },
+        ]),
+      });
+
+      expect(await flint("issue", command, ...args)).toBe(0);
+      expect(printed.join("\n")).not.toContain("@vadim");
+      expect(printed.join("\n")).not.toContain("@carol");
+
+      if (command === "view") {
+        expect(printed.join("\n")).toContain("unassigned");
+      } else {
+        expect(printed.join("\n")).toContain("@alice");
+      }
+    } finally {
+      process.argv = argv;
+    }
+  }
+);
 
 test("checklist items toggle by number or text outside code fences", () => {
   const markdown =

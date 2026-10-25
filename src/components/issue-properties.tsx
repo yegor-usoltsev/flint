@@ -283,7 +283,11 @@ export const IssueProperties = ({
   const members = useQuery(membersQuery(workspace.slug)).data ?? [];
   const labels = useQuery(labelsQuery(workspace.slug)).data ?? [];
   const status = project.statuses.find((item) => item.id === issue.statusId);
-  const assignee = members.find((member) => member.userId === issue.assigneeId);
+
+  const assignee = members.find(
+    (member) => member.userId !== null && member.userId === issue.assigneeId
+  );
+
   const pills = layout === "pills";
 
   const labelIds = new Set(issue.labelIds);
