@@ -233,8 +233,7 @@ test.skipIf(live)(
         case when w.slug = 'acme' and g between 75 and 84 then 'old-model'
           else ${env.EMBEDDING_MODEL} end,
         case when w.slug = 'acme' and g between 65 and 74 then now() end
-      from workspaces w cross join generate_series(1, 10000) g
-      where w.slug = 'other' or g <= 94
+      from workspaces w cross join generate_series(1, 94) g
     `;
     await db`delete from issues where id = ${seed.id}`;
     await db`delete from wiki_pages where id = ${page.id}`;
