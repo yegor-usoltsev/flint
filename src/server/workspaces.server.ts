@@ -46,6 +46,12 @@ export const UpdateWorkspaceSchema = v.object({
   slug: v.optional(SlugSchema),
 });
 
+const defaultLabels = [
+  { color: "red", name: "Bug" },
+  { color: "purple", name: "Feature" },
+  { color: "blue", name: "Improvement" },
+] as const;
+
 const slugTaken = (slug: string) =>
   new ApiError(409, "conflict", `Slug “${slug}” is taken`);
 
@@ -133,6 +139,16 @@ export const createWorkspace = async (
     await tx`
       insert into workspace_members (workspace_id, user_id, role)
       values (${id}, ${actor.userId}, 'admin')
+    `;
+
+    await tx`
+      insert into labels ${tx(
+        defaultLabels.map((label) => ({
+          ...label,
+          id: Bun.randomUUIDv7(),
+          workspace_id: id,
+        }))
+      )}
     `;
 
     return demo ? await insertDemoProject(tx, id, name) : null;

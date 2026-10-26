@@ -63,7 +63,10 @@ const setup = async () => {
 
   await createProject(root, "globex", { color: "red", key: "GLX", name: "Gx" });
 
-  const bug = await createLabel(root, "acme", { color: "red", name: "Bug" });
+  const bug = await createLabel(root, "acme", {
+    color: "red",
+    name: "Regression",
+  });
 
   const foreign = await createLabel(root, "globex", {
     color: "red",
@@ -559,7 +562,7 @@ test("lists hold the working set, closed pages and filters", async () => {
     ["?assignee=me", [open.issue.key]],
     ["?assignee=none&priority=low", [other.issue.key]],
     ["?assignee=alice&assignee=none&priority=urgent", [open.issue.key]],
-    ["?label=bug", [open.issue.key]],
+    ["?label=regression", [open.issue.key]],
     [`?label=${bug.id}`, [open.issue.key]],
     ["?status=done", [recent.issue.key]],
     [`?status=${status("Todo")}`, [open.issue.key, other.issue.key]],

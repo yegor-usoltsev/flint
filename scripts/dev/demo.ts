@@ -20,7 +20,7 @@ import {
   updateIssue,
   UpdateIssueSchema,
 } from "~/server/issues.server";
-import { createLabel } from "~/server/labels.server";
+import { createLabel, listLabels } from "~/server/labels.server";
 import { addMember } from "~/server/members.server";
 import { createProject } from "~/server/projects.server";
 import { signIn } from "~/server/users.server";
@@ -780,21 +780,22 @@ const seedWorkspace = async () => {
   await addMember(alice, draftSlug, { role: "member", username: "bob" });
   await addMember(alice, draftSlug, { role: "member", username: "carol" });
 
-  const labels = new Map<string, string>();
+  await Promise.all(
+    (
+      [
+        ["Performance", "green"],
+        ["Security", "orange"],
+        ["Docs", "gray"],
+      ] as const satisfies [string, Color][]
+    ).map(
+      async ([name, color]) =>
+        await createLabel(alice, draftSlug, { color, name })
+    )
+  );
 
-  for (const [name, color] of [
-    ["Bug", "red"],
-    ["Feature", "blue"],
-    ["Improvement", "teal"],
-    ["Performance", "amber"],
-    ["Security", "purple"],
-    ["Docs", "gray"],
-  ] as const satisfies [string, Color][]) {
-    // oxlint-disable-next-line no-await-in-loop -- The label list keeps this order.
-    const label = await createLabel(alice, draftSlug, { color, name });
-
-    labels.set(name, label.id);
-  }
+  const labels = new Map(
+    [...(await listLabels(alice, draftSlug))].map(({ id, name }) => [name, id])
+  );
 
   const ages: Age[] = [];
 
