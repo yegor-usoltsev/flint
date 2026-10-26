@@ -221,23 +221,30 @@ export const search = async (
     type === "wiki"
       ? []
       : db<(IssueSummary & { distance: number })[]>`
-          select ${summaryColumns}, i.embedding <=> ${vector}::vector as distance
-          from issues i join projects p on p.id = i.project_id
-          where p.workspace_id = ${workspace.id} and i.deleted_at is null
-            and i.embedding_model = ${env.EMBEDDING_MODEL}
-          order by i.embedding <=> ${vector}::vector
-          limit ${candidates}
+          with distances as materialized (
+            select i.id, i.embedding <=> ${vector}::vector as distance
+            from issues i join projects p on p.id = i.project_id
+            where p.workspace_id = ${workspace.id} and i.deleted_at is null
+              and i.embedding_model = ${env.EMBEDDING_MODEL}
+          ), matches as (
+            select * from distances order by distance limit ${candidates}
+          )
+          select ${summaryColumns}, matches.distance
+          from matches join issues i on i.id = matches.id
+          join projects p on p.id = i.project_id
+          order by matches.distance
         `,
     type === "issues"
       ? []
       : db<(PageSummary & { distance: number })[]>`
-          select ${pageHitColumns}, w.embedding <=> ${vector}::vector as distance
-          from wiki_pages w
-          where w.workspace_id = ${workspace.id} and w.kind = 'page'
-            and w.deleted_at is null
-            and w.embedding_model = ${env.EMBEDDING_MODEL}
-          order by w.embedding <=> ${vector}::vector
-          limit ${candidates}
+          with distances as materialized (
+            select ${pageHitColumns}, w.embedding <=> ${vector}::vector as distance
+            from wiki_pages w
+            where w.workspace_id = ${workspace.id} and w.kind = 'page'
+              and w.deleted_at is null
+              and w.embedding_model = ${env.EMBEDDING_MODEL}
+          )
+          select * from distances order by distance limit ${candidates}
         `,
   ]);
 
