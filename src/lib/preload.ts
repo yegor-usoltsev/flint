@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { meQuery } from "~/lib/api";
 import {
+  assignedIssuesQuery,
   issueQuery,
   issuesQuery,
   projectQuery,
@@ -47,15 +48,22 @@ export const loadIssue = async (queryClient: QueryClient, key: string) => {
 };
 
 export const loadMyIssues = async (queryClient: QueryClient, slug: string) => {
-  const projects = await queryClient.query({
-    ...projectsQuery(slug),
-    staleTime: "static",
-  });
+  const [projects, me] = await Promise.all([
+    queryClient.query({ ...projectsQuery(slug), staleTime: "static" }),
+    queryClient.query({ ...meQuery, staleTime: "static" }),
+  ]);
+
+  if (me === null) {
+    return;
+  }
 
   await Promise.all(
     projects.flatMap((project) => [
       queryClient.query({ ...projectQuery(project.key), staleTime: "static" }),
-      queryClient.query({ ...issuesQuery(project), staleTime: "static" }),
+      queryClient.query({
+        ...assignedIssuesQuery(project, me.id),
+        staleTime: "static",
+      }),
     ])
   );
 };

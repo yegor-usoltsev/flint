@@ -84,9 +84,12 @@ afterEach(() => {
 
 describe("issue writes", () => {
   test("a failed write rolls back only its own issue", async () => {
-    const a = issue("1", "todo");
+    const a = { ...issue("1", "todo"), assigneeId: "u" };
     const b = issue("2", "todo");
     const { queryClient, statuses } = setup([a, b]);
+    const assignedKey = ["issues", "p", "assigned", "u"];
+
+    queryClient.setQueryData(assignedKey, [a]);
 
     const answers = new Map([
       ["1", deferred()],
@@ -104,6 +107,9 @@ describe("issue writes", () => {
 
     writeIssue(queryClient, a, { statusId: "doing" });
     writeIssue(queryClient, b, { statusId: "done" });
+    expect(queryClient.getQueryData(assignedKey)).toMatchObject([
+      { id: a.id, statusId: "doing" },
+    ]);
     answers
       .get("2")
       ?.resolve(Response.json({ ...b, statusId: "done", version: 2 }));
@@ -119,6 +125,9 @@ describe("issue writes", () => {
     await settle();
 
     expect(statuses()).toEqual({ "1": "todo", "2": "done" });
+    expect(queryClient.getQueryData(assignedKey)).toMatchObject([
+      { id: a.id, statusId: "todo" },
+    ]);
   });
 
   test("writes to one issue reach the server in order", async () => {
