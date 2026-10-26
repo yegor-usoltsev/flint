@@ -242,7 +242,7 @@ const Diagram = ({
     queryFn: async () => await renderDiagram(code, dark),
     queryKey: ["mermaid", "svg", code, dark],
     retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: "static",
   });
 
   if (diagram.isError && diagram.data === undefined) {
@@ -272,7 +272,7 @@ const DiagramStatus = ({ code }: { code: string }) => {
     queryFn: async () => await parseDiagram(code),
     queryKey: ["mermaid", "parse", code],
     retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: "static",
   });
 
   return (
