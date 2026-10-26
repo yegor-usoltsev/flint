@@ -77,25 +77,36 @@ const findTokenActor = async (header: string): Promise<Actor> => {
   const rows: {
     id: string;
     restricted: boolean;
+    stale: boolean;
     userId: string;
     workspaceIds: string[];
   }[] =
     token === undefined
       ? []
       : await db`
-          update api_tokens t set last_used_at = now()
-          where token_hash = ${hashToken(token)} and revoked_at is null
-          returning t.id, t.user_id as "userId", t.restricted,
+          select t.id, t.user_id as "userId", t.restricted,
+            (t.last_used_at is null
+              or t.last_used_at < now() - interval '1 minute') as stale,
             array(
               select a.workspace_id::text from api_token_workspaces a
               where a.token_id = t.id
             ) as "workspaceIds"
+          from api_tokens t
+          where token_hash = ${hashToken(token)} and revoked_at is null
         `;
 
   const [row] = rows;
 
   if (row === undefined) {
     throw new ApiError(401, "unauthorized", "Invalid API token");
+  }
+
+  if (row.stale) {
+    await db`
+      update api_tokens set last_used_at = now()
+      where id = ${row.id} and revoked_at is null
+        and (last_used_at is null or last_used_at < now() - interval '1 minute')
+    `;
   }
 
   return row.restricted

@@ -8,6 +8,7 @@ import { Route as meRoute } from "~/routes/api/v1/me";
 import { Route as tokenRoute } from "~/routes/api/v1/me/tokens/$tokenId";
 import { Route as tokensRoute } from "~/routes/api/v1/me/tokens/index";
 import { apiHandler } from "~/server/api.server";
+import { db } from "~/server/db.server";
 
 import {
   appRequest,
@@ -95,6 +96,48 @@ test("an API token is shown once and authenticates as its user", async () => {
   );
 
   expect(viaToken.status).toBe(201);
+});
+
+test("token usage is recorded at most once per minute", async () => {
+  const cookie = await sessionCookieFor(await createUser("alice"));
+  const { id, token } = await createToken(cookie, "usage");
+  const headers = { authorization: `Bearer ${token}` };
+
+  const usage = async () => {
+    const [row] = await db<{ used: string | null }[]>`
+      select last_used_at::text as used from api_tokens where id = ${id}
+    `;
+
+    return row?.used;
+  };
+
+  expect(await usage()).toBeNull();
+  const initial = await getMe(headers);
+
+  expect(initial.status).toBe(200);
+
+  const first = await usage();
+
+  expect(first).toBeString();
+
+  const burst = await Promise.all(
+    Array.from({ length: 8 }, async () => await getMe(headers))
+  );
+
+  expect(burst.every((response) => response.status === 200)).toBe(true);
+  expect(await usage()).toBe(first);
+
+  await db`
+    update api_tokens set last_used_at = now() - interval '2 minutes'
+    where id = ${id}
+  `;
+
+  const old = await usage();
+
+  const refreshed = await getMe(headers);
+
+  expect(refreshed.status).toBe(200);
+  expect(await usage()).not.toBe(old);
 });
 
 test("a revoked or unknown token is rejected", async () => {
