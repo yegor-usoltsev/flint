@@ -71,7 +71,12 @@ const WorkspaceLayout = () => {
   const { slug } = Route.useParams();
   const me = useMe();
   const workspace = me.data?.workspaces.find((item) => item.slug === slug);
-  const connected = useRealtime(slug, workspace !== undefined);
+
+  const connected = useRealtime(
+    slug,
+    workspace === undefined ? undefined : me.data?.id
+  );
+
   const href = useLocation({ select: (location) => location.href });
   const pathname = useLocation({ select: (location) => location.pathname });
   const router = useRouter();

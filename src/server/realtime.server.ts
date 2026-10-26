@@ -1,5 +1,5 @@
 import type { RealtimeEvent } from "~/lib/api-types";
-import { requireWorkspace } from "~/server/access.server";
+import { notFound, requireWorkspace } from "~/server/access.server";
 import { resolveActor } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 
@@ -121,6 +121,12 @@ export const streamWorkspace = async (
   slug: string,
   request: Request
 ) => {
+  const userId = new URL(request.url).searchParams.get("userId");
+
+  if (userId !== null && userId !== actor.userId) {
+    throw notFound("Workspace");
+  }
+
   const workspace = await requireWorkspace(actor, slug);
 
   const isAllowed = async () => {
