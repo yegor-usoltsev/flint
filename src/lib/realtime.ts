@@ -36,7 +36,7 @@ export const RealtimeStatus = createContext(true);
 
 export const useRealtimeConnected = () => use(RealtimeStatus);
 
-export const useRealtime = (slug: string) => {
+export const useRealtime = (slug: string, enabled: boolean) => {
   const queryClient = useQueryClient();
   const [connected, setConnected] = useState(true);
 
@@ -90,7 +90,7 @@ export const useRealtime = (slug: string) => {
     };
 
     const connect = () => {
-      if (document.hidden || source !== null) {
+      if (!enabled || document.hidden || source !== null) {
         return;
       }
 
@@ -150,7 +150,7 @@ export const useRealtime = (slug: string) => {
         clearTimeout(timer);
       }
     };
-  }, [queryClient, slug]);
+  }, [enabled, queryClient, slug]);
 
   return connected;
 };
