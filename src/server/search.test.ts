@@ -182,6 +182,81 @@ test.skipIf(live)(
 );
 
 test.skipIf(live)(
+  "semantic search fills its candidate limit within a workspace despite closer foreign vectors",
+  async () => {
+    stubEmbeddings();
+    const { auth, root } = await setup();
+
+    env.EMBEDDING_API_KEY = "";
+
+    const seed = await createIssue(root, "ENG", issue("Seed"));
+
+    const page = await putPage(
+      root,
+      { path: "seed", slug: "acme" },
+      { body: "Seed" }
+    );
+
+    await createWorkspace(root, { name: "Other", slug: "other" });
+    await createProject(root, "other", {
+      color: "blue",
+      key: "OTHER",
+      name: "Other",
+    });
+    await db`
+      insert into issues (
+        id, project_id, number, title, status_id, creator_id, sort_key,
+        embedding, embedding_model, deleted_at
+      )
+      select uuidv7(), p.id, g + 1, 'Candidate ' || g,
+        (select id from statuses where project_id = p.id limit 1),
+        i.creator_id, 'a0',
+        (array[1.0, case when p.key = 'ENG' and g <= 64 then 0.1 + g / 1000.0 else 0 end]
+          || array_fill(0.0, array[1021]) || array[0.1])::vector,
+        case when p.key = 'ENG' and g > 74 then 'old-model'
+          else ${env.EMBEDDING_MODEL} end,
+        case when p.key = 'ENG' and g between 65 and 74 then now() end
+      from projects p cross join generate_series(1, 10000) g
+      cross join issues i
+      where i.id = ${seed.id} and (p.key = 'OTHER' or g <= 84)
+    `;
+    await db`
+      insert into wiki_pages (
+        id, workspace_id, kind, path, sort_key, title, updated_by,
+        embedding, embedding_model, deleted_at
+      )
+      select uuidv7(), w.id,
+        case when w.slug = 'acme' and g > 84 then 'folder' else 'page' end,
+        'candidate-' || g, 'a0', 'Candidate ' || g, ${root.userId},
+        (array[1.0, case when w.slug = 'acme' and g <= 64 then 0.1 + g / 1000.0 else 0 end]
+          || array_fill(0.0, array[1021]) || array[0.1])::vector,
+        case when w.slug = 'acme' and g between 75 and 84 then 'old-model'
+          else ${env.EMBEDDING_MODEL} end,
+        case when w.slug = 'acme' and g between 65 and 74 then now() end
+      from workspaces w cross join generate_series(1, 94) g
+    `;
+    await db`delete from issues where id = ${seed.id}`;
+    await db`delete from wiki_pages where id = ${page.id}`;
+    await db`analyze issues`;
+    await db`analyze projects`;
+    await db`analyze wiki_pages`;
+    env.EMBEDDING_API_KEY = "test-key";
+
+    expect(await search(auth, "q=вход&limit=50")).toEqual({
+      issues: Array.from({ length: 50 }, (_, index) => `ENG-${index + 2}`),
+      pages: Array.from({ length: 50 }, (_, index) => `candidate-${index + 1}`),
+      semantic: true,
+    });
+    expect(await search(auth, "q=вход&limit=1&type=wiki")).toEqual({
+      issues: [],
+      pages: ["candidate-1"],
+      semantic: true,
+    });
+  },
+  60_000
+);
+
+test.skipIf(live)(
   "keys, one- and two-character queries and one-word queries with text matches stay lexical",
   async () => {
     stubEmbeddings();

@@ -19,6 +19,8 @@ Run one container per database, because live updates reach only the tabs connect
 
 **Semantic search.** Set `EMBEDDING_API_KEY` for any OpenAI-compatible `/embeddings` API with a 1024-dimension model (default: OpenRouter with `perplexity/pplx-embed-v1-0.6b`). Issue and page text goes to that provider. After setting the key or changing the model, embed existing content once: `docker exec flint bun dist/embeddings-backfill.js`.
 
+Semantic search ranks embeddings exactly within the current workspace, so its database cost grows with the workspace's embedded content.
+
 ## Gitea
 
 The bootstrap script keeps one OAuth2 application named `Flint` with the redirect URI `${APP_URL}/api/auth/callback` and one system webhook to `${APP_URL}/api/webhooks/gitea` (`GITEA_WEBHOOK_URL` overrides it). Run it from a checkout after `bun install`, with a site admin token that has `write:admin` and `write:user`:
