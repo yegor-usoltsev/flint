@@ -3,7 +3,11 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMe } from "~/lib/api";
 import type { IssueSummary, Status } from "~/lib/api-types";
 import { byClosed, isClosedStatus } from "~/lib/issue-view";
-import { issuesQuery, projectQuery, projectsQuery } from "~/lib/queries";
+import {
+  assignedIssuesQuery,
+  projectQuery,
+  projectsQuery,
+} from "~/lib/queries";
 
 const priorityRank = (issue: IssueSummary) =>
   issue.priority === 0 ? 5 : issue.priority;
@@ -49,7 +53,10 @@ export const useMyIssues = (slug: string, enabled = true) => {
   });
 
   const lists = useQueries({
-    queries: list.map((project) => issuesQuery(project)),
+    queries:
+      meId === undefined
+        ? []
+        : list.map((project) => assignedIssuesQuery(project, meId)),
   });
 
   const queries = [...details, ...lists];

@@ -59,7 +59,7 @@ interface CreateTarget {
 interface NewIssue extends Properties {
   description: string;
   id: string;
-  sortKey: string;
+  sortKey?: string;
   title: string;
 }
 
@@ -112,6 +112,7 @@ const pendingIssue = (
 
   return {
     ...draft,
+    sortKey: draft.sortKey ?? sortKeyBetween(undefined, undefined),
     canceledAt: null,
     checklistDone: done,
     checklistTotal: total,
@@ -330,7 +331,10 @@ const CreateForm = ({
         ...properties,
         description,
         id: newId(),
-        sortKey: sortKeyBetween(undefined, first?.sortKey),
+        sortKey:
+          first === undefined
+            ? undefined
+            : sortKeyBetween(undefined, first.sortKey),
         title: title.trim(),
       },
       { projectKey: project.key, properties, text: { description, title } }
