@@ -725,7 +725,7 @@ export const IssueTimeline = ({
                 comment={entry}
                 issue={issue}
                 key={entry.id}
-                own={entry.author.id === me?.id}
+                own={editable && entry.author.id === me?.id}
               />
             )
           )}

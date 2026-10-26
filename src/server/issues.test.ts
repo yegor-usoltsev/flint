@@ -751,6 +751,188 @@ test("comments: anyone in the workspace comments, only the author edits or delet
   ]);
 });
 
+const commentWrite = async (
+  auth: string,
+  issueKey: string,
+  commentId: string,
+  method: string
+) =>
+  method === "POST"
+    ? await callApi(
+        commentsRoute,
+        auth,
+        method,
+        `/api/v1/issues/${issueKey}/comments`,
+        { body: { body: "New" }, params: { issueKey } }
+      )
+    : await callApi(
+        commentRoute,
+        auth,
+        method,
+        `/api/v1/comments/${commentId}`,
+        {
+          body: method === "PATCH" ? { body: "Edited", version: 1 } : undefined,
+          params: { commentId },
+        }
+      );
+
+const postComment = async (auth: string, issueKey: string) => {
+  const response = await callApi(
+    commentsRoute,
+    auth,
+    "POST",
+    `/api/v1/issues/${issueKey}/comments`,
+    { body: { body: "Original" }, params: { issueKey } }
+  );
+
+  return v.parse(v.object({ id: v.string() }), response.body);
+};
+
+test("trashed issues reject all comment writes without changing comments or activity", async () => {
+  const { alice, bob, root } = await setup();
+  const { issue } = await createIssue(alice, { title: "Trash" });
+  const comment = await postComment(alice, issue.key);
+
+  await issueCall(alice, "DELETE", issue.key);
+  const before = await activity(alice, issue.key);
+
+  const results = [
+    await commentWrite(alice, issue.key, comment.id, "POST"),
+    await commentWrite(alice, issue.key, comment.id, "PATCH"),
+    await commentWrite(alice, issue.key, comment.id, "DELETE"),
+  ];
+
+  expect(results.map(({ status }) => status)).toEqual([409, 409, 409]);
+
+  for (const result of results) {
+    expect(result.body).toMatchObject({
+      error: {
+        code: "deleted",
+        current: { deletedAt: anyString, id: issue.id, key: issue.key },
+      },
+    });
+  }
+
+  expect(await activity(alice, issue.key)).toEqual(before);
+
+  const [unchanged] = await db<unknown[]>`
+    select body_md as body, deleted_at as "deletedAt", version
+    from comments where id = ${comment.id}
+  `;
+
+  expect(unchanged).toEqual({ body: "Original", deletedAt: null, version: 1 });
+  expect(await commentWrite(bob, issue.key, comment.id, "PATCH")).toMatchObject(
+    {
+      status: 404,
+    }
+  );
+  expect(
+    await commentWrite(root, issue.key, comment.id, "DELETE")
+  ).toMatchObject({
+    status: 403,
+  });
+
+  await callApi(
+    restoreRoute,
+    alice,
+    "POST",
+    `/api/v1/issues/${issue.key}/restore`,
+    {
+      params: { issueKey: issue.key },
+    }
+  );
+  expect(
+    await commentWrite(alice, issue.key, comment.id, "PATCH")
+  ).toMatchObject({
+    body: { body: "Edited", version: 2 },
+    status: 200,
+  });
+});
+
+const waitForIssueLock = async (pid: number) => {
+  const deadline = Date.now() + 2000;
+
+  while (Date.now() < deadline) {
+    // oxlint-disable-next-line no-await-in-loop -- Wait for the request to reach the locked issue before committing its deletion.
+    const waiting = await db<unknown[]>`
+      select 1 from pg_stat_activity
+      where datname = current_database() and ${pid} = any(pg_blocking_pids(pid))
+    `;
+
+    if (waiting.length > 0) {
+      return;
+    }
+
+    // oxlint-disable-next-line no-await-in-loop -- Polling is bounded by the deadline.
+    await Bun.sleep(10);
+  }
+
+  throw new Error("Comment write did not wait for the issue lock");
+};
+
+test.each(["POST", "PATCH", "DELETE"])(
+  "comment %s waits for an in-flight issue deletion",
+  async (method) => {
+    const { alice } = await setup();
+    const { issue } = await createIssue(alice, { title: "Concurrent trash" });
+    const comment = await postComment(alice, issue.key);
+    const before = await activity(alice, issue.key);
+    const locked = Promise.withResolvers<number>();
+    const release = Promise.withResolvers<null>();
+
+    const deleting = db.begin(async (tx) => {
+      await tx`update issues set deleted_at = now() where id = ${issue.id}`;
+
+      const [connection] = await tx<
+        { pid: number }[]
+      >`select pg_backend_pid() as pid`;
+
+      locked.resolve(connection?.pid ?? 0);
+      await release.promise;
+    });
+
+    const pid = await locked.promise;
+    const writing = commentWrite(alice, issue.key, comment.id, method);
+
+    try {
+      await waitForIssueLock(pid);
+    } finally {
+      release.resolve(null);
+      await deleting;
+      await writing;
+    }
+
+    expect(await writing).toMatchObject({
+      body: { error: { code: "deleted" } },
+      status: 409,
+    });
+    expect(await activity(alice, issue.key)).toEqual(before);
+  }
+);
+
+test("concurrent comment deletes record one deletion", async () => {
+  const { alice } = await setup();
+  const { issue } = await createIssue(alice, { title: "Concurrent delete" });
+  const comment = await postComment(alice, issue.key);
+
+  const results = await Promise.all(
+    [1, 2].map(
+      async () => await commentWrite(alice, issue.key, comment.id, "DELETE")
+    )
+  );
+
+  expect(results.map(({ status }) => status).toSorted((a, b) => a - b)).toEqual(
+    [204, 404]
+  );
+  const events = await activity(alice, issue.key);
+
+  expect(events.map(({ kind }) => kind)).toEqual([
+    "created",
+    "comment_created",
+    "comment_deleted",
+  ]);
+});
+
 test("non-members cannot reach issues, comments, lists or the stream", async () => {
   const { alice, bob } = await setup();
   const { issue } = await createIssue(alice, { title: "Secret" });

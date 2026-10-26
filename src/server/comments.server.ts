@@ -1,3 +1,4 @@
+import type { TransactionSQL } from "bun";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
@@ -11,7 +12,12 @@ import {
 import { ApiError } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
-import { findIssue, recordEvents } from "~/server/issues.server";
+import {
+  findIssue,
+  lockIssue,
+  recordEvents,
+  selectIssue,
+} from "~/server/issues.server";
 import { publish } from "~/server/realtime.server";
 
 const BodySchema = v.pipe(
@@ -63,6 +69,16 @@ export const listComments = async (actor: Actor, key: string) => {
   `;
 };
 
+const lockLiveIssue = async (tx: TransactionSQL, id: string) => {
+  const row = await lockIssue(tx, id);
+
+  if (row.deletedAt !== null) {
+    const issue = await selectIssue(tx, id);
+
+    throw new ApiError(409, "deleted", `${issue.key} is deleted`, issue);
+  }
+};
+
 export const createComment = async (
   actor: Actor,
   key: string,
@@ -71,6 +87,8 @@ export const createComment = async (
   const issue = await findIssue(actor, key);
 
   await db.begin(async (tx) => {
+    await lockLiveIssue(tx, issue.id);
+
     const inserted = await tx<{ id: string }[]>`
       insert into comments (id, issue_id, author_id, via_token_id, body_md)
       values (
@@ -145,9 +163,12 @@ const changeComment = async (
   const comment = await findOwnComment(actor, id);
 
   await db.begin(async (tx) => {
+    await lockLiveIssue(tx, comment.issueId);
+
     const changed = await (body === null
       ? tx<{ id: string }[]>`
-          update comments set deleted_at = now() where id = ${id} returning id
+          update comments set deleted_at = now()
+          where id = ${id} and deleted_at is null returning id
         `
       : tx<{ id: string }[]>`
           update comments
@@ -158,6 +179,10 @@ const changeComment = async (
         `);
 
     if (changed.length === 0) {
+      if (body === null) {
+        throw notFound("Comment");
+      }
+
       throw new ApiError(
         409,
         "conflict",

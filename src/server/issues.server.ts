@@ -501,7 +501,7 @@ interface IssueRow {
   version: number;
 }
 
-const lockIssue = async (tx: TransactionSQL, id: string) => {
+export const lockIssue = async (tx: TransactionSQL, id: string) => {
   await tx`select 1 from issues where id = ${id} for update`;
 
   const [row] = await tx<IssueRow[]>`
