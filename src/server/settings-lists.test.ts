@@ -31,12 +31,16 @@ test("settings lists carry open issue counts, label usage and join dates", async
   await createProject(actor, "acme", { color: "blue", key: "ENG", name: "E" });
   await createProject(actor, "acme", { color: "red", key: "OPS", name: "O" });
 
-  const bug = await createLabel(actor, "acme", { color: "red", name: "Bug" });
+  const crash = await createLabel(actor, "acme", {
+    color: "red",
+    name: "Crash",
+  });
+
   await createLabel(actor, "acme", { color: "blue", name: "Docs" });
 
-  const open = await createIssue(actor, "ENG", issue([bug.id]));
-  const done = await createIssue(actor, "ENG", issue([bug.id]));
-  const gone = await createIssue(actor, "ENG", issue([bug.id]));
+  const open = await createIssue(actor, "ENG", issue([crash.id]));
+  const done = await createIssue(actor, "ENG", issue([crash.id]));
+  const gone = await createIssue(actor, "ENG", issue([crash.id]));
   const { statuses } = await getProject(actor, "ENG");
   const completed = statuses.find((status) => status.category === "completed");
 
@@ -52,8 +56,11 @@ test("settings lists carry open issue counts, label usage and join dates", async
     { key: "OPS", openIssues: 0 },
   ]);
   expect([...(await listLabels(actor, "acme"))]).toMatchObject([
-    { issueCount: 2, name: "Bug" },
+    { issueCount: 0, name: "Bug" },
+    { issueCount: 2, name: "Crash" },
     { issueCount: 0, name: "Docs" },
+    { issueCount: 0, name: "Feature" },
+    { issueCount: 0, name: "Improvement" },
   ]);
   expect(projects[0]?.createdAt).toBeTruthy();
   expect(members).toMatchObject([{ username: "root" }]);

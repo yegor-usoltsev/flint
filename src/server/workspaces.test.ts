@@ -285,7 +285,7 @@ test("members cannot do admin-only actions", async () => {
     body: { key: "ENG" },
     status: 200,
   });
-  expect(await createLabel(alice, "acme", "Bug")).toMatchObject({
+  expect(await createLabel(alice, "acme", "Regression")).toMatchObject({
     status: 201,
   });
 });
@@ -295,7 +295,7 @@ test("non-members cannot read or change another workspace", async () => {
 
   await createProject(root, "acme", "ENG");
 
-  const label = idOf(await createLabel(root, "acme", "Bug"));
+  const label = idOf(await createLabel(root, "acme", "Regression"));
 
   for (const what of ["members", "projects", "labels"] as const) {
     const route = {
@@ -463,28 +463,40 @@ test("only admins delete a project, and its issues go with it", async () => {
   });
 });
 
+test("a new workspace starts with the Bug, Feature and Improvement labels", async () => {
+  const { alice } = await setup();
+
+  expect(await listOf(labelsRoute, alice, "acme", "labels")).toMatchObject({
+    body: [
+      { color: "red", issueCount: 0, name: "Bug" },
+      { color: "purple", issueCount: 0, name: "Feature" },
+      { color: "blue", issueCount: 0, name: "Improvement" },
+    ],
+  });
+});
+
 test("labels are renamed, recolored and deleted with unique names", async () => {
   const { alice } = await setup();
 
-  const bug = idOf(await createLabel(alice, "acme", "Bug"));
-
-  await createLabel(alice, "acme", "Feature");
+  const crash = idOf(await createLabel(alice, "acme", "Crash"));
 
   expect(await createLabel(alice, "acme", "bug")).toMatchObject({
     status: 409,
   });
   expect(
-    await labelCall(alice, "PATCH", bug, { name: "FEATURE" })
+    await labelCall(alice, "PATCH", crash, { name: "FEATURE" })
   ).toMatchObject({
     body: { error: { code: "conflict" } },
     status: 409,
   });
   expect(
-    await labelCall(alice, "PATCH", bug, { color: "purple", name: "Defect" })
-  ).toMatchObject({ body: { color: "purple", id: bug, name: "Defect" } });
-  expect(await labelCall(alice, "DELETE", bug)).toMatchObject({ status: 204 });
+    await labelCall(alice, "PATCH", crash, { color: "purple", name: "Defect" })
+  ).toMatchObject({ body: { color: "purple", id: crash, name: "Defect" } });
+  expect(await labelCall(alice, "DELETE", crash)).toMatchObject({
+    status: 204,
+  });
   expect(await listOf(labelsRoute, alice, "acme", "labels")).toMatchObject({
-    body: [{ name: "Feature" }],
+    body: [{ name: "Bug" }, { name: "Feature" }, { name: "Improvement" }],
   });
 });
 
