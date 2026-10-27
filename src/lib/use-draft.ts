@@ -1,7 +1,9 @@
 import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
-import type { Issue } from "~/lib/api-types";
+import { toast } from "~/components/ui/toast";
+import { api, ApiError } from "~/lib/api";
+import type { Issue, Me } from "~/lib/api-types";
 import { copyText } from "~/lib/copy";
 import {
   onClearDrafts,
@@ -16,6 +18,7 @@ export type DraftStatus = "conflict" | "error" | "pending" | "saved" | "saving";
 
 export interface DraftWrite<Entity> {
   expect: string;
+  expectedUser?: string;
   onConflict: (current: Entity) => void;
   onError: (error: Error) => void;
   onSaved: (saved: Entity) => void;
@@ -25,6 +28,7 @@ interface Draft {
   base: string;
   conflict: string | null;
   edits: number;
+  retryable: boolean;
   status: DraftStatus;
   text: string;
 }
@@ -42,6 +46,8 @@ let owner: string | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let warning = false;
 let editCount = 0;
+let ownership = 0;
+let retrying = false;
 
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
@@ -134,6 +140,8 @@ export const setStoredText = (key: string, next: string | null) => {
 };
 
 const forgetDrafts = () => {
+  ownership += 1;
+
   for (const timer of timers.values()) {
     clearTimeout(timer);
   }
@@ -176,6 +184,7 @@ export const adoptDrafts = (user: string) => {
         base: stored.base,
         conflict: null,
         edits: 0,
+        retryable: false,
         status: "error",
         text: stored.text,
       });
@@ -230,6 +239,49 @@ const flushDraft = (key: string) => {
   flushers.get(key)?.();
 };
 
+export const isRetryableDraftError = (error: Error) =>
+  error instanceof TypeError ||
+  (error instanceof ApiError && (error.status >= 500 || error.status === 429));
+
+export const retryFailedDrafts = async () => {
+  const user = owner;
+  const generation = ownership;
+
+  const failed = [...drafts].filter(([key, draft]) => {
+    if (!draft.retryable || draft.conflict !== null) {
+      return false;
+    }
+
+    return draft.status === "error" && (mounted.get(key) ?? 0) > 0;
+  });
+
+  if (retrying || user === null || failed.length === 0) {
+    return;
+  }
+
+  retrying = true;
+
+  let me: Me;
+
+  try {
+    me = await api<Me>("/me");
+  } catch {
+    retrying = false;
+
+    return;
+  }
+
+  retrying = false;
+
+  if (owner === user && ownership === generation && me.id === user) {
+    for (const [key, draft] of failed) {
+      if (drafts.get(key) === draft && (mounted.get(key) ?? 0) > 0) {
+        flushDraft(key);
+      }
+    }
+  }
+};
+
 const scheduleFlush = (key: string, delay: number) => {
   stopTimer(key);
   timers.set(
@@ -255,6 +307,7 @@ export const editDraft = (key: string, text: string, base: string) => {
     base: current?.base ?? base,
     conflict: current?.conflict ?? null,
     edits: editCount,
+    retryable: false,
     status: "pending",
     text,
   });
@@ -263,8 +316,13 @@ export const editDraft = (key: string, text: string, base: string) => {
 // The query cache tells its observers on a later tick; clearing the draft at once would render the entity from before the save and send its old text to the editor, which then replaces its content and loses the caret. The draft clears only if nothing was typed since the save answered; otherwise the save becomes its base.
 export const settleDraft = (key: string, saved: string) => {
   const edits = drafts.get(key)?.edits;
+  const generation = ownership;
 
   notifyManager.schedule(() => {
+    if (ownership !== generation) {
+      return;
+    }
+
     const current = drafts.get(key);
 
     if (current?.edits === edits && current?.text === saved) {
@@ -293,6 +351,7 @@ export const useDraft = <
     write: (entity: Entity, text: string, options: DraftWrite<Entity>) => void;
   }
 ) => {
+  const queryClient = useQueryClient();
   const key = `${id}:${field}`;
 
   const snapshot = () => drafts.get(key);
@@ -329,6 +388,7 @@ export const useDraft = <
     }
 
     const { base, text } = current;
+    const generation = ownership;
 
     if (text === base && text === entity[field]) {
       put(key, null);
@@ -336,10 +396,15 @@ export const useDraft = <
       return;
     }
 
-    update({ status: "saving" });
+    update({ retryable: false, status: "saving" });
     write(entity, text, {
       expect: base,
+      expectedUser: owner ?? undefined,
       onConflict: (server) => {
+        if (ownership !== generation) {
+          return;
+        }
+
         orphaned(
           text,
           `Your edit to the ${label} of ${name} conflicted with another edit`
@@ -347,7 +412,24 @@ export const useDraft = <
         update({ conflict: server[field], status: "conflict" });
       },
       onError: (error) => {
-        update({ status: "error" });
+        if (ownership !== generation) {
+          return;
+        }
+
+        update({ retryable: isRetryableDraftError(error), status: "error" });
+
+        if (error instanceof ApiError && error.code === "user_changed") {
+          toast.add({
+            description: "The previous account's drafts cannot be saved here.",
+            id: "draft-account-changed",
+            title: "Your account changed",
+            type: "error",
+          });
+          void queryClient.invalidateQueries({ queryKey: ["me"] });
+
+          return;
+        }
+
         orphaned(text, `Could not save the ${label} of ${name}`);
 
         if ((mounted.get(key) ?? 0) > 0) {
@@ -363,7 +445,9 @@ export const useDraft = <
         }
       },
       onSaved: (saved) => {
-        settleDraft(key, saved[field]);
+        if (ownership === generation) {
+          settleDraft(key, saved[field]);
+        }
       },
     });
   };

@@ -135,6 +135,16 @@ export const resolveActor = async (request: Request): Promise<Actor> => {
     throw new ApiError(403, "forbidden", "Cross-site request rejected");
   }
 
+  const expectedUser = request.headers.get("X-Flint-User");
+
+  if (
+    !safeMethods.has(request.method) &&
+    expectedUser !== null &&
+    expectedUser !== userId
+  ) {
+    throw new ApiError(409, "user_changed", "Signed in as another user");
+  }
+
   return { userId };
 };
 

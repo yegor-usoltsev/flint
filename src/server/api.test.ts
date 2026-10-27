@@ -35,6 +35,33 @@ const getMe = async (headers: Record<string, string>) =>
 
 const sameOrigin = { "sec-fetch-site": "same-origin" };
 
+test("session writes can require the account that owns a draft", async () => {
+  const alice = await createUser("alice");
+  const bob = await createUser("bob");
+  const cookie = await sessionCookieFor(alice);
+
+  const rejected = await postToken(
+    { cookie, ...sameOrigin, "X-Flint-User": bob },
+    JSON.stringify({ name: "wrong account" })
+  );
+
+  expect(rejected.status).toBe(409);
+  expect(await rejected.json()).toMatchObject({
+    error: { code: "user_changed" },
+  });
+  expect(await db`select id from api_tokens`).toHaveLength(0);
+
+  const accepted = await postToken(
+    { cookie, ...sameOrigin, "X-Flint-User": alice },
+    JSON.stringify({ name: "same account" })
+  );
+
+  expect(accepted.status).toBe(201);
+  const read = await getMe({ cookie, "X-Flint-User": bob });
+
+  expect(read.status).toBe(200);
+});
+
 const CreatedSchema = v.looseObject({
   id: v.string(),
   prefix: v.string(),
@@ -91,7 +118,7 @@ test("an API token is shown once and authenticates as its user", async () => {
   expect(await me.json()).toMatchObject({ username: "alice" });
 
   const viaToken = await postToken(
-    { authorization: `Bearer ${token}` },
+    { authorization: `Bearer ${token}`, "X-Flint-User": "another account" },
     JSON.stringify({ name: "from cli" })
   );
 

@@ -4,6 +4,7 @@ import { createContext, use, useEffect, useState } from "react";
 
 import { meQuery } from "~/lib/api";
 import type { RealtimeEvent } from "~/lib/api-types";
+import { retryFailedDrafts } from "~/lib/use-draft";
 import { hasPendingIssueWrites } from "~/lib/use-update-issue";
 
 export const eventKeys = (slug: string, event: RealtimeEvent) =>
@@ -99,6 +100,7 @@ export const useRealtime = (slug: string, enabled: boolean) => {
       source = next;
       next.addEventListener("open", () => {
         setConnected(true);
+        void retryFailedDrafts();
 
         for (const query of queryClient.getQueryCache().getAll()) {
           stale.add(query.queryHash);
@@ -140,9 +142,16 @@ export const useRealtime = (slug: string, enabled: boolean) => {
     };
 
     connect();
+
+    const online = () => {
+      void retryFailedDrafts();
+    };
+
+    window.addEventListener("online", online);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
+      window.removeEventListener("online", online);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       source?.close();
 

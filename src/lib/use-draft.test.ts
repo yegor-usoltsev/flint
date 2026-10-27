@@ -1,13 +1,35 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 
 import { notifyManager } from "@tanstack/react-query";
 
+import { toast } from "~/components/ui/toast";
+import { ApiError } from "~/lib/api";
 import {
+  adoptDrafts,
   discardDraft,
   editDraft,
+  isRetryableDraftError,
   readDraft,
   settleDraft,
 } from "~/lib/use-draft";
+
+test.each([
+  [new TypeError("Network unavailable"), true],
+  [new ApiError(503, { code: "http_error", message: "Unavailable" }), true],
+  [new ApiError(429, { code: "rate_limit", message: "Slow down" }), true],
+  [new ApiError(400, { code: "invalid_request", message: "Too long" }), false],
+  [new ApiError(401, { code: "unauthorized", message: "Sign in" }), false],
+  [new ApiError(403, { code: "forbidden", message: "Denied" }), false],
+  [new ApiError(404, { code: "not_found", message: "Missing" }), false],
+  [new ApiError(409, { code: "deleted", message: "Deleted" }), false],
+  [
+    new ApiError(409, { code: "user_changed", message: "Account changed" }),
+    false,
+  ],
+  [new Error("Invalid text"), false],
+])("only transient draft failures can retry: %s", (failure, expected) => {
+  expect(isRetryableDraftError(failure)).toBe(expected);
+});
 
 let scheduled: (() => void)[] = [];
 
@@ -78,4 +100,33 @@ test("a save from before a discard never clears the same text retyped", () => {
   drain();
 
   expect(readDraft("retype:body")).toMatchObject({ base: "A", text: "A" });
+});
+
+test("a deferred save cannot change another account's draft", () => {
+  adoptDrafts("alice");
+  editDraft("account:body", "Alice's edit", "Alice's base");
+  settleDraft("account:body", "Alice's edit");
+  adoptDrafts("bob");
+  editDraft("account:body", "Bob's edit", "Bob's base");
+  drain();
+
+  expect(readDraft("account:body")).toMatchObject({
+    base: "Bob's base",
+    text: "Bob's edit",
+  });
+});
+
+test("changing accounts does not expose the previous account's text", () => {
+  adoptDrafts("alice");
+  editDraft("preserve:body", "Unsaved text", "Original");
+
+  const add = spyOn(toast, "add").mockReturnValue("account-change");
+
+  try {
+    adoptDrafts("bob");
+    expect(readDraft("preserve:body")).toBeUndefined();
+    expect(add).not.toHaveBeenCalled();
+  } finally {
+    add.mockRestore();
+  }
 });
