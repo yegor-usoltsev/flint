@@ -137,8 +137,14 @@ const useNames = (project: ProjectDetail) => {
     return found === undefined ? (
       "a deleted label"
     ) : (
-      <span className="inline-flex items-center gap-1" data-color={found.color}>
-        <span aria-hidden className="bg-swatch size-1.5 rounded-full" />
+      <span
+        className="inline-flex max-w-full items-baseline gap-1 wrap-anywhere"
+        data-color={found.color}
+      >
+        <span
+          aria-hidden
+          className="bg-swatch size-1.5 shrink-0 self-center rounded-full"
+        />
         {found.name}
       </span>
     );
