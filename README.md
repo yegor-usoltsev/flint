@@ -75,7 +75,7 @@ For a coding agent, `npx skills add yegor-usoltsev/flint` installs a skill that 
 - **HTTP/1.1.** Each visible tab holds an event stream and browsers open six HTTP/1.1 connections per host, so over HTTP/1.1, including the local stack, a sixth Flint window visible at the same time stalls. Hidden tabs close their stream and refresh when shown.
 - **Images.** JPEG and static PNG and WebP uploads are scaled and stripped of metadata; GIF, AVIF, HEIC, APNG and animated WebP are stored as is.
 
-Text edits stay in local drafts when saving fails. Open editors retry transient failures after reconnecting; conflicts and restored drafts require a choice. Switching accounts clears the previous account’s drafts. See [draft recovery](docs/drafts.md). Flint needs a connection to load pages and save changes.
+Text edits stay in local drafts when saving fails. Open editors retry transient failures after reconnecting; conflicts and restored drafts require a choice. Switching accounts clears the previous account's drafts. See [draft recovery](docs/drafts.md). Flint needs a connection to load pages and save changes.
 
 ## Development
 
