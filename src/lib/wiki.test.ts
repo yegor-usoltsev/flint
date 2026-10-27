@@ -322,6 +322,40 @@ describe("missing page state", () => {
 });
 
 describe("wiki page writes", () => {
+  test("a page write sends the account that owns its draft", async () => {
+    const queryClient = new QueryClient();
+    const { promise, resolve, reject } = Promise.withResolvers<WikiPage>();
+    const users: (string | null)[] = [];
+
+    spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async (_input: RequestInfo | URL, init?: RequestInit) => {
+          const body = v.parse(
+            BodySchema,
+            await new Response(init?.body).json()
+          );
+
+          users.push(new Headers(init?.headers).get("X-Flint-User"));
+          expect(body.baseRevision).toBe(page.revision);
+
+          return Response.json({ ...page, body: "mine", revision: 2 });
+        },
+        { preconnect: fetch.preconnect }
+      )
+    );
+
+    writePage(queryClient, wiki, page, "body", "mine", {
+      expect: page.body,
+      expectedUser: "alice",
+      onConflict: reject,
+      onError: reject,
+      onSaved: resolve,
+    });
+    await promise;
+
+    expect(users).toEqual(["alice"]);
+  });
+
   test("a conflict on the other field retries on the new revision", async () => {
     const queryClient = new QueryClient();
     const revisions: number[] = [];
@@ -678,9 +712,9 @@ describe("replaced page", () => {
     expect(
       readKept(keptKey({ ...wiki, slug: "acme-renamed" }, page.path))
     ).toBe(page);
-    expect(readKept(keptKey({ ...wiki, workspaceId: "w2" }, page.path))).toBe(
-      null
-    );
+    expect(
+      readKept(keptKey({ ...wiki, workspaceId: "w2" }, page.path))
+    ).toBeNull();
     storeKept(key, null);
     expect(readKept(key)).toBeNull();
   });

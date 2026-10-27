@@ -131,6 +131,8 @@ Pick Flint if your code lives in Gitea and a small team wants issues and docs on
 - **HTTP/1.1.** Visible tabs of the same build share one event stream per account and workspace when SharedWorker is available. Older builds and browsers with unavailable or failed workers keep a stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Hidden tabs unsubscribe and refresh when shown; use HTTP/2 to avoid the connection limit.
 - **Images.** JPEG and static PNG and WebP uploads are scaled and stripped of metadata; GIF, AVIF, HEIC, APNG and animated WebP are stored as is.
 
+See [draft recovery](docs/drafts.md) for offline text saves, conflicts and account boundaries.
+
 ## Development
 
 [mise](https://mise.jdx.dev) installs Bun and the pre-commit hook. `bun run lint` checks types and formatting, `bun test` runs against the compose PostgreSQL and S3, and `bun run cli:smoke` drives the CLI against the running app after `bun run demo`. [AGENTS.md](AGENTS.md) and [docs/development.md](docs/development.md) hold the conventions.

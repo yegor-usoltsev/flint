@@ -35,13 +35,26 @@ export const isNotFound = (error: Error) =>
 
 export const api = async <Result>(
   path: string,
-  { body, method = "GET" }: { body?: unknown; method?: string } = {}
+  {
+    body,
+    expectedUser,
+    method = "GET",
+  }: { body?: unknown; expectedUser?: string; method?: string } = {}
 ): Promise<Result> => {
   const json = body !== undefined && !(body instanceof FormData);
+  const headers = new Headers();
+
+  if (json) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (expectedUser !== undefined) {
+    headers.set("X-Flint-User", expectedUser);
+  }
 
   const response = await fetch(`/api/v1${path}`, {
     body: json ? JSON.stringify(body) : (body ?? null),
-    headers: json ? { "Content-Type": "application/json" } : {},
+    headers,
     method,
   });
 

@@ -43,6 +43,7 @@ export const withLabelChanges = <T extends { labelIds: string[] }>(
 
 export interface WriteOptions {
   expect?: Pick<IssuePatch, "description" | "title">;
+  expectedUser?: string;
   onConflict?: (current: Issue) => void;
   onError?: (error: Error) => void;
   onSaved?: (issue: Issue) => void;
@@ -271,6 +272,7 @@ const send = async (queryClient: QueryClient, queue: Queue): Promise<void> => {
                   write.expect === undefined
                     ? write.patch
                     : { ...write.patch, version: queue.base.version },
+                expectedUser: write.expectedUser,
                 method: "PATCH",
               }))
         )

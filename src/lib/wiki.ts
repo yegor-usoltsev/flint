@@ -514,6 +514,7 @@ const attempt = async (
           baseRevision: queue.base.revision,
           id: queue.base.id,
         },
+        expectedUser: write.expectedUser,
         method: write.field === "body" ? "PUT" : "PATCH",
       })
     );

@@ -82,6 +82,39 @@ afterEach(() => {
   spyOn(toast, "add").mockRestore();
 });
 
+test("queued writes keep the account captured for each draft", async () => {
+  const item = issue("owner", "todo");
+  const { queryClient } = setup([item]);
+  const first = deferred();
+  const users: (string | null)[] = [];
+
+  spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        users.push(new Headers(init?.headers).get("X-Flint-User"));
+
+        return users.length === 1
+          ? await first.promise
+          : Response.json({ ...item, version: users.length + 1 });
+      },
+      { preconnect: fetch.preconnect }
+    )
+  );
+
+  writeIssue(queryClient, item, { priority: 2 });
+  writeIssue(
+    queryClient,
+    item,
+    { title: "Alice's text" },
+    { expectedUser: "alice" }
+  );
+  writeIssue(queryClient, item, { statusId: "done" }, { expectedUser: "bob" });
+  first.resolve(Response.json({ ...item, version: 2 }));
+  await settle();
+
+  expect(users).toEqual([null, "alice", "bob"]);
+});
+
 describe("issue writes", () => {
   test("a failed write rolls back only its own issue", async () => {
     const a = { ...issue("1", "todo"), assigneeId: "u" };

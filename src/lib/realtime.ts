@@ -5,6 +5,7 @@ import { createContext, use, useEffect, useState } from "react";
 import { meQuery } from "~/lib/api";
 import type { RealtimeEvent } from "~/lib/api-types";
 import { subscribeRealtime } from "~/lib/realtime-transport";
+import { retryFailedDrafts } from "~/lib/use-draft";
 import { hasPendingIssueWrites } from "~/lib/use-update-issue";
 
 export const eventKeys = (slug: string, event: RealtimeEvent) =>
@@ -94,6 +95,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
         : subscribeRealtime(slug, userId, (message) => {
             if (message.type === "open") {
               setConnected(true);
+              void retryFailedDrafts();
 
               for (const query of queryClient.getQueryCache().getAll()) {
                 stale.add(query.queryHash);
@@ -118,7 +120,14 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
             }
           });
 
+    const online = () => {
+      void retryFailedDrafts();
+    };
+
+    window.addEventListener("online", online);
+
     return () => {
+      window.removeEventListener("online", online);
       unsubscribe?.();
 
       for (const timer of timers) {
