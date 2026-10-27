@@ -5,7 +5,6 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 ## Workflow
 
 - Track deferred work as Flint issues in Backlog with appropriate labels; do not create `.backlog/` files.
-
 - Run `docker compose up -d --wait` and `bun run dev` (port 4700) only in the main checkout; worktrees link its `.env` and `.env.local` and run a dev server on another port ([docs/development.md](docs/development.md)). Gitea users `alice` (admin), `bob` and `carol` have the password `password`; `bun run demo` fills the Acme Corp workspace.
 - Browser URLs come from `PUBLIC_HOST` in `.env`; the app and Gitea listen on `PUBLIC_HOST_BIND`, so `localhost` may not answer.
 - `bun run lint` (tsc and Ultracite; `lint:fix` fixes) runs in the prek pre-commit hook over the whole working tree, so each parallel writer needs its own worktree.
