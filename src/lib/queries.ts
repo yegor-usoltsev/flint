@@ -58,6 +58,13 @@ export const issuesQuery = (project: Project) =>
     queryKey: ["issues", project.id],
   });
 
+export const assignedIssuesQuery = (project: Project, userId: string) =>
+  queryOptions({
+    queryFn: async () =>
+      await api<IssueSummary[]>(`/projects/${project.key}/issues?assignee=me`),
+    queryKey: ["issues", project.id, "assigned", userId],
+  });
+
 const closedPage = 50;
 
 export const closedIssuesQuery = (project: Project, search: IssueSearch) => {
