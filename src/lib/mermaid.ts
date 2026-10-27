@@ -1,7 +1,7 @@
 import type { Mermaid, MermaidConfig } from "mermaid";
 import { useSyncExternalStore } from "react";
 
-let loading: Promise<Mermaid> | undefined;
+let loading: Promise<Mermaid> | null = null;
 let theme: "dark" | "light" | undefined;
 let renders = 0;
 
@@ -113,7 +113,14 @@ export const scopeDiagram = (svg: string) =>
 const load = async (wanted: "dark" | "light") => {
   loading ??= import("mermaid").then(({ default: mermaid }) => mermaid);
 
-  const mermaid = await loading;
+  let mermaid: Mermaid;
+
+  try {
+    mermaid = await loading;
+  } catch (error) {
+    loading = null;
+    throw error;
+  }
 
   if (theme !== wanted) {
     theme = wanted;
