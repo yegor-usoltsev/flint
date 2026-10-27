@@ -75,6 +75,6 @@ Cron schedules use the container's time zone, UTC unless `TZ` is set. For the lo
 
 ## Updates and rollback
 
-Deploy one app version at a time. Older clients can use the updated server without the optional account header. Updated text editors send `X-Flint-User`, which the server checks against the authenticated account before writing. Older servers ignore that header: reload open tabs before downgrading the server, and avoid mixed-version rolling deployments. Draft storage keys and formats remain unchanged.
+Deploy one app version at a time. Older clients can use the updated server without the optional account header. Updated text editors send `X-Flint-User`, which the server checks against the authenticated account before writing. Older servers ignore that header: after downgrading, reload open tabs before editing. Avoid mixed-version rolling deployments. Draft storage keys and formats remain unchanged.
 
 After a deployment, a failed app module load offers **Reload**; Mermaid can retry a failed import. Failed HTTP responses use `no-store`, but a response already cached by an older deployment may still need a browser reload or cache clear. Reload warnings protect pending text and uploads; they cannot guarantee recovery after a browser or OS crash.
