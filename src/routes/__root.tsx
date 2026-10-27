@@ -8,8 +8,9 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 import { RouteNotFound } from "~/components/route-not-found";
-import { toast, Toaster } from "~/components/ui/toast";
+import { Toaster } from "~/components/ui/toast";
 import { TooltipProvider } from "~/components/ui/tooltip";
+import { showImportFailure } from "~/lib/import-recovery";
 import type { RouterContext } from "~/lib/preload";
 import { site } from "~/lib/site";
 import {
@@ -36,26 +37,11 @@ const RootDocument = ({ children }: { children: ReactNode }) => (
 const RootLayout = () => {
   useEffect(() => subscribeTheme(applyTheme), []);
   useEffect(() => {
-    const failed = () => {
-      toast.add({
-        actionProps: {
-          children: "Reload",
-          onClick: () => {
-            window.location.reload();
-          },
-        },
-        description: "Check your connection, then reload when ready.",
-        id: "chunk-load-error",
-        timeout: 0,
-        title: "Part of Flint could not load",
-        type: "error",
-      });
-    };
-
-    window.addEventListener("vite:preloadError", failed);
+    showImportFailure();
+    window.addEventListener("vite:preloadError", showImportFailure);
 
     return () => {
-      window.removeEventListener("vite:preloadError", failed);
+      window.removeEventListener("vite:preloadError", showImportFailure);
     };
   }, []);
 

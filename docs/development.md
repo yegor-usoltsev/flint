@@ -33,7 +33,7 @@ Delete the row (`delete from sessions where token_hash = '<H>'`) when done.
 
 ## Failed app loads
 
-If a connection fails or a deployment removes an older tab's JavaScript files, Flint offers Reload. TanStack Router may also reload once for a missing route module. Pending saves, uploads and text that could not reach local storage trigger the browser's unsaved-changes prompt. Restore the connection and finish pending work before reloading; unsaved text returns from the existing local draft storage when storage is available. A failed Mermaid module load can retry on the next render without reloading the page.
+If a connection fails or a deployment removes an older tab's JavaScript files, Flint offers Reload. TanStack Router may also reload once for a missing route module. Pending saves, uploads and text that could not reach local storage trigger the browser's unsaved-changes prompt. Restore the connection and finish pending work before reloading; unsaved text returns from the existing local draft storage when storage is available. A failed Mermaid module load can retry on the next render; browsers that retain the failed import still need Reload.
 
 ## Releases
 
