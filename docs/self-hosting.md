@@ -5,7 +5,7 @@ Flint runs as one container next to your Gitea, PostgreSQL and an S3 bucket. The
 1. **Database.** PostgreSQL 18 with pgvector, for example `pgvector/pgvector:pg18`. The first migration creates the `vector` extension.
 2. **Storage.** A bucket and an access key on any S3-compatible service. Flint serves files itself after an access check, so the bucket stays private.
 3. **Gitea.** An OAuth2 application and a system webhook, [below](#gitea).
-4. **Run** `yusoltsev/flint` (or `ghcr.io/yegor-usoltsev/flint`) with the [variables](../README.md#configuration):
+4. **Run** `yusoltsev/flint` (or `ghcr.io/yegor-usoltsev/flint`) with the [variables](#configuration):
 
    ```sh
    docker run -d --name flint -p 3000:3000 --env-file flint.env yusoltsev/flint:latest
@@ -49,3 +49,26 @@ GITEA_URL=https://gitea.example.com GITEA_ADMIN_TOKEN=<token> \
 APP_URL=https://flint.example.com \
 bun run gitea:external-tracker acme alice/website
 ```
+
+## Configuration
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `APP_URL` | required | Flint's public origin, such as `https://flint.example.com` |
+| `DATABASE_URL` | required | PostgreSQL 18 with pgvector |
+| `GITEA_URL` | required | Gitea as Flint's server reaches it, possibly internal |
+| `GITEA_PUBLIC_URL` | required | Gitea as browsers reach it |
+| `GITEA_CLIENT_ID`, `GITEA_CLIENT_SECRET` | required | Gitea OAuth2 application |
+| `GITEA_WEBHOOK_SECRET` | required | Secret of the Gitea system webhook |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | required | S3-compatible storage for attachments |
+| `S3_REGION` | `auto` | Region of the S3 bucket |
+| `MAX_UPLOAD_BYTES` | `26214400` (25 MB) | Largest attachment in bytes, at least `1048576` (1 MB); Bun caps request bodies at 128 MB |
+| `TRASH_RETENTION_DAYS` | `30` | Days before deleted issues and pages are purged |
+| `TRASH_PURGE_CRON` | `0 0 * * *` | Schedule of the trash purge |
+| `STORAGE_SWEEP_CRON` | `1 0 * * 0` | Schedule of the sweep of orphaned uploads |
+| `EMBEDDING_API_KEY` | empty | Turns on semantic search |
+| `EMBEDDING_API_URL` | `https://openrouter.ai/api/v1` | Any OpenAI-compatible `/embeddings` API |
+| `EMBEDDING_MODEL` | `perplexity/pplx-embed-v1-0.6b` | Must return 1024 dimensions |
+| `PORT` | `3000` | Listening port |
+
+Cron schedules use the container's time zone, UTC unless `TZ` is set. For the local stack, `.env.example` also sets `PUBLIC_HOST` and `PUBLIC_HOST_BIND` ([Quick start](../README.md#quick-start)) and `GITEA_ADMIN_USER` and `GITEA_ADMIN_PASSWORD`, the Gitea site admin the `gitea:*` scripts sign in as.
