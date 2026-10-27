@@ -19,6 +19,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 - The CLI in `cli/` imports only `node:*`, types and pure helpers from `src/lib`; `cli/guide.md` is the agent guide `flint skill` prints, so update it with the commands.
 - Bun SQL: a `${value}::jsonb` parameter takes the raw JS value, because Bun encodes it; pass arrays as `any(${tx.array(ids, "uuid")})`; detect unique violations with `UniqueViolationSchema`.
 - `src/routeTree.gen.ts` is generated.
+- Realtime transports deliver `open` through `useRealtime`; keep draft retry and full query catch-up there so SharedWorker joins and direct fallback behave alike.
 
 ## Style
 
