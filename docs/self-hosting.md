@@ -72,9 +72,3 @@ bun run gitea:external-tracker acme alice/website
 | `PORT` | `3000` | Listening port |
 
 Cron schedules use the container's time zone, UTC unless `TZ` is set. For the local stack, `.env.example` also sets `PUBLIC_HOST` and `PUBLIC_HOST_BIND` ([Quick start](../README.md#quick-start)) and `GITEA_ADMIN_USER` and `GITEA_ADMIN_PASSWORD`, the Gitea site admin the `gitea:*` scripts sign in as.
-
-## Updates and rollback
-
-Deploy one app version at a time. Older clients can use the updated server without the optional account header. Updated text editors send `X-Flint-User`, which the server checks against the authenticated account before writing. Older servers ignore that header: after downgrading, reload open tabs before editing. Avoid mixed-version rolling deployments. Draft storage keys and formats remain unchanged.
-
-After a deployment, a failed app module load offers **Reload**; Mermaid can retry a failed import. Failed HTTP responses use `no-store`, but a response already cached by an older deployment may still need a browser reload or cache clear. Reload warnings protect pending text and uploads; they cannot guarantee recovery after a browser or OS crash.
