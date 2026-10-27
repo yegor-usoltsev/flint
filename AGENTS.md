@@ -14,11 +14,12 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 
 - Every product feature is a REST endpoint under `src/routes/api/v1/`, so the CLI can do what the UI does. Add it to the type map `src/lib/endpoints.ts` first, declare the handler with `endpoint<"METHOD /path">` from `src/server/api.server.ts`, and give the route `ANY: methodNotAllowed`, because an unhandled method falls through to the HTML app.
 - Server-only code lives in `*.server.ts`. Services take the `Actor` and own validation and authorization through `src/server/access.server.ts`; a resource outside the caller's workspaces answers 404, never 403, so its existence does not leak.
-- Add a migration as a new `migrations/NNNN_name.sql`; never edit an applied one. Add an env variable to `src/server/env.server.ts`, `.env.example`, the compose `app` service and the README table.
+- Add a migration as a new `migrations/NNNN_name.sql`; never edit an applied one. Add an env variable to `src/server/env.server.ts`, `.env.example`, the compose `app` service and the configuration table in `docs/self-hosting.md`.
 - Call `publish` from `realtime.server.ts` after the transaction commits. Give a new issue-derived query a key under `["issues", projectId]`, so SSE events refresh it.
 - The CLI in `cli/` imports only `node:*`, types and pure helpers from `src/lib`; `cli/guide.md` is the agent guide `flint skill` prints, so update it with the commands.
 - Bun SQL: a `${value}::jsonb` parameter takes the raw JS value, because Bun encodes it; pass arrays as `any(${tx.array(ids, "uuid")})`; detect unique violations with `UniqueViolationSchema`.
 - `src/routeTree.gen.ts` is generated.
+- Realtime transports deliver `open` through `useRealtime`; keep draft retry and full query catch-up there so SharedWorker joins and direct fallback behave alike.
 
 ## Style
 
