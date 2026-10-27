@@ -5,12 +5,17 @@ import type { ReactNode } from "react";
 import { PagePending } from "~/components/page";
 import { RouteError } from "~/components/route-error";
 import { RouteNotFound } from "~/components/route-not-found";
+import { rememberImportFailure } from "~/lib/import-recovery";
 import type { IssueOrigin } from "~/lib/issue-view";
 import { routeTree } from "~/routeTree.gen";
 
 const NotFound = () => <RouteNotFound />;
 
 export const getRouter = () => {
+  if (typeof window !== "undefined") {
+    window.addEventListener("vite:preloadError", rememberImportFailure);
+  }
+
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
   });

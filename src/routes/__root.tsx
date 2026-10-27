@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { RouteNotFound } from "~/components/route-not-found";
 import { Toaster } from "~/components/ui/toast";
 import { TooltipProvider } from "~/components/ui/tooltip";
+import { showImportFailure } from "~/lib/import-recovery";
 import type { RouterContext } from "~/lib/preload";
 import { site } from "~/lib/site";
 import {
@@ -35,6 +36,14 @@ const RootDocument = ({ children }: { children: ReactNode }) => (
 
 const RootLayout = () => {
   useEffect(() => subscribeTheme(applyTheme), []);
+  useEffect(() => {
+    showImportFailure();
+    window.addEventListener("vite:preloadError", showImportFailure);
+
+    return () => {
+      window.removeEventListener("vite:preloadError", showImportFailure);
+    };
+  }, []);
 
   return (
     <Toaster>
