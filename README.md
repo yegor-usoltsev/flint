@@ -128,7 +128,7 @@ Pick Flint if your code lives in Gitea and a small team wants issues and docs on
 - **My issues** has no filters, grouping or ordering.
 - **Escape** on an issue opened from Cmd+K returns to the project list, not the previous view.
 - **One container.** Live updates reach only tabs connected to the same server process.
-- **HTTP/1.1.** Each visible tab holds an event stream and browsers open six HTTP/1.1 connections per host, so over HTTP/1.1, including the local stack, a sixth Flint window visible at the same time stalls. Hidden tabs close their stream and refresh when shown.
+- **HTTP/1.1.** Visible tabs of the same build share one event stream per account and workspace when SharedWorker is available. Older builds and browsers with unavailable or failed workers keep a stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Hidden tabs unsubscribe and refresh when shown; use HTTP/2 to avoid the connection limit.
 - **Images.** JPEG and static PNG and WebP uploads are scaled and stripped of metadata; GIF, AVIF, HEIC, APNG and animated WebP are stored as is.
 
 ## Development

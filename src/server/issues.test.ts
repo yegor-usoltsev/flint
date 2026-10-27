@@ -1018,6 +1018,32 @@ const openStream = async (auth: string, slug: string) => {
   };
 };
 
+test("a stream rejects an expected user that differs from the request cookie", async () => {
+  const { alice, aliceId, bobId } = await setup();
+
+  const response = await callRoute(
+    streamRoute,
+    appRequest(`/api/v1/workspaces/acme/stream?userId=${bobId}`, {
+      headers: { cookie: alice },
+    }),
+    { slug: "acme" }
+  );
+
+  await response.body?.cancel();
+  expect(response.status).toBe(404);
+
+  const accepted = await callRoute(
+    streamRoute,
+    appRequest(`/api/v1/workspaces/acme/stream?userId=${aliceId}`, {
+      headers: { cookie: alice },
+    }),
+    { slug: "acme" }
+  );
+
+  await accepted.body?.cancel();
+  expect(accepted.status).toBe(200);
+});
+
 test("the stream delivers workspace events and drops removed members", async () => {
   const { alice, bob, root, rootId } = await setup();
   const aliceStream = await openStream(alice, "acme");
