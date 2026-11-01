@@ -90,6 +90,17 @@ describe("mentions", () => {
     ]);
   });
 
+  test("keeps keys in a collapsible summary as text", () => {
+    const doc = convert(
+      "<details>\n<summary>See ENG-12</summary>\n\nAlso ENG-13\n\n</details>"
+    );
+
+    expect(doc.childCount).toBe(1);
+    expect(mentions(doc)).toEqual([
+      { attrs: { key: "ENG-13" }, type: "issueMention" },
+    ]);
+  });
+
   test("leaves documents without keys untouched", () => {
     expect(atomize(load("Plain text").tr, pattern).docChanged).toBe(false);
     expect(atomize(load("ENG-1").tr, null).docChanged).toBe(false);

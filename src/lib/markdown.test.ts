@@ -253,6 +253,92 @@ describe("editor blocks", () => {
     expect(schema.nodes["tableHeader"]?.spec.content).toBe("paragraph+");
   });
 
+  const details = `<details>
+<summary>Logs &amp; &lt;output&gt;</summary>
+
+- **Step** one
+
+<details>
+<summary>Nested</summary>
+
+\`\`\`sh
+bun test
+\`\`\`
+
+</details>
+
+</details>
+
+After`;
+
+  test("reads and writes collapsible blocks as GitHub details", () => {
+    const [block] = manager.parse(details).content ?? [];
+
+    expect(block?.type).toBe("details");
+    expect(block?.content?.[0]?.content).toEqual([
+      { text: "Logs & <output>", type: "text" },
+    ]);
+    expect(block?.content?.[1]?.content?.[1]?.type).toBe("details");
+    expect(roundTrip(details)).toBe(details);
+    expect(
+      roundTrip("<details open>\n<summary>Shown</summary>\nBody\n</details>")
+    ).toBe("<details>\n<summary>Shown</summary>\n\nBody\n\n</details>");
+  });
+
+  test("ends a collapsible at its own closing tag, not one in code or a list", () => {
+    const markdown = [
+      "- item",
+      "",
+      "  <details>",
+      "  <summary>Example</summary>",
+      "",
+      "  First",
+      "",
+      "  ```html",
+      "  </details>",
+      "  ```",
+      "",
+      "  Last",
+      "",
+      "  </details>",
+      "",
+      "After",
+    ].join("\n");
+
+    const doc = manager.parse(markdown);
+
+    expect(() => {
+      schema.nodeFromJSON(doc).check();
+    }).not.toThrow();
+    expect(doc.content?.at(-1)).toMatchObject({ type: "paragraph" });
+    expect(roundTrip(roundTrip(markdown))).toBe(roundTrip(markdown));
+  });
+
+  test("keeps a collapsible summary as plain text", () => {
+    const summary = {
+      content: [{ marks: [{ type: "bold" }], text: "Bold", type: "text" }],
+      type: "detailsSummary",
+    };
+
+    expect(() => {
+      schema.nodeFromJSON(summary).check();
+    }).toThrow();
+  });
+
+  test.each([
+    "<details>\nNo summary\n</details>",
+    "<details>\n<summary>Unclosed</summary>\n\nBody",
+    ":::detailsContent\nStray\n:::",
+  ])("keeps incomplete details markup as text: %#", (markdown) => {
+    const types = (manager.parse(markdown).content ?? []).map(
+      (node) => node.type
+    );
+
+    expect(types.length).toBeGreaterThan(0);
+    expect(types.every((type) => type === "paragraph")).toBe(true);
+    expect(roundTrip(roundTrip(markdown))).toBe(roundTrip(markdown));
+  });
+
   test("keeps <br> outside table cells as literal text", () => {
     const once = roundTrip("First line<br>Second line");
 

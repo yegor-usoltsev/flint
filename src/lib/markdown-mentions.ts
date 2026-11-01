@@ -126,6 +126,10 @@ const replacements = (
       return true;
     }
 
+    if (parent?.type.contentMatch.matchType(issue) === null) {
+      return false;
+    }
+
     const href = pageLink(node.marks);
 
     const whole =

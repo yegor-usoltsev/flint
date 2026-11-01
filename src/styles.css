@@ -327,7 +327,8 @@
     & > * + * {
       @apply mt-2.5;
     }
-    & > :is(p, h1, h2, h3, ul, ol, blockquote) {
+    & > :is(p, h1, h2, h3, ul, ol, blockquote),
+    & [data-type="detailsContent"] > :is(p, h1, h2, h3, ul, ol, blockquote) {
       max-width: 80ch;
     }
     & h1 {
@@ -393,6 +394,37 @@
     }
     & blockquote {
       @apply text-muted-foreground border-l-2 pl-3;
+    }
+    & [data-type="details"] {
+      @apply flex items-start gap-1;
+
+      & > button {
+        @apply text-muted-foreground hover:bg-muted hover:text-foreground grid size-5 shrink-0 place-content-center rounded-sm;
+
+        & svg {
+          @apply size-4 transition-transform duration-100;
+        }
+      }
+      &.is-open > button svg {
+        @apply rotate-90;
+      }
+      & > div {
+        @apply min-w-0 flex-1;
+      }
+      & summary {
+        @apply block font-medium;
+      }
+      & summary:has(> .ProseMirror-trailingBreak:only-child)::before {
+        content: "Summary";
+        @apply text-muted-foreground pointer-events-none float-left h-0;
+      }
+      & [data-type="detailsContent"] {
+        @apply mt-1;
+
+        & > * + * {
+          @apply mt-2.5;
+        }
+      }
     }
     & hr {
       @apply my-4;
