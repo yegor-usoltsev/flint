@@ -9,6 +9,8 @@ reviews:
     files:
       - bun.lock
       - src/routeTree.gen.ts
+    head_branches:
+      - renovate/**
 pr_descriptions:
   generate: false
 issues:

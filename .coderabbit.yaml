@@ -22,6 +22,8 @@ reviews:
     - "!src/routeTree.gen.ts"
   auto_review:
     drafts: false
+    ignore_usernames:
+      - renovate[bot]
   finishing_touches:
     docstrings:
       enabled: false
