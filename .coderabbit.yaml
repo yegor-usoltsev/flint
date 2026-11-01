@@ -3,6 +3,8 @@ reviews:
   high_level_summary: false
   review_status: false
   review_details: false
+  review_info: false
+  enable_prompt_for_ai_agents: false
   collapse_walkthrough: true
   changed_files_summary: false
   sequence_diagrams: false
