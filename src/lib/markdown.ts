@@ -281,6 +281,68 @@ const unindentItem = (source: string, width: number) =>
     )
     .join("\n");
 
+const withContinuationBlocks = (
+  item: MarkdownToken,
+  first: string,
+  source: string,
+  blocks: MarkdownToken[],
+  lexer: MarkdownLexerConfiguration
+): MarkdownToken => {
+  const paragraph = item.tokens?.[0];
+
+  if (paragraph?.type !== "paragraph" || first.trim() === "") {
+    return item;
+  }
+
+  const paragraphLines = (paragraph.raw ?? "").split("\n").length;
+
+  const parsedParagraph =
+    blocks[0]?.type === "list"
+      ? lexer.blockTokens(`\\${source}`)[0]
+      : blocks[0];
+
+  const length =
+    parsedParagraph?.type === "paragraph"
+      ? Math.min(
+          paragraphLines,
+          (parsedParagraph.raw ?? "").trimEnd().split("\n").length
+        )
+      : paragraphLines;
+
+  const continuation = source
+    .split("\n")
+    .slice(length)
+    .join("\n")
+    .replace(/^(?:[ \t]*\n)+/u, "")
+    .trimEnd();
+
+  const mainText = (paragraph.raw ?? "")
+    .split("\n")
+    .slice(0, length)
+    .join("\n");
+
+  const continuationBlocks = lexer.blockTokens(continuation);
+
+  return continuationBlocks.length === 0
+    ? item
+    : {
+        ...item,
+        tokens: [
+          length < paragraphLines
+            ? {
+                ...paragraph,
+                raw: mainText,
+                tokens: lexer.inlineTokens(mainText),
+              }
+            : paragraph,
+          ...continuationBlocks,
+          ...(item.tokens?.filter(
+            (token) => token.type === "list" && token["ordered"] === true
+          ) ?? []),
+        ],
+      };
+};
+
 const blockFirstItem = (
   item: MarkdownToken,
   lexer: MarkdownLexerConfiguration
@@ -319,7 +381,7 @@ const blockFirstItem = (
     ["paragraph", "text", "space", "html", "list"].includes(type) ||
     (type === "heading" && !/^#{1,6}(?:[ \t]|$)/u.test(first))
   ) {
-    return original();
+    return withContinuationBlocks(original(), first, source, blocks, lexer);
   }
 
   const nested =

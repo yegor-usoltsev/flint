@@ -25,7 +25,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 - Call `publish` from `realtime.server.ts` after the transaction commits. Give a new issue-derived query a key under `["issues", projectId]`, so SSE events refresh it.
 - The CLI in `cli/` imports only `node:*`, types and pure helpers from `src/lib`; `cli/guide.md` is the agent guide `flint skill` prints, so update it with the commands.
 - Bun SQL: a `${value}::jsonb` parameter takes the raw JS value, because Bun encodes it; pass arrays as `any(${tx.array(ids, "uuid")})`; detect unique violations with `UniqueViolationSchema`.
-- Keep Tiptap's ordered-list tokenizer in `src/lib/markdown.ts`: it recognizes letter/Roman markers, start values and mixed `.`/`)` delimiters (normalized to `.`). Re-lex block-first content through the wrapper; bare markers merge into previous items.
+- Keep Tiptap's ordered-list tokenizer in `src/lib/markdown.ts`: it recognizes letter/Roman markers, start values and mixed `.`/`)` delimiters (normalized to `.`). Re-lex block-first content and continuation blocks through the wrapper at the full marker-prefix width; preserve initial paragraph text and reuse tokenized nested ordered lists to avoid exponential parsing. Bare markers merge into previous items.
 - `src/routeTree.gen.ts` is generated.
 - Realtime transports deliver `open` through `useRealtime`; keep draft retry and full query catch-up there so SharedWorker joins and direct fallback behave alike.
 
