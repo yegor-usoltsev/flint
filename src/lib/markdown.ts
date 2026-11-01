@@ -1,5 +1,6 @@
 import type {
   JSONContent,
+  MarkdownLexerConfiguration,
   MarkdownToken,
   NodeViewRenderer,
 } from "@tiptap/core";
@@ -272,7 +273,93 @@ const listItem = ListItem.extend({
   },
 });
 
+const unindentItem = (source: string, width: number) =>
+  source
+    .split("\n")
+    .map((line) =>
+      line.slice(Math.min(width, line.length - line.trimStart().length))
+    )
+    .join("\n");
+
+const blockFirstItem = (
+  item: MarkdownToken,
+  lexer: MarkdownLexerConfiguration
+): MarkdownToken => {
+  const original = () => ({
+    ...item,
+    tokens: item.tokens?.map((token) =>
+      token.type === "list" && token["ordered"] === true
+        ? {
+            ...token,
+            items: token.items?.map((child) => blockFirstItem(child, lexer)),
+          }
+        : token
+    ),
+  });
+
+  const raw = item.raw ?? "";
+
+  const match = /^(?<prefix>[ \t]*[^\s.)]+[.)][ \t]+)(?<first>[^\n]*)/u.exec(
+    raw
+  );
+
+  if (match === null) {
+    return original();
+  }
+
+  const width = match.groups?.["prefix"]?.length ?? 0;
+  const first = match.groups?.["first"] ?? "";
+  const source = first + unindentItem(raw.slice(match[0].length), width);
+
+  const blocks = lexer.blockTokens(source);
+  const type = blocks[0]?.type;
+
+  if (
+    type === undefined ||
+    ["paragraph", "text", "space", "html", "list"].includes(type) ||
+    (type === "heading" && !/^#{1,6}(?:[ \t]|$)/u.test(first))
+  ) {
+    return original();
+  }
+
+  const nested =
+    item.tokens?.filter(
+      (token) => token.type === "list" && token["ordered"] === true
+    ) ?? [];
+
+  return {
+    ...item,
+    tokens:
+      nested.length === 0
+        ? blocks
+        : lexer.blockTokens(
+            [
+              source,
+              ...nested.map((token) => unindentItem(token.raw ?? "", width)),
+            ].join("\n")
+          ),
+  };
+};
+
 const orderedList = OrderedList.extend({
+  markdownTokenizer: {
+    ...OrderedList.config.markdownTokenizer,
+    name: "orderedList",
+    tokenize: (source, tokens, lexer) => {
+      const token = OrderedList.config.markdownTokenizer?.tokenize(
+        source,
+        tokens,
+        lexer
+      );
+
+      return token === undefined
+        ? undefined
+        : {
+            ...token,
+            items: token.items?.map((item) => blockFirstItem(item, lexer)),
+          };
+    },
+  },
   parseMarkdown(token, helpers) {
     const list = this.parent?.(token, helpers);
 
