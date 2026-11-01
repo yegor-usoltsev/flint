@@ -5,6 +5,7 @@ import * as v from "valibot";
 
 import { Route as attachmentRoute } from "~/routes/api/v1/attachments/$attachmentId";
 import { Route as issueAttachmentsRoute } from "~/routes/api/v1/issues/$issueKey/attachments";
+import { Route as projectAttachmentsRoute } from "~/routes/api/v1/projects/$key/attachments";
 import { Route as pageAttachmentsRoute } from "~/routes/api/v1/wiki/$pageId/attachments";
 import { Route as logoRoute } from "~/routes/api/v1/workspaces/$slug/logo";
 import { Route as fileRoute } from "~/routes/files/$fileId";
@@ -720,4 +721,72 @@ test("admins set, replace and remove a workspace logo image", async () => {
     )
   ).toMatchObject({ body: { logoUrl: null }, status: 200 });
   expect(await storedKeys()).toEqual([]);
+});
+
+const draftUpload = async (auth: string, file: File) => {
+  const { body, headers } = await multipart(file);
+
+  const response = await callRoute(
+    projectAttachmentsRoute,
+    appRequest("/api/v1/projects/ENG/attachments", {
+      body,
+      headers: { ...headers, cookie: auth, "sec-fetch-site": "same-origin" },
+      method: "POST",
+    }),
+    { key: "ENG" }
+  );
+
+  const json: unknown = await response.json();
+
+  return { body: json, status: response.status };
+};
+
+const issueOf = async (id: string) => {
+  const [row] = await db<{ issueId: string | null }[]>`
+    select issue_id as "issueId" from attachments where id = ${id}
+  `;
+
+  return row?.issueId;
+};
+
+const textFile = (name: string) =>
+  new File([text], name, { type: "text/plain" });
+
+const drafted = async (auth: string, name: string) => {
+  const response = await draftUpload(auth, textFile(name));
+
+  return v.parse(AttachmentSchema, response.body);
+};
+
+test("files uploaded while writing a new issue join it when it is created", async () => {
+  const { alice, bob, root } = await setup();
+  const mine = await drafted(alice, "mine.txt");
+  const unused = await drafted(alice, "unused.txt");
+  const linked = await uploaded(alice, textFile("linked.txt"));
+  const stranger = await draftUpload(bob, textFile("x.txt"));
+
+  expect(stranger.status).toBe(404);
+  expect(await issueOf(mine.id)).toBeNull();
+  const fetched = await download(alice, mine.id);
+
+  expect(fetched.status).toBe(200);
+
+  const other = await drafted(await sessionCookieFor(root.userId), "root.txt");
+
+  const [{ id: aliceId } = { id: "" }] = await db<{ id: string }[]>`
+    select id from users where username = 'alice'
+  `;
+
+  const issue = await createIssue({ userId: aliceId }, "ENG", {
+    assigneeId: null,
+    description: [mine.url, other.url, linked.url].join("\n\n"),
+    labelIds: [],
+    priority: 0,
+    title: "With files",
+  });
+
+  expect(await issueOf(mine.id)).toBe(issue.id);
+  expect(await issueOf(unused.id)).toBeNull();
+  expect(await issueOf(other.id)).toBeNull();
+  expect(await issueOf(linked.id)).not.toBe(issue.id);
 });

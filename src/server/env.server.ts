@@ -19,6 +19,12 @@ const Cron = v.pipe(
   v.check(isCron, (issue) => `Invalid cron expression: ${issue.received}`)
 );
 
+const positive = (fallback: string) =>
+  v.optional(
+    v.pipe(v.string(), v.digits(), v.transform(Number), v.minValue(1)),
+    fallback
+  );
+
 const EnvSchema = v.object({
   APP_URL: Url,
   DATABASE_URL: Required,
@@ -30,6 +36,8 @@ const EnvSchema = v.object({
   EMBEDDING_API_KEY: v.optional(v.pipe(v.string(), v.trim()), ""),
   EMBEDDING_API_URL: v.optional(Url, "https://openrouter.ai/api/v1"),
   EMBEDDING_MODEL: v.optional(Required, "perplexity/pplx-embed-v1-0.6b"),
+  EMBEDDING_TIMEOUT_MS: positive("30000"),
+  SEARCH_EMBEDDING_TIMEOUT_MS: positive("1500"),
   MAX_UPLOAD_BYTES: v.optional(
     v.pipe(
       v.string(),
@@ -46,10 +54,9 @@ const EnvSchema = v.object({
   S3_SECRET_ACCESS_KEY: Required,
   STORAGE_SWEEP_CRON: v.optional(Cron, "1 0 * * 0"),
   TRASH_PURGE_CRON: v.optional(Cron, "0 0 * * *"),
-  TRASH_RETENTION_DAYS: v.optional(
-    v.pipe(v.string(), v.digits(), v.transform(Number), v.minValue(1)),
-    "30"
-  ),
+  TRASH_RETENTION_DAYS: positive("30"),
+  SESSION_LIFETIME_DAYS: positive("30"),
+  DRAFT_UPLOAD_RETENTION_DAYS: positive("30"),
 });
 
 export const env = v.parse(EnvSchema, process.env);

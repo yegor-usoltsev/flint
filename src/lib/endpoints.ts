@@ -172,6 +172,7 @@ export interface Endpoints {
     body: In<typeof CreateTokenSchema>;
     response: CreatedApiToken;
   };
+  "POST /projects/:key/attachments": { body: FormData; response: Attachment };
   "POST /projects/:key/issues": {
     body: In<typeof CreateIssueSchema>;
     response: Issue;

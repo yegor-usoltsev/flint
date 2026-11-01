@@ -1,8 +1,7 @@
 import { db } from "~/server/db.server";
+import { env } from "~/server/env.server";
 import { log } from "~/server/log.server";
 import { deleteObjects, s3 } from "~/server/s3.server";
-
-const grace = 24 * 60 * 60 * 1000;
 
 export interface SweepOptions {
   before?: Date;
@@ -10,7 +9,9 @@ export interface SweepOptions {
 }
 
 export const sweepStorage = async ({
-  before = new Date(Date.now() - grace),
+  before = new Date(
+    Date.now() - env.DRAFT_UPLOAD_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  ),
   prefix = "",
 }: SweepOptions = {}) => {
   const rows = await db<{ storageKey: string }[]>`

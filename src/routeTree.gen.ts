@@ -51,6 +51,7 @@ import { Route as ApiV1IssuesIssueKeyRestoreRouteImport } from './routes/api/v1/
 import { Route as ApiV1MeTokensIndexRouteImport } from './routes/api/v1/me/tokens/index'
 import { Route as ApiV1MeTokensTokenIdRouteImport } from './routes/api/v1/me/tokens/$tokenId'
 import { Route as ApiV1ProjectsKeyIndexRouteImport } from './routes/api/v1/projects/$key/index'
+import { Route as ApiV1ProjectsKeyAttachmentsRouteImport } from './routes/api/v1/projects/$key/attachments'
 import { Route as ApiV1ProjectsKeyIssueCountsRouteImport } from './routes/api/v1/projects/$key/issue-counts'
 import { Route as ApiV1ProjectsKeyIssuesRouteImport } from './routes/api/v1/projects/$key/issues'
 import { Route as ApiV1TrashIssuesIssueKeyRouteImport } from './routes/api/v1/trash/issues/$issueKey'
@@ -295,6 +296,12 @@ const ApiV1ProjectsKeyIndexRoute = ApiV1ProjectsKeyIndexRouteImport.update({
   path: '/api/v1/projects/$key/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1ProjectsKeyAttachmentsRoute =
+  ApiV1ProjectsKeyAttachmentsRouteImport.update({
+    id: '/api/v1/projects/$key/attachments',
+    path: '/api/v1/projects/$key/attachments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1ProjectsKeyIssueCountsRoute =
   ApiV1ProjectsKeyIssueCountsRouteImport.update({
     id: '/api/v1/projects/$key/issue-counts',
@@ -466,6 +473,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/issues/$issueKey/comments': typeof ApiV1IssuesIssueKeyCommentsRoute
   '/api/v1/issues/$issueKey/restore': typeof ApiV1IssuesIssueKeyRestoreRoute
   '/api/v1/me/tokens/$tokenId': typeof ApiV1MeTokensTokenIdRoute
+  '/api/v1/projects/$key/attachments': typeof ApiV1ProjectsKeyAttachmentsRoute
   '/api/v1/projects/$key/issue-counts': typeof ApiV1ProjectsKeyIssueCountsRoute
   '/api/v1/projects/$key/issues': typeof ApiV1ProjectsKeyIssuesRoute
   '/api/v1/trash/issues/$issueKey': typeof ApiV1TrashIssuesIssueKeyRoute
@@ -530,6 +538,7 @@ export interface FileRoutesByTo {
   '/api/v1/issues/$issueKey/comments': typeof ApiV1IssuesIssueKeyCommentsRoute
   '/api/v1/issues/$issueKey/restore': typeof ApiV1IssuesIssueKeyRestoreRoute
   '/api/v1/me/tokens/$tokenId': typeof ApiV1MeTokensTokenIdRoute
+  '/api/v1/projects/$key/attachments': typeof ApiV1ProjectsKeyAttachmentsRoute
   '/api/v1/projects/$key/issue-counts': typeof ApiV1ProjectsKeyIssueCountsRoute
   '/api/v1/projects/$key/issues': typeof ApiV1ProjectsKeyIssuesRoute
   '/api/v1/trash/issues/$issueKey': typeof ApiV1TrashIssuesIssueKeyRoute
@@ -598,6 +607,7 @@ export interface FileRoutesById {
   '/api/v1/issues/$issueKey/comments': typeof ApiV1IssuesIssueKeyCommentsRoute
   '/api/v1/issues/$issueKey/restore': typeof ApiV1IssuesIssueKeyRestoreRoute
   '/api/v1/me/tokens/$tokenId': typeof ApiV1MeTokensTokenIdRoute
+  '/api/v1/projects/$key/attachments': typeof ApiV1ProjectsKeyAttachmentsRoute
   '/api/v1/projects/$key/issue-counts': typeof ApiV1ProjectsKeyIssueCountsRoute
   '/api/v1/projects/$key/issues': typeof ApiV1ProjectsKeyIssuesRoute
   '/api/v1/trash/issues/$issueKey': typeof ApiV1TrashIssuesIssueKeyRoute
@@ -666,6 +676,7 @@ export interface FileRouteTypes {
     | '/api/v1/issues/$issueKey/comments'
     | '/api/v1/issues/$issueKey/restore'
     | '/api/v1/me/tokens/$tokenId'
+    | '/api/v1/projects/$key/attachments'
     | '/api/v1/projects/$key/issue-counts'
     | '/api/v1/projects/$key/issues'
     | '/api/v1/trash/issues/$issueKey'
@@ -730,6 +741,7 @@ export interface FileRouteTypes {
     | '/api/v1/issues/$issueKey/comments'
     | '/api/v1/issues/$issueKey/restore'
     | '/api/v1/me/tokens/$tokenId'
+    | '/api/v1/projects/$key/attachments'
     | '/api/v1/projects/$key/issue-counts'
     | '/api/v1/projects/$key/issues'
     | '/api/v1/trash/issues/$issueKey'
@@ -797,6 +809,7 @@ export interface FileRouteTypes {
     | '/api/v1/issues/$issueKey/comments'
     | '/api/v1/issues/$issueKey/restore'
     | '/api/v1/me/tokens/$tokenId'
+    | '/api/v1/projects/$key/attachments'
     | '/api/v1/projects/$key/issue-counts'
     | '/api/v1/projects/$key/issues'
     | '/api/v1/trash/issues/$issueKey'
@@ -848,6 +861,7 @@ export interface RootRouteChildren {
   ApiV1IssuesIssueKeyCommentsRoute: typeof ApiV1IssuesIssueKeyCommentsRoute
   ApiV1IssuesIssueKeyRestoreRoute: typeof ApiV1IssuesIssueKeyRestoreRoute
   ApiV1MeTokensTokenIdRoute: typeof ApiV1MeTokensTokenIdRoute
+  ApiV1ProjectsKeyAttachmentsRoute: typeof ApiV1ProjectsKeyAttachmentsRoute
   ApiV1ProjectsKeyIssueCountsRoute: typeof ApiV1ProjectsKeyIssueCountsRoute
   ApiV1ProjectsKeyIssuesRoute: typeof ApiV1ProjectsKeyIssuesRoute
   ApiV1TrashIssuesIssueKeyRoute: typeof ApiV1TrashIssuesIssueKeyRoute
@@ -1172,6 +1186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1ProjectsKeyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/projects/$key/attachments': {
+      id: '/api/v1/projects/$key/attachments'
+      path: '/api/v1/projects/$key/attachments'
+      fullPath: '/api/v1/projects/$key/attachments'
+      preLoaderRoute: typeof ApiV1ProjectsKeyAttachmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/projects/$key/issue-counts': {
       id: '/api/v1/projects/$key/issue-counts'
       path: '/api/v1/projects/$key/issue-counts'
@@ -1420,6 +1441,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1IssuesIssueKeyCommentsRoute: ApiV1IssuesIssueKeyCommentsRoute,
   ApiV1IssuesIssueKeyRestoreRoute: ApiV1IssuesIssueKeyRestoreRoute,
   ApiV1MeTokensTokenIdRoute: ApiV1MeTokensTokenIdRoute,
+  ApiV1ProjectsKeyAttachmentsRoute: ApiV1ProjectsKeyAttachmentsRoute,
   ApiV1ProjectsKeyIssueCountsRoute: ApiV1ProjectsKeyIssueCountsRoute,
   ApiV1ProjectsKeyIssuesRoute: ApiV1ProjectsKeyIssuesRoute,
   ApiV1TrashIssuesIssueKeyRoute: ApiV1TrashIssuesIssueKeyRoute,

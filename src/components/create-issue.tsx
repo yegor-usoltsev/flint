@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, PaperclipIcon } from "lucide-react";
 import { createContext, use, useCallback, useRef, useState } from "react";
 import type { RefObject, ReactNode } from "react";
 
@@ -46,7 +46,7 @@ import {
 import type { DraftText, Properties, Submitted } from "~/lib/new-issue-draft";
 import { notifyWithAction } from "~/lib/notify";
 import { issuesQuery, projectQuery, projectsQuery } from "~/lib/queries";
-import { useStoredText } from "~/lib/use-draft";
+import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { withLabelChanges } from "~/lib/use-update-issue";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -291,9 +291,18 @@ const CreateForm = ({
   };
 
   const [more, setMore] = useState(false);
+  const descriptionKey = draftKey(project.key, "description");
+  const uploading = useUploading(descriptionKey);
+
+  const descriptionDraft = {
+    key: descriptionKey,
+    read: () => readDraft(project.key).description,
+  };
+
   const [round, setRound] = useState(0);
   const titleInput = useRef<HTMLTextAreaElement>(null);
   const editor = useRef<MarkdownEditorHandle>(null);
+  const picker = useRef<HTMLInputElement>(null);
 
   const [properties, setProperties] = useState(() => {
     const saved = savedProperties.get(project.key);
@@ -309,6 +318,10 @@ const CreateForm = ({
   };
 
   const create = () => {
+    if (uploading) {
+      return;
+    }
+
     const problem = titleProblem(title);
 
     if (problem !== null) {
@@ -426,7 +439,9 @@ const CreateForm = ({
           onChange={setDescription}
           onSubmit={create}
           placeholder="Add a description… Type / for blocks"
+          draft={descriptionDraft}
           ref={editor}
+          uploadTo={`/projects/${project.key}/attachments`}
           value={description}
         />
       </div>
@@ -451,8 +466,31 @@ const CreateForm = ({
           <Switch checked={more} onCheckedChange={setMore} size="sm" />
           Create more
         </label>
-        <Button className="ml-auto" size="sm" type="submit">
-          Create issue
+        <input
+          aria-label="Files to attach"
+          hidden
+          multiple
+          onChange={(event) => {
+            editor.current?.upload([...(event.target.files ?? [])]);
+            event.target.value = "";
+          }}
+          ref={picker}
+          type="file"
+        />
+        <Button
+          aria-label="Attach files"
+          className="ml-auto"
+          onClick={() => {
+            picker.current?.click();
+          }}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          <PaperclipIcon />
+        </Button>
+        <Button disabled={uploading} size="sm" type="submit">
+          {uploading ? "Uploading…" : "Create issue"}
           <SubmitHint />
         </Button>
       </div>

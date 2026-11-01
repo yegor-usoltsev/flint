@@ -8,7 +8,6 @@ import { log } from "~/server/log.server";
 const dimensions = 1024;
 const maxChars = 8000;
 const retryDelaysMs = [500, 2000, 8000];
-const requestTimeoutMs = 30_000;
 
 export const embeddingsEnabled = () => env.EMBEDDING_API_KEY !== "";
 
@@ -67,7 +66,7 @@ const requestEmbeddings = async (texts: string[], timeoutMs: number) => {
 export const embed = async (
   texts: string[],
   delays = retryDelaysMs,
-  timeoutMs = requestTimeoutMs
+  timeoutMs = env.EMBEDDING_TIMEOUT_MS
 ): Promise<number[][]> => {
   try {
     return await requestEmbeddings(texts, timeoutMs);
