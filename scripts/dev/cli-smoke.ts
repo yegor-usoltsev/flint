@@ -230,7 +230,13 @@ const issueFlows = async () => {
     [2, alice.id, statusId("In Progress"), 1, 2]
   );
 
+  const deadline = setTimeout(() => {
+    abort.abort();
+  }, 10_000);
+
   const event = await nextFrame(true);
+
+  clearTimeout(deadline);
 
   assert.deepEqual(v.parse(EventSchema, JSON.parse(event.slice(6))), {
     entity: "issue",
