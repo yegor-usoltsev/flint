@@ -92,7 +92,7 @@ const openStream = (
     start: (streamController) => {
       controller = streamController;
       ping = setInterval(() => {
-        listener.send(": ping\n\n");
+        listener.send("event: ping\ndata:\n\n");
         pings += 1;
 
         if (pings % pingsPerCheck === 0) {

@@ -12,6 +12,32 @@ export const realtimeUrl = (slug: string, userId: string) =>
 
 export const heartbeatMs = 10_000;
 export const leaseMs = 30_000;
+export const stallMs = 15_000;
+
+export const watchStall = (source: EventSource, stalled: () => void) => {
+  let last = Date.now();
+
+  const alive = () => {
+    last = Date.now();
+  };
+
+  for (const type of ["open", "message", "ping"]) {
+    source.addEventListener(type, alive);
+  }
+
+  const timer = setInterval(() => {
+    if (source.readyState === EventSource.CLOSED) {
+      clearInterval(timer);
+    } else if (
+      source.readyState === EventSource.OPEN &&
+      Date.now() - last >= stallMs
+    ) {
+      clearInterval(timer);
+      source.close();
+      stalled();
+    }
+  }, stallMs / 3);
+};
 
 interface Stream {
   ports: Set<MessagePort>;
@@ -61,6 +87,10 @@ export const createRealtimeHub = () => {
     }
 
     stream.source = source;
+    watchStall(source, () => {
+      send(stream, { type: "error" });
+      connect(stream);
+    });
     source.addEventListener("open", () => {
       send(stream, { type: "open" });
     });

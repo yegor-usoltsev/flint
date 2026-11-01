@@ -1099,8 +1099,8 @@ test("a stream closes once its API token is revoked or its session ends", async 
   await db`delete from sessions where user_id = ${aliceId}`;
   jest.advanceTimersByTime(30_000);
 
-  expect(await drain(tokenStream)).toContain(": ping\n\n");
-  expect(await drain(sessionStream)).toContain(": ping\n\n");
+  expect(await drain(tokenStream)).toContain("event: ping\ndata:\n\n");
+  expect(await drain(sessionStream)).toContain("event: ping\ndata:\n\n");
   expect(await otherStream.next()).toBe("retry: 3000\n\n");
   otherStream.abort();
 });
