@@ -397,6 +397,12 @@
     & .media {
       @apply relative w-fit max-w-full;
     }
+    & > .media {
+      @apply inline-block align-top;
+    }
+    & > .media:has(+ .media) {
+      @apply mr-2.5;
+    }
     & :is(img, video) {
       @apply h-auto max-w-full rounded-md border;
     }
