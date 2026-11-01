@@ -64,7 +64,7 @@ bun run gitea:external-tracker acme alice/website
 | `S3_REGION` | `auto` | Region of the S3 bucket |
 | `MAX_UPLOAD_BYTES` | `26214400` (25 MB) | Largest attachment in bytes, at least `1048576` (1 MB); Bun caps request bodies at 128 MB |
 | `TRASH_RETENTION_DAYS` | `30` | Days before deleted issues and pages are purged |
-| `DRAFT_UPLOAD_RETENTION_DAYS` | `30` | Days the storage sweep keeps a file uploaded into a new issue's draft that no issue has taken yet; the browser keeps drafts as long |
+| `DRAFT_UPLOAD_RETENTION_DAYS` | `30` | Days after upload that the storage sweep keeps a file uploaded into a new issue's draft that no issue has taken yet; the browser keeps an untouched draft as long |
 | `SESSION_LIFETIME_DAYS` | `30` | Days a sign-in lasts |
 | `TRASH_PURGE_CRON` | `0 0 * * *` | Schedule of the trash purge |
 | `STORAGE_SWEEP_CRON` | `1 0 * * 0` | Schedule of the sweep of orphaned uploads |

@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronRightIcon, PaperclipIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { createContext, use, useCallback, useRef, useState } from "react";
 import type { RefObject, ReactNode } from "react";
 
+import { AttachButton } from "~/components/attach-button";
 import { IssueProperties } from "~/components/issue-properties";
 import { LazyMarkdownEditor } from "~/components/lazy-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
@@ -208,9 +209,11 @@ const defaultProperties = (
 });
 
 const ProjectPicker = ({
+  disabled,
   onChange,
   project,
 }: {
+  disabled: boolean;
   onChange: (key: string) => void;
   project: ProjectDetail;
 }) => {
@@ -223,6 +226,7 @@ const ProjectPicker = ({
         render={
           <Button
             aria-label={`Project: ${project.name}`}
+            disabled={disabled}
             size="xs"
             variant="outline"
           />
@@ -302,7 +306,6 @@ const CreateForm = ({
   const [round, setRound] = useState(0);
   const titleInput = useRef<HTMLTextAreaElement>(null);
   const editor = useRef<MarkdownEditorHandle>(null);
-  const picker = useRef<HTMLInputElement>(null);
 
   const [properties, setProperties] = useState(() => {
     const saved = savedProperties.get(project.key);
@@ -391,7 +394,11 @@ const CreateForm = ({
       }}
     >
       <div className="flex items-center gap-1.5 px-4 pt-4">
-        <ProjectPicker onChange={onProjectChange} project={project} />
+        <ProjectPicker
+          disabled={uploading}
+          onChange={onProjectChange}
+          project={project}
+        />
         <ChevronRightIcon className="text-muted-foreground size-3.5" />
         <DialogTitle>New issue</DialogTitle>
         <DialogDescription className="sr-only">
@@ -433,6 +440,7 @@ const CreateForm = ({
           <FieldError id="new-issue-title-error">{titleError}</FieldError>
         )}
         <LazyMarkdownEditor
+          attachments={null}
           className="text-prose min-h-20"
           key={round}
           label="Description"
@@ -466,29 +474,13 @@ const CreateForm = ({
           <Switch checked={more} onCheckedChange={setMore} size="sm" />
           Create more
         </label>
-        <input
-          aria-label="Files to attach"
-          hidden
-          multiple
-          onChange={(event) => {
-            editor.current?.upload([...(event.target.files ?? [])]);
-            event.target.value = "";
-          }}
-          ref={picker}
-          type="file"
-        />
-        <Button
-          aria-label="Attach files"
-          className="ml-auto"
-          onClick={() => {
-            picker.current?.click();
-          }}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <PaperclipIcon />
-        </Button>
+        <div className="ml-auto">
+          <AttachButton
+            onFiles={(files) => {
+              editor.current?.upload(files);
+            }}
+          />
+        </div>
         <Button disabled={uploading} size="sm" type="submit">
           {uploading ? "Uploading…" : "Create issue"}
           <SubmitHint />

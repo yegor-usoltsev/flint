@@ -20,6 +20,7 @@ import {
 import { useLayoutEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
+import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
 import { IssueAttachments } from "~/components/issue-attachments";
 import { IssueDevelopment } from "~/components/issue-development";
@@ -27,11 +28,7 @@ import { Hint } from "~/components/issue-parts";
 import { IssueProperties } from "~/components/issue-properties";
 import { IssueTimeline } from "~/components/issue-timeline";
 import { LoadFailed } from "~/components/load-failed";
-import {
-  AttachButton,
-  MarkdownEditor,
-  SourceToggle,
-} from "~/components/markdown-editor";
+import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
 import { MenuKeys } from "~/components/menu-filter";
 import { Page } from "~/components/page";
