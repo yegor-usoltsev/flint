@@ -5,6 +5,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { createContext, use, useCallback, useRef, useState } from "react";
 import type { RefObject, ReactNode } from "react";
 
+import { AttachButton } from "~/components/attach-button";
 import { IssueProperties } from "~/components/issue-properties";
 import { LazyMarkdownEditor } from "~/components/lazy-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
@@ -46,7 +47,7 @@ import {
 import type { DraftText, Properties, Submitted } from "~/lib/new-issue-draft";
 import { notifyWithAction } from "~/lib/notify";
 import { issuesQuery, projectQuery, projectsQuery } from "~/lib/queries";
-import { useStoredText } from "~/lib/use-draft";
+import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { withLabelChanges } from "~/lib/use-update-issue";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -208,9 +209,11 @@ const defaultProperties = (
 });
 
 const ProjectPicker = ({
+  disabled,
   onChange,
   project,
 }: {
+  disabled: boolean;
   onChange: (key: string) => void;
   project: ProjectDetail;
 }) => {
@@ -223,6 +226,7 @@ const ProjectPicker = ({
         render={
           <Button
             aria-label={`Project: ${project.name}`}
+            disabled={disabled}
             size="xs"
             variant="outline"
           />
@@ -291,6 +295,14 @@ const CreateForm = ({
   };
 
   const [more, setMore] = useState(false);
+  const descriptionKey = draftKey(project.key, "description");
+  const uploading = useUploading(descriptionKey);
+
+  const descriptionDraft = {
+    key: descriptionKey,
+    read: () => readDraft(project.key).description,
+  };
+
   const [round, setRound] = useState(0);
   const titleInput = useRef<HTMLTextAreaElement>(null);
   const editor = useRef<MarkdownEditorHandle>(null);
@@ -309,6 +321,10 @@ const CreateForm = ({
   };
 
   const create = () => {
+    if (uploading) {
+      return;
+    }
+
     const problem = titleProblem(title);
 
     if (problem !== null) {
@@ -378,7 +394,11 @@ const CreateForm = ({
       }}
     >
       <div className="flex items-center gap-1.5 px-4 pt-4">
-        <ProjectPicker onChange={onProjectChange} project={project} />
+        <ProjectPicker
+          disabled={uploading}
+          onChange={onProjectChange}
+          project={project}
+        />
         <ChevronRightIcon className="text-muted-foreground size-3.5" />
         <DialogTitle>New issue</DialogTitle>
         <DialogDescription className="sr-only">
@@ -420,13 +440,16 @@ const CreateForm = ({
           <FieldError id="new-issue-title-error">{titleError}</FieldError>
         )}
         <LazyMarkdownEditor
+          attachments={null}
           className="text-prose min-h-20"
           key={round}
           label="Description"
           onChange={setDescription}
           onSubmit={create}
           placeholder="Add a description… Type / for blocks"
+          draft={descriptionDraft}
           ref={editor}
+          uploadTo={`/projects/${project.key}/attachments`}
           value={description}
         />
       </div>
@@ -451,8 +474,15 @@ const CreateForm = ({
           <Switch checked={more} onCheckedChange={setMore} size="sm" />
           Create more
         </label>
-        <Button className="ml-auto" size="sm" type="submit">
-          Create issue
+        <div className="ml-auto">
+          <AttachButton
+            onFiles={(files) => {
+              editor.current?.upload(files);
+            }}
+          />
+        </div>
+        <Button disabled={uploading} size="sm" type="submit">
+          {uploading ? "Uploading…" : "Create issue"}
           <SubmitHint />
         </Button>
       </div>

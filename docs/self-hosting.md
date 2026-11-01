@@ -64,11 +64,15 @@ bun run gitea:external-tracker acme alice/website
 | `S3_REGION` | `auto` | Region of the S3 bucket |
 | `MAX_UPLOAD_BYTES` | `26214400` (25 MB) | Largest attachment in bytes, at least `1048576` (1 MB); Bun caps request bodies at 128 MB |
 | `TRASH_RETENTION_DAYS` | `30` | Days before deleted issues and pages are purged |
+| `DRAFT_UPLOAD_RETENTION_DAYS` | `30` | Days after upload that the storage sweep keeps a file uploaded into a new issue's draft that no issue has taken yet; the browser keeps an untouched draft for 30 days whatever this is set to |
+| `SESSION_LIFETIME_DAYS` | `30` | Days a sign-in lasts |
 | `TRASH_PURGE_CRON` | `0 0 * * *` | Schedule of the trash purge |
 | `STORAGE_SWEEP_CRON` | `1 0 * * 0` | Schedule of the sweep of orphaned uploads |
 | `EMBEDDING_API_KEY` | empty | Turns on semantic search |
 | `EMBEDDING_API_URL` | `https://openrouter.ai/api/v1` | Any OpenAI-compatible `/embeddings` API |
 | `EMBEDDING_MODEL` | `perplexity/pplx-embed-v1-0.6b` | Must return 1024 dimensions |
+| `EMBEDDING_TIMEOUT_MS` | `30000` | Timeout of an embeddings request while indexing |
+| `SEARCH_EMBEDDING_TIMEOUT_MS` | `1500` | How long a search waits for its query embedding before returning full-text results only |
 | `PORT` | `3000` | Listening port |
 
 Cron schedules use the container's time zone, UTC unless `TZ` is set. For the local stack, `.env.example` also sets `PUBLIC_HOST` and `PUBLIC_HOST_BIND` ([Quick start](../README.md#quick-start)) and `GITEA_ADMIN_USER` and `GITEA_ADMIN_PASSWORD`, the Gitea site admin the `gitea:*` scripts sign in as.

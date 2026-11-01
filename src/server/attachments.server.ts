@@ -20,6 +20,7 @@ import {
   normalizedTypes,
 } from "~/server/images.server";
 import { findIssue, selectIssue } from "~/server/issues.server";
+import { findProject } from "~/server/projects.server";
 import { publish } from "~/server/realtime.server";
 import { deleteObjects, s3 } from "~/server/s3.server";
 import { findPageById } from "~/server/wiki.server";
@@ -59,7 +60,8 @@ interface Target {
 export type AttachmentTarget =
   | { issueKey: string }
   | { logoOf: string }
-  | { pageId: string };
+  | { pageId: string }
+  | { projectKey: string };
 
 const findTarget = async (
   actor: Actor,
@@ -84,6 +86,20 @@ const findTarget = async (
       pageId: null,
       projectId: null,
       workspaceId: workspace.id,
+    };
+  }
+
+  if ("projectKey" in target) {
+    const { project, workspaceId } = await findProject(
+      actor,
+      target.projectKey
+    );
+
+    return {
+      issueId: null,
+      pageId: null,
+      projectId: project.id,
+      workspaceId,
     };
   }
 

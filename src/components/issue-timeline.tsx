@@ -12,12 +12,9 @@ import type { ReactNode } from "react";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
+import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog } from "~/components/conflict-dialog";
-import {
-  AttachButton,
-  MarkdownEditor,
-  SourceToggle,
-} from "~/components/markdown-editor";
+import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
 import { Keys } from "~/components/shortcuts-dialog";
 import { StatusIcon } from "~/components/status-icon";

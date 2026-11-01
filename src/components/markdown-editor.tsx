@@ -17,7 +17,6 @@ import {
   CodeIcon,
   ItalicIcon,
   LinkIcon,
-  PaperclipIcon,
   StrikethroughIcon,
 } from "lucide-react";
 import {
@@ -28,7 +27,6 @@ import {
   useState,
 } from "react";
 import type {
-  ComponentProps,
   MouseEvent,
   ReactNode,
   Ref,
@@ -56,11 +54,6 @@ import { issueChipView, pageChipView } from "~/components/mention-chip";
 import { useMentionMenu } from "~/components/mention-menu";
 import { BlockKeys, useSlashMenu } from "~/components/slash-menu";
 import { TableKeys, useTableMenu } from "~/components/table-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
 import { api } from "~/lib/api";
 import type { Attachment } from "~/lib/api-types";
 import { isSafeUrl, markdownExtensions } from "~/lib/markdown";
@@ -264,52 +257,6 @@ export interface MarkdownEditorHandle {
   focus: () => void;
   upload: (files: File[]) => void;
 }
-
-const AttachTrigger = (props: ComponentProps<"button">) => (
-  <button
-    {...props}
-    className="text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring hit-area relative flex size-8 items-center justify-center rounded-md outline-none focus-visible:ring-2 md:size-6 [&_svg]:size-3.5"
-    type="button"
-  />
-);
-
-export const AttachButton = ({
-  onFiles,
-}: {
-  onFiles: (files: File[]) => void;
-}) => {
-  const input = useRef<HTMLInputElement>(null);
-
-  return (
-    <>
-      <input
-        className="hidden"
-        multiple
-        onChange={(event) => {
-          onFiles([...(event.target.files ?? [])]);
-          event.target.value = "";
-        }}
-        ref={input}
-        type="file"
-      />
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <AttachTrigger
-              aria-label="Attach files"
-              onClick={() => {
-                input.current?.click();
-              }}
-            />
-          }
-        >
-          <PaperclipIcon />
-        </TooltipTrigger>
-        <TooltipContent>Attach files</TooltipContent>
-      </Tooltip>
-    </>
-  );
-};
 
 export const SourceToggle = ({
   className,
@@ -624,7 +571,7 @@ const useIssueKeys = () => {
 };
 
 export interface MarkdownEditorProps {
-  attachments?: string;
+  attachments?: string | null;
   autoFocus?: boolean;
   checkable?: boolean;
   className?: string;
@@ -899,7 +846,9 @@ export const MarkdownEditor = ({
         />
       ) : null}
       <EditorSurface
-        attachments={attachments ?? uploadTo}
+        attachments={
+          attachments === null ? undefined : (attachments ?? uploadTo)
+        }
         editor={editor}
         hidden={source}
       />

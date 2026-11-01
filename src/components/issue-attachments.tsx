@@ -3,7 +3,7 @@ import { cn } from "cn";
 import { DownloadIcon, FileIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
-import { AttachButton } from "~/components/markdown-editor";
+import { AttachButton } from "~/components/attach-button";
 import {
   AlertDialog,
   AlertDialogAction,

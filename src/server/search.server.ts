@@ -45,7 +45,6 @@ const candidates = 50;
 const rrfK = 60;
 const maxDistance = 0.85;
 const distanceWindow = 0.08;
-const queryTimeoutMs = 1500;
 const minSemanticLength = 3;
 
 interface TextRank {
@@ -110,7 +109,7 @@ const pageHit = ({
 
 const embedQuery = async (q: string) => {
   try {
-    const [embedding] = await embed([q], [], queryTimeoutMs);
+    const [embedding] = await embed([q], [], env.SEARCH_EMBEDDING_TIMEOUT_MS);
 
     return embedding === undefined ? null : toVector(embedding);
   } catch (error) {

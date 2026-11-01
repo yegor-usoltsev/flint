@@ -4,7 +4,6 @@ import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
 
 const sessionCookie = "flint_session";
-const sessionDays = 30;
 const secure = env.APP_URL.startsWith("https:");
 
 export const newSecret = () => randomBytes(32).toString("base64url");
@@ -36,12 +35,12 @@ export const createSession = async (userId: string) => {
     values (
       ${hashToken(token)},
       ${userId},
-      now() + make_interval(days => ${sessionDays})
+      now() + make_interval(days => ${env.SESSION_LIFETIME_DAYS})
     )
   `;
 
   return serializeCookie(sessionCookie, token, {
-    maxAge: sessionDays * 24 * 60 * 60,
+    maxAge: env.SESSION_LIFETIME_DAYS * 24 * 60 * 60,
     path: "/",
   });
 };

@@ -19,9 +19,22 @@ const Cron = v.pipe(
   v.check(isCron, (issue) => `Invalid cron expression: ${issue.received}`)
 );
 
+const positive = (fallback: string) =>
+  v.optional(
+    v.pipe(
+      v.string(),
+      v.digits(),
+      v.transform(Number),
+      v.minValue(1),
+      v.maxValue(Number.MAX_SAFE_INTEGER)
+    ),
+    fallback
+  );
+
 const EnvSchema = v.object({
   APP_URL: Url,
   DATABASE_URL: Required,
+  DRAFT_UPLOAD_RETENTION_DAYS: positive("30"),
   GITEA_CLIENT_ID: Required,
   GITEA_CLIENT_SECRET: Required,
   GITEA_PUBLIC_URL: Url,
@@ -30,6 +43,7 @@ const EnvSchema = v.object({
   EMBEDDING_API_KEY: v.optional(v.pipe(v.string(), v.trim()), ""),
   EMBEDDING_API_URL: v.optional(Url, "https://openrouter.ai/api/v1"),
   EMBEDDING_MODEL: v.optional(Required, "perplexity/pplx-embed-v1-0.6b"),
+  EMBEDDING_TIMEOUT_MS: positive("30000"),
   MAX_UPLOAD_BYTES: v.optional(
     v.pipe(
       v.string(),
@@ -44,12 +58,11 @@ const EnvSchema = v.object({
   S3_ENDPOINT: Url,
   S3_REGION: v.optional(Required, "auto"),
   S3_SECRET_ACCESS_KEY: Required,
+  SEARCH_EMBEDDING_TIMEOUT_MS: positive("1500"),
+  SESSION_LIFETIME_DAYS: positive("30"),
   STORAGE_SWEEP_CRON: v.optional(Cron, "1 0 * * 0"),
   TRASH_PURGE_CRON: v.optional(Cron, "0 0 * * *"),
-  TRASH_RETENTION_DAYS: v.optional(
-    v.pipe(v.string(), v.digits(), v.transform(Number), v.minValue(1)),
-    "30"
-  ),
+  TRASH_RETENTION_DAYS: positive("30"),
 });
 
 export const env = v.parse(EnvSchema, process.env);

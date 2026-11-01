@@ -1,8 +1,9 @@
 import { db } from "~/server/db.server";
+import { env } from "~/server/env.server";
 import { log } from "~/server/log.server";
 import { deleteObjects, s3 } from "~/server/s3.server";
 
-const grace = 24 * 60 * 60 * 1000;
+const day = 24 * 60 * 60 * 1000;
 
 export interface SweepOptions {
   before?: Date;
@@ -10,7 +11,7 @@ export interface SweepOptions {
 }
 
 export const sweepStorage = async ({
-  before = new Date(Date.now() - grace),
+  before = new Date(Date.now() - env.DRAFT_UPLOAD_RETENTION_DAYS * day),
   prefix = "",
 }: SweepOptions = {}) => {
   const rows = await db<{ storageKey: string }[]>`
@@ -26,6 +27,8 @@ export const sweepStorage = async ({
 
   await deleteObjects(rows.map((row) => row.storageKey));
 
+  const orphansBefore = new Date(Math.max(before.getTime(), Date.now() - day));
+
   let objects = 0;
   let startAfter: string | undefined;
 
@@ -36,7 +39,10 @@ export const sweepStorage = async ({
     const old: string[] = [];
 
     for (const { key, lastModified } of contents) {
-      if (lastModified !== undefined && new Date(lastModified) < before) {
+      if (
+        lastModified !== undefined &&
+        new Date(lastModified) < orphansBefore
+      ) {
         old.push(key);
       }
     }

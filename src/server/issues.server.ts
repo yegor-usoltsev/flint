@@ -421,6 +421,17 @@ const touchDescriptionEvent = async (
   return touched.length > 0;
 };
 
+const filePath =
+  /\/files\/(?<id>[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})\b/giu;
+
+const fileIds = (markdown: string) => [
+  ...new Set(
+    [...markdown.matchAll(filePath)].map(
+      (match) => match.groups?.["id"]?.toLowerCase() ?? ""
+    )
+  ),
+];
+
 export const createIssue = async (
   actor: Actor,
   projectKey: string,
@@ -477,6 +488,21 @@ export const createIssue = async (
         insert into issue_labels ${tx(
           labelIds.map((labelId) => ({ issue_id: id, label_id: labelId }))
         )}
+      `;
+    }
+
+    const files = fileIds(input.description);
+
+    if (files.length > 0) {
+      await tx`
+        update attachments a set issue_id = ${id}
+        where a.id = any(${tx.array(files, "uuid")})
+          and a.issue_id is null and a.wiki_page_id is null
+          and a.workspace_id = ${workspaceId}
+          and a.uploader_id = ${actor.userId}
+          and not exists (
+            select 1 from workspaces w where w.logo_attachment_id = a.id
+          )
       `;
     }
 

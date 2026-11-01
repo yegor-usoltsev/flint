@@ -18,15 +18,12 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
 
+import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
 import { AttachmentList } from "~/components/issue-attachments";
 import { Hint } from "~/components/issue-parts";
 import { LoadFailed } from "~/components/load-failed";
-import {
-  AttachButton,
-  MarkdownEditor,
-  SourceToggle,
-} from "~/components/markdown-editor";
+import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
 import { Page } from "~/components/page";
 import type { Crumb } from "~/components/page";
