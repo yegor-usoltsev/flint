@@ -724,7 +724,7 @@ test("a status for a linked pull request head publishes the issue after it commi
     return chunk?.value;
   };
 
-  expect(await read()).toBe("retry: 3000\n\n");
+  expect(await read()).toBe("retry: 3000\n\nevent: ping\ndata:\n\n");
   await deliver("pull_request", "pull-request-ci-opened");
 
   const linked = await read();
