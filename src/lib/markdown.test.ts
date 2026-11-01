@@ -347,10 +347,16 @@ describe("editor blocks", () => {
     ).join("\n");
 
     const start = performance.now();
-
-    manager.parse(outline);
+    const doc = manager.parse(outline);
 
     expect(performance.now() - start).toBeLessThan(1000);
+
+    const depth = (node?: JSONContent): number =>
+      node?.type === "orderedList"
+        ? 1 + depth(node.content?.[0]?.content?.at(-1))
+        : 0;
+
+    expect(depth(doc.content?.[0])).toBe(24);
   });
 
   test("table cells hold only paragraphs", () => {
