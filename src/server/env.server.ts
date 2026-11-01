@@ -21,7 +21,13 @@ const Cron = v.pipe(
 
 const positive = (fallback: string) =>
   v.optional(
-    v.pipe(v.string(), v.digits(), v.transform(Number), v.minValue(1)),
+    v.pipe(
+      v.string(),
+      v.digits(),
+      v.transform(Number),
+      v.minValue(1),
+      v.maxValue(Number.MAX_SAFE_INTEGER)
+    ),
     fallback
   );
 
