@@ -13,7 +13,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 
 ## Pull requests
 
-- CodeRabbit, cubic and Sourcery review every non-draft PR within minutes of each push (`.coderabbit.yaml`, `cubic.yaml`; Sourcery is set in its dashboard). After opening or pushing, wait for CI and all three, then read their inline comments with `gh api repos/{owner}/{repo}/pulls/<n>/comments`.
+- CodeRabbit and cubic review every non-draft PR within minutes of each push (`.coderabbit.yaml`, `cubic.yaml`); CodeRabbit allows about 10 reviews an hour, so a pending CodeRabbit check may lag. After opening or pushing, wait for CI and both, then read their inline comments with `gh api repos/{owner}/{repo}/pulls/<n>/comments`.
 - Verify each finding against the code before acting. Fix real defects in one commit per round; reply in the thread with one line of evidence to decline the rest (nits, style, rules the code already follows, speculative cases) and resolve it. The bots answer replies, so do not argue twice.
 - Stop after two fix rounds: open nits do not block a merge. Merge with `gh pr merge --squash` once CI is green and no comment points at a real defect.
 

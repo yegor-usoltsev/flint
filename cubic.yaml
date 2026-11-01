@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
 version: 1
 reviews:
+  custom_instructions: Skip limitations the PR description lists as out of scope or tracked in a Flint issue.
   check_drafts: false
   architecture_diagrams: false
   resolve_threads_when_addressed: true
