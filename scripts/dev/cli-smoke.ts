@@ -177,7 +177,7 @@ const issueFlows = async () => {
 
   const greeting = await events.read();
 
-  assert.equal(greeting.value, "retry: 3000\n\n");
+  assert.equal(greeting.value, "retry: 3000\n\nevent: ping\ndata:\n\n");
 
   const issue = ok(IssueSchema, [
     "issue",
