@@ -463,7 +463,7 @@ const CommentItem = ({
       {editing === null ? (
         <MarkdownEditor
           attachments={`/issues/${issue.key}/attachments`}
-          checkable={own}
+          checkable={own && !save.isPending}
           className="text-prose"
           editable={false}
           label={`Comment by ${comment.author.displayName}`}

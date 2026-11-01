@@ -184,6 +184,46 @@ const table = Table.extend({
   },
 }).configure({ resizable: false, View: ScrollingTableView });
 
+const taskItem = TaskItem.extend({
+  addNodeView() {
+    const view = this.parent?.();
+
+    if (view === null || view === undefined) {
+      return null;
+    }
+
+    return (props) => {
+      const rendered = view(props);
+
+      const checkbox = rendered.dom?.querySelector("input");
+
+      checkbox?.addEventListener("change", () => {
+        const pos = props.getPos();
+
+        const node =
+          pos === undefined ? null : props.editor.state.doc.nodeAt(pos);
+
+        if (
+          props.editor.isEditable ||
+          pos === undefined ||
+          node?.attrs["checked"] === checkbox.checked
+        ) {
+          return;
+        }
+
+        props.editor.view.dispatch(
+          props.editor.state.tr.setNodeMarkup(pos, undefined, {
+            ...node?.attrs,
+            checked: checkbox.checked,
+          })
+        );
+      });
+
+      return rendered;
+    };
+  },
+});
+
 export const markdownExtensions = ({
   codeBlockView,
   onReadOnlyChecked,
@@ -206,7 +246,7 @@ export const markdownExtensions = ({
     ? codeBlock
     : codeBlock.extend({ addNodeView: () => codeBlockView }),
   TaskList,
-  TaskItem.configure({ nested: true, onReadOnlyChecked }),
+  taskItem.configure({ nested: true, onReadOnlyChecked }),
   table,
   TableKit.configure({ table: false }),
   ...mediaExtensions,
