@@ -5,6 +5,7 @@ import type { EditorState } from "@tiptap/pm/state";
 import { Suggestion } from "@tiptap/suggestion";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import {
+  ChevronsDownUpIcon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
@@ -127,6 +128,14 @@ const slashItems: SlashItem[] = [
     keywords: "quote citation",
     run: (chain) => chain.toggleBlockquote(),
     title: "Blockquote",
+  },
+  {
+    group: 3,
+    icon: <ChevronsDownUpIcon />,
+    keywords: "details summary collapsible toggle spoiler expandable",
+    run: (chain) =>
+      chain.setDetails().updateAttributes("details", { open: true }),
+    title: "Collapsible",
   },
   {
     group: 4,

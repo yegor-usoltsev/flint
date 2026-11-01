@@ -25,6 +25,7 @@ export const allowTrigger = ({
   return (
     afterWhitespace(state, range.from) &&
     $from.parent.type.spec.code !== true &&
+    $from.parent.type.spec.content !== "text*" &&
     !marks.some(
       (mark) => mark.type.spec.code === true || mark.type.name === "link"
     )

@@ -23,6 +23,7 @@ import { StarterKit } from "@tiptap/starter-kit";
 import * as v from "valibot";
 
 import { lowlight } from "~/lib/code-languages";
+import { detailsExtensions } from "~/lib/markdown-details";
 import { mediaExtensions } from "~/lib/markdown-media";
 
 const safeUrl = /^(?:https?:|mailto:|\/(?![/\\])|#)/iu;
@@ -324,5 +325,6 @@ export const markdownExtensions = ({
   tableCell,
   tableHeader,
   ...mediaExtensions,
+  ...detailsExtensions,
   Markdown.configure({ markedOptions: { gfm: true } }),
 ];
