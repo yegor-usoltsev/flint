@@ -309,7 +309,12 @@ const withContinuationBlocks = (
         )
       : paragraphLines;
 
-  const continuation = source.split("\n").slice(length).join("\n").trim();
+  const continuation = source
+    .split("\n")
+    .slice(length)
+    .join("\n")
+    .replace(/^(?:[ \t]*\n)+/u, "")
+    .trimEnd();
 
   const mainText = (paragraph.raw ?? "")
     .split("\n")
@@ -318,9 +323,7 @@ const withContinuationBlocks = (
 
   const continuationBlocks = lexer.blockTokens(continuation);
 
-  return continuationBlocks.every((token) =>
-    ["paragraph", "text", "space"].includes(token.type ?? "")
-  )
+  return continuationBlocks.length === 0
     ? item
     : {
         ...item,

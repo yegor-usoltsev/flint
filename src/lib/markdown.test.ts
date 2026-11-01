@@ -407,13 +407,25 @@ describe("editor blocks", () => {
     ["1. a\n continued", ["a\ncontinued"]],
     ["1. a\n   continued", ["a\n continued"]],
     ["1. a\nlazy continuation", ["a\nlazy continuation"]],
-    ["1. a\n\n   second\n   continued", ["a", "second\n continued"]],
+    ["1. a\n\n   second\n   continued", ["a", "second\ncontinued"]],
     ["1. \n continued", ["continued"]],
     ["1. a\n   ---", ["a\n ---"]],
   ])("preserves continuation paragraph parsing: %#", (markdown, paragraphs) => {
     expect(manager.parse(markdown).content?.[0]?.content?.[0]?.content).toEqual(
       paragraphs.map(textParagraph)
     );
+  });
+
+  test.each([
+    ["1. a\n\n   para\n\n   x\n   y", "paragraph"],
+    ["1. a\n\n       indented code", "codeBlock"],
+  ])("keeps later blocks of a numbered item stable: %#", (markdown, type) => {
+    const doc = manager.parse(markdown);
+    const once = manager.serialize(doc);
+
+    expect(doc.content?.[0]?.content?.[0]?.content?.at(-1)?.type).toBe(type);
+    expect(roundTrip(once)).toBe(once);
+    expect(manager.parse(once)).toEqual(doc);
   });
 
   test.each([
