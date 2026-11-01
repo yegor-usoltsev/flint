@@ -92,7 +92,7 @@ const openStream = (
     start: (streamController) => {
       controller = streamController;
       ping = setInterval(() => {
-        listener.send(": ping\n\n");
+        listener.send("event: ping\ndata:\n\n");
         pings += 1;
 
         if (pings % pingsPerCheck === 0) {
@@ -101,7 +101,7 @@ const openStream = (
       }, pingMs);
       listeners.set(workspaceId, workspaceListeners);
       workspaceListeners.add(listener);
-      listener.send("retry: 3000\n\n");
+      listener.send("retry: 3000\n\nevent: ping\ndata:\n\n");
     },
   });
 

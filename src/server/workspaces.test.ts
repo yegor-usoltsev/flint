@@ -590,7 +590,7 @@ test("a member added to a workspace hears it on a stream of another workspace", 
     return chunk?.value;
   };
 
-  expect(await read()).toBe("retry: 3000\n\n");
+  expect(await read()).toBe("retry: 3000\n\nevent: ping\ndata:\n\n");
   expect(await addMember(root, "acme", "bob")).toMatchObject({ status: 201 });
   expect(await read()).toBe(
     `data: ${JSON.stringify({ entity: "member", id: "bob", projectId: null })}\n\n`

@@ -13,7 +13,7 @@ Flint runs as one container next to your Gitea, PostgreSQL and an S3 bucket. The
 
    Each start applies pending migrations, then serves on port 3000. `/api/health` answers 200 when PostgreSQL and the bucket are reachable, 503 otherwise.
 
-5. **Reverse proxy.** Terminate TLS and serve HTTP/2. Visible tabs share an event stream per account and workspace through SharedWorker; older builds and worker fallback still use one stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings.
+5. **Reverse proxy.** Terminate TLS and serve HTTP/2. Visible tabs share an event stream per account and workspace through SharedWorker; older builds and worker fallback still use one stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings; a tab reconnects a stream that delivers nothing for 15 seconds.
 
 Run one container per database, because live updates reach only the tabs connected to the container that made the change.
 

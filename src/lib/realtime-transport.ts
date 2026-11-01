@@ -1,4 +1,9 @@
-import { heartbeatMs, leaseMs, realtimeUrl } from "~/lib/realtime-shared";
+import {
+  heartbeatMs,
+  leaseMs,
+  realtimeUrl,
+  watchStall,
+} from "~/lib/realtime-shared";
 import type {
   RealtimeMessage,
   RealtimeSubscription,
@@ -22,6 +27,12 @@ export const subscribeRealtime = (
     const controller = new AbortController();
     const source = new EventSource(realtimeUrl(slug, userId));
     let retry: ReturnType<typeof setTimeout> | undefined;
+
+    watchStall(source, () => {
+      controller.abort();
+      receive({ type: "error" });
+      stop = connectDirect();
+    });
 
     source.addEventListener(
       "open",

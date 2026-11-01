@@ -600,7 +600,7 @@ test("writes and deletes publish wiki events; delete removes the history", async
     return chunk?.value;
   };
 
-  expect(await read()).toBe("retry: 3000\n\n");
+  expect(await read()).toBe("retry: 3000\n\nevent: ping\ndata:\n\n");
 
   const { page } = await putPage(alice, "doc", { body: "x" });
   const event = `data: ${JSON.stringify({ entity: "wiki", id: page.id, projectId: null })}\n\n`;

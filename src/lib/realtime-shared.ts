@@ -12,6 +12,32 @@ export const realtimeUrl = (slug: string, userId: string) =>
 
 export const heartbeatMs = 10_000;
 export const leaseMs = 30_000;
+export const stallMs = 15_000;
+
+// Servers before named pings send only comments, which EventSource hides, so the watchdog waits for the first ping.
+export const watchStall = (source: EventSource, stalled: () => void) => {
+  let last: number | null = null;
+
+  const alive = () => {
+    last = Date.now();
+  };
+
+  source.addEventListener("ping", alive);
+
+  const timer = setInterval(() => {
+    if (source.readyState === EventSource.CLOSED) {
+      clearInterval(timer);
+    } else if (
+      source.readyState === EventSource.OPEN &&
+      last !== null &&
+      Date.now() - last >= stallMs
+    ) {
+      clearInterval(timer);
+      source.close();
+      stalled();
+    }
+  }, stallMs / 3);
+};
 
 interface Stream {
   ports: Set<MessagePort>;
@@ -61,6 +87,10 @@ export const createRealtimeHub = () => {
     }
 
     stream.source = source;
+    watchStall(source, () => {
+      send(stream, { type: "error" });
+      connect(stream);
+    });
     source.addEventListener("open", () => {
       send(stream, { type: "open" });
     });
