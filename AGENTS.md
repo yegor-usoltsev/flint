@@ -11,6 +11,12 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 - `bun test` needs the compose Postgres and gives each checkout its own test database. Call `resetDatabase` in `beforeEach`, test a route with `callRoute(Route, request)` from `test/helpers.ts`, and stub Gitea by spying on `fetch`.
 - `bun run cli:smoke` drives every CLI command group against the running app after `bun run demo` (it signs in as alice and uses `acme/ENG`).
 
+## Pull requests
+
+- CodeRabbit, cubic and Sourcery review every non-draft PR within minutes of each push (`.coderabbit.yaml`, `cubic.yaml`; Sourcery is set in its dashboard). After opening or pushing, wait for CI and all three, then read their inline comments with `gh api repos/{owner}/{repo}/pulls/<n>/comments`.
+- Verify each finding against the code before acting. Fix real defects in one commit per round; reply in the thread with one line of evidence to decline the rest (nits, style, rules the code already follows, speculative cases) and resolve it. The bots answer replies, so do not argue twice.
+- Stop after two fix rounds: open nits do not block a merge. Merge with `gh pr merge --squash` once CI is green and no comment points at a real defect.
+
 ## Code
 
 - Every product feature is a REST endpoint under `src/routes/api/v1/`, so the CLI can do what the UI does. Add it to the type map `src/lib/endpoints.ts` first, declare the handler with `endpoint<"METHOD /path">` from `src/server/api.server.ts`, and give the route `ANY: methodNotAllowed`, because an unhandled method falls through to the HTML app.
