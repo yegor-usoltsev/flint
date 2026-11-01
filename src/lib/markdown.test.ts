@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
+import { getSchema } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import { MarkdownManager } from "@tiptap/markdown";
 
 import { markdownExtensions } from "~/lib/markdown";
 
 const manager = new MarkdownManager({ extensions: markdownExtensions() });
+
+const schema = getSchema(markdownExtensions());
 
 const roundTrip = (markdown: string) =>
   manager.serialize(manager.parse(markdown));
@@ -201,6 +204,53 @@ describe("editor blocks", () => {
     expect(once).toContain("| First line<br>Second line |");
     expect(once).toContain(String.raw`\<b>bold\</b> and<br>`);
     expect(roundTrip(once)).toBe(once);
+  });
+
+  test.each([
+    "- ```ts\n  const a = 1;\n  ```\n- next",
+    "- | a   | b   |\n  | --- | --- |\n  | 1   | 2   |\n- next",
+    "- # Heading",
+    "- outer\n  - # Heading\n  - next",
+  ])("keeps a list item that starts with a block: %#", (markdown) => {
+    const doc = manager.parse(markdown);
+
+    schema.nodeFromJSON(doc).check();
+    expect(manager.parse(roundTrip(markdown))).toEqual(doc);
+    expect(roundTrip(markdown)).toBe(markdown);
+  });
+
+  test.each(["a. one\nb. two", "3. three\n4. four\n   i. nested"])(
+    "keeps ordered list markers: %#",
+    (markdown) => {
+      expect(roundTrip(markdown)).toBe(markdown);
+    }
+  );
+
+  test("drops empty paragraphs before a block that starts a list item", () => {
+    const empty = { type: "paragraph" };
+
+    const heading = {
+      attrs: { level: 1 },
+      content: [{ text: "Heading", type: "text" }],
+      type: "heading",
+    };
+
+    expect(
+      manager.serialize({
+        content: [
+          {
+            content: [{ content: [empty, empty, heading], type: "listItem" }],
+            type: "bulletList",
+          },
+        ],
+        type: "doc",
+      })
+    ).toBe("- # Heading");
+  });
+
+  test("table cells hold only paragraphs", () => {
+    expect(schema.nodes["tableCell"]?.spec.content).toBe("paragraph+");
+    expect(schema.nodes["tableHeader"]?.spec.content).toBe("paragraph+");
   });
 
   test("keeps <br> outside table cells as literal text", () => {
