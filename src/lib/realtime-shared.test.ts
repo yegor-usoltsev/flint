@@ -274,6 +274,7 @@ test("a stream that goes silent while open reconnects in the worker and the dire
   const shared = await subscribe();
 
   Source.instances[0]?.open();
+  Source.instances[0]?.dispatchEvent(new Event("ping"));
   jest.advanceTimersByTime(stallMs - 1000);
   Source.instances[0]?.dispatchEvent(new Event("ping"));
   shared.port.postMessage({ type: "ping" }, []);
@@ -291,8 +292,16 @@ test("a stream that goes silent while open reconnects in the worker and the dire
   const tab = client(undefined);
 
   Source.instances[2]?.open();
+  Source.instances[2]?.dispatchEvent(new Event("ping"));
   jest.advanceTimersByTime(stallMs * 2);
   expect(Source.instances[2]?.readyState).toBe(Source.CLOSED);
   expect(Source.instances).toHaveLength(4);
   expect(tab.messages).toEqual([{ type: "open" }, { type: "error" }]);
+});
+
+test("a stream from a server that never sends named pings is not treated as stalled", () => {
+  client(undefined);
+  Source.instances[0]?.open();
+  jest.advanceTimersByTime(stallMs * 3);
+  expect(Source.instances).toHaveLength(1);
 });

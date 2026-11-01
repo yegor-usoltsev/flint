@@ -1052,8 +1052,10 @@ test("the stream delivers workspace events and drops removed members", async () 
   expect(aliceStream.response.headers.get("content-type")).toBe(
     "text/event-stream"
   );
-  expect(await aliceStream.next()).toBe("retry: 3000\n\n");
-  expect(await bobStream.next()).toBe("retry: 3000\n\n");
+  expect(await aliceStream.next()).toBe(
+    "retry: 3000\n\nevent: ping\ndata:\n\n"
+  );
+  expect(await bobStream.next()).toBe("retry: 3000\n\nevent: ping\ndata:\n\n");
 
   const { issue } = await createIssue(root, { title: "Live" });
   const eng = await getProject({ userId: rootId }, "ENG");
@@ -1101,7 +1103,9 @@ test("a stream closes once its API token is revoked or its session ends", async 
 
   expect(await drain(tokenStream)).toContain("event: ping\ndata:\n\n");
   expect(await drain(sessionStream)).toContain("event: ping\ndata:\n\n");
-  expect(await otherStream.next()).toBe("retry: 3000\n\n");
+  expect(await otherStream.next()).toBe(
+    "retry: 3000\n\nevent: ping\ndata:\n\n"
+  );
   otherStream.abort();
 });
 

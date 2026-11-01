@@ -14,22 +14,22 @@ export const heartbeatMs = 10_000;
 export const leaseMs = 30_000;
 export const stallMs = 15_000;
 
+// Servers before named pings send only comments, which EventSource hides, so the watchdog waits for the first ping.
 export const watchStall = (source: EventSource, stalled: () => void) => {
-  let last = Date.now();
+  let last: number | null = null;
 
   const alive = () => {
     last = Date.now();
   };
 
-  for (const type of ["open", "message", "ping"]) {
-    source.addEventListener(type, alive);
-  }
+  source.addEventListener("ping", alive);
 
   const timer = setInterval(() => {
     if (source.readyState === EventSource.CLOSED) {
       clearInterval(timer);
     } else if (
       source.readyState === EventSource.OPEN &&
+      last !== null &&
       Date.now() - last >= stallMs
     ) {
       clearInterval(timer);

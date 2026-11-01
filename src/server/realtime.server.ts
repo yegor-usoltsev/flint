@@ -101,7 +101,7 @@ const openStream = (
       }, pingMs);
       listeners.set(workspaceId, workspaceListeners);
       workspaceListeners.add(listener);
-      listener.send("retry: 3000\n\n");
+      listener.send("retry: 3000\n\nevent: ping\ndata:\n\n");
     },
   });
 
