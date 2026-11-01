@@ -14,22 +14,22 @@
   "type": "module",
   "scripts": {
     "api:build": "tsp compile api && oxfmt api/openapi.yaml && openapi-typescript api/openapi.yaml -o src/lib/openapi/paths.gen.ts && openapi-ts -s -i ./api/openapi.yaml -o src/lib/openapi/valibot -p valibot && cd cli-go && go generate ./...",
-    "api:check": "bun run api:build && git diff --exit-code -- api src/lib/openapi cli-go",
-    "api:lint": "bunx @redocly/cli@2.72.1 lint --config api/redocly.yaml api/openapi.yaml",
+    "api:check": "bun run api:build && git diff --exit-code -- api src/lib/openapi cli-go && test -z \"$(git status --porcelain -- api src/lib/openapi cli-go)\"",
+    "api:lint": "redocly lint --config api/redocly.yaml api/openapi.yaml",
     "build": "vite build && bun build scripts/migrate.ts scripts/embeddings-backfill.ts scripts/storage-sweep.ts --target bun --outdir dist",
-    "cli:build": "bun build cli/flint.ts --target node --minify --define \"process.env.FLINT_COMMIT='$(git rev-parse --short HEAD 2>/dev/null || echo dev)'\" --metafile=cli/dist/meta.json --outfile cli/dist/flint.js && bun scripts/licenses.ts cli/dist/meta.json cli/dist/licenses.md",
-    "cli:smoke": "bun scripts/dev/cli-smoke.ts",
-    "demo": "bun scripts/dev/demo.ts",
     "dev": "bun run migrate && vite dev | pino-pretty",
     "embeddings:backfill": "bun scripts/embeddings-backfill.ts",
-    "flint": "bun cli/flint.ts",
     "gitea:bootstrap": "bun scripts/gitea-bootstrap.ts",
     "gitea:external-tracker": "bun scripts/gitea-external-tracker.ts",
     "lint": "tsc && ultracite check",
     "lint:fix": "tsc && ultracite fix",
     "migrate": "bun scripts/migrate.ts",
-    "start": "bun .output/server/index.mjs",
-    "storage:sweep": "bun scripts/storage-sweep.ts"
+    "demo": "bun scripts/dev/demo.ts",
+    "cli:build": "bun build cli/flint.ts --target node --minify --define \"process.env.FLINT_COMMIT='$(git rev-parse --short HEAD 2>/dev/null || echo dev)'\" --metafile=cli/dist/meta.json --outfile cli/dist/flint.js && bun scripts/licenses.ts cli/dist/meta.json cli/dist/licenses.md",
+    "cli:smoke": "bun scripts/dev/cli-smoke.ts",
+    "flint": "bun cli/flint.ts",
+    "storage:sweep": "bun scripts/storage-sweep.ts",
+    "start": "bun .output/server/index.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
@@ -73,6 +73,7 @@
   "devDependencies": {
     "@babel/core": "8.0.7",
     "@hey-api/openapi-ts": "0.99.0",
+    "@redocly/cli": "2.72.1",
     "@rolldown/plugin-babel": "0.2.4",
     "@shadcn/lint": "0.2.3",
     "@tailwindcss/vite": "4.3.3",

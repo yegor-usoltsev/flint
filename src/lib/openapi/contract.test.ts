@@ -34,7 +34,22 @@ import {
   stubGiteaUsers,
 } from "../../../test/helpers";
 
-type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Normal<T> = T extends (infer Item)[]
+  ? Normal<Item>[]
+  : T extends FormData
+    ? FormData
+    : T extends object
+      ? { [K in keyof T]: Normal<T[K]> }
+      : T;
+
+/* oxlint-disable typescript/no-unnecessary-type-parameters -- The strict-equality idiom: TypeScript relates the two inline signatures only when A and B are identical, and an alias would lose that. */
+type Exact<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
+/* oxlint-enable typescript/no-unnecessary-type-parameters */
+
+type Same<A, B> = Exact<Normal<A>, Normal<B>>;
 
 type Without<Value, Key extends PropertyKey> = Value extends object
   ? Omit<Value, Key>
@@ -68,11 +83,15 @@ const priorityOnTheWire: Same<
   string[]
 > = true;
 
+// @ts-expect-error -- A key optional on one side and missing on the other is drift.
+const optionalDrift: Same<{ a?: string }, { a?: string; b?: number }> = true;
+
 test("the hand-written endpoint map matches the OpenAPI slice", () => {
   expect(Object.values(contract)).toEqual(
     Object.values(contract).map(() => matches)
   );
   expect(priorityOnTheWire).toBe(true);
+  expect(optionalDrift).toBeTruthy();
 });
 
 beforeEach(async () => {

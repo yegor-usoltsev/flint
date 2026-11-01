@@ -1,6 +1,6 @@
 module github.com/yegor-usoltsev/flint/cli-go
 
-go 1.27.3
+go 1.25.0
 
 tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 
