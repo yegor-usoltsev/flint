@@ -400,6 +400,16 @@
     & .media {
       @apply relative w-fit max-w-full;
     }
+    & > .media {
+      @apply mt-2.5 mr-2.5 inline-block align-top;
+    }
+    &.ProseMirror-focused > .media + .ProseMirror-gapcursor:has(+ .media) {
+      @apply inline-block!;
+
+      &::after {
+        @apply top-2.5! -left-1.5 h-6 w-0! border-t-0! border-l border-current;
+      }
+    }
     & :is(img, video) {
       @apply h-auto max-w-full rounded-md border;
     }
