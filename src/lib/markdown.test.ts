@@ -207,22 +207,81 @@ describe("editor blocks", () => {
   });
 
   test.each([
-    "- ```ts\n  const a = 1;\n  ```\n- next",
-    "- | a   | b   |\n  | --- | --- |\n  | 1   | 2   |\n- next",
-    "- # Heading",
-    "- outer\n  - # Heading\n  - next",
-  ])("keeps a list item that starts with a block: %#", (markdown) => {
-    const doc = manager.parse(markdown);
+    ["- ```ts\n  const a = 1;\n  ```\n- next", "codeBlock"],
+    ["- | a   | b   |\n  | --- | --- |\n  | 1   | 2   |\n- next", "table"],
+    ["- # Heading", "heading"],
+    ["- outer\n  - # Heading\n  - next", "bulletList"],
+    ["- 1. child", "orderedList"],
+    ["1. ```ts\n   const a = 1;\n   ```\n2. two", "codeBlock"],
+    ["1. before\n2. ```ts\n   const a = 1;\n   ```\n3. after", "codeBlock"],
+    ["1. before\n2. ```ts\n   const a = 1;\n   ```", "codeBlock"],
+    ["1. ```md\n   1. code\n   ```\n2. two", "codeBlock"],
+    ["1. ```ts\n     indented code\n   ```\n2. two", "codeBlock"],
+    ["9. ```ts\n   code\n   ```\n10. ten", "codeBlock"],
+    ["1. # Heading", "heading"],
+    ["1. # Heading\n   1. child\n   2. next\n2. two", "heading"],
+    [
+      "1. # Heading\n\n   paragraph\n   - [ ] task\n   - [x] done\n2. next",
+      "heading",
+    ],
+    ["a. # Heading\nb. next", "heading"],
+    ["A. # Heading\nB. next", "heading"],
+    ["i. # Heading\nii. next", "heading"],
+    ["I. # Heading\nII. next", "heading"],
+    ["1. | a   | b   |\n   | --- | --- |\n   | 1   | 2   |\n2. two", "table"],
+    ['1. <img src="/files/a" alt="image" width="320">\n2. two', "image"],
+    ['1. <video src="/files/a" controls></video>\n2. two', "video"],
+    ['1. <audio src="/files/a" controls></audio>\n2. two', "audio"],
+    ["1. outer\n   1. # Heading\n   2. next\n2. two", "orderedList"],
+    ["- outer\n  1. ```ts\n     code\n     ```\n  2. next", "orderedList"],
+    ["1. - [ ] task\n   - [x] done\n2. two", "taskList"],
+  ])(
+    "keeps a list item that starts with a block: %#",
+    (markdown, blockType) => {
+      const doc = manager.parse(markdown);
+      const once = manager.serialize(doc);
 
-    schema.nodeFromJSON(doc).check();
-    expect(manager.parse(roundTrip(markdown))).toEqual(doc);
+      schema.nodeFromJSON(doc).check();
+      expect(
+        doc.content?.[0]?.content?.some(
+          (item) =>
+            item.content?.some((node) => node.type === blockType) === true
+        )
+      ).toBe(true);
+      expect(manager.parse(once)).toEqual(doc);
+      expect(once).toBe(markdown);
+      expect(roundTrip(once)).toBe(once);
+    }
+  );
+
+  test.each([
+    "a. one\nb. two",
+    "A. one\nB. two",
+    "i. one\nii. two",
+    "I. one\nII. two",
+    "e. five\nf. six",
+    "IV. four\nV. five",
+    "3. three\n4. four\n   i. nested",
+    "1. one\n\n   second paragraph\n2. two",
+    "1. one\n   - [ ] task\n2. two",
+  ])("keeps ordered list markers and content: %#", (markdown) => {
     expect(roundTrip(markdown)).toBe(markdown);
   });
 
-  test.each(["a. one\nb. two", "3. three\n4. four\n   i. nested"])(
-    "keeps ordered list markers: %#",
-    (markdown) => {
-      expect(roundTrip(markdown)).toBe(markdown);
+  test.each([
+    ["1. one\n2) two", "1. one\n2. two"],
+    ["a) one\nb. two", "a. one\nb. two"],
+    ["1.\n2. next", "1. \n2. next"],
+    ["1. one\n\n2. two", "1. one\n2. two"],
+    ["1) # Heading\n2. next", "1. # Heading\n2. next"],
+  ])(
+    "normalizes ordered lists without losing items: %#",
+    (markdown, expected) => {
+      const doc = manager.parse(markdown);
+
+      expect(roundTrip(markdown)).toBe(expected);
+      expect(manager.parse(expected)).toEqual(doc);
+      expect(roundTrip(expected)).toBe(expected);
     }
   );
 
