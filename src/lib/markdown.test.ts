@@ -13,6 +13,11 @@ const schema = getSchema(markdownExtensions());
 const roundTrip = (markdown: string) =>
   manager.serialize(manager.parse(markdown));
 
+const textParagraph = (text: string): JSONContent => ({
+  content: [{ text, type: "text" }],
+  type: "paragraph",
+});
+
 const issue = `## Context
 
 Reported by a teammate while working on release 3. See ENG-12 and [the spec](https://example.com/spec).
@@ -252,6 +257,164 @@ describe("editor blocks", () => {
       expect(roundTrip(once)).toBe(once);
     }
   );
+
+  test.each<[string, JSONContent]>([
+    [
+      "```ts\ncode\n  indented\n```",
+      {
+        attrs: { language: "ts" },
+        content: [{ text: "code\n  indented", type: "text" }],
+        type: "codeBlock",
+      },
+    ],
+    [
+      "# Heading",
+      {
+        attrs: { level: 1 },
+        content: [{ text: "Heading", type: "text" }],
+        type: "heading",
+      },
+    ],
+    [
+      "> quote\n> next",
+      {
+        content: [textParagraph("quote\nnext")],
+        type: "blockquote",
+      },
+    ],
+    [
+      "- child\n  - grandchild\n- next",
+      {
+        content: [
+          {
+            content: [
+              textParagraph("child"),
+              {
+                content: [
+                  {
+                    content: [textParagraph("grandchild")],
+                    type: "listItem",
+                  },
+                ],
+                type: "bulletList",
+              },
+            ],
+            type: "listItem",
+          },
+          {
+            content: [textParagraph("next")],
+            type: "listItem",
+          },
+        ],
+        type: "bulletList",
+      },
+    ],
+    [
+      "| a | b |\n| --- | --- |\n| c | d |",
+      {
+        content: [
+          {
+            content: ["a", "b"].map((text) => ({
+              content: [textParagraph(text)],
+              type: "tableHeader",
+            })),
+            type: "tableRow",
+          },
+          {
+            content: ["c", "d"].map((text) => ({
+              content: [textParagraph(text)],
+              type: "tableCell",
+            })),
+            type: "tableRow",
+          },
+        ],
+        type: "table",
+      },
+    ],
+    [
+      "- [ ] task\n- [x] done",
+      {
+        content: [
+          {
+            attrs: { checked: false },
+            content: [textParagraph("task")],
+            type: "taskItem",
+          },
+          {
+            attrs: { checked: true },
+            content: [textParagraph("done")],
+            type: "taskItem",
+          },
+        ],
+        type: "taskList",
+      },
+    ],
+  ])(
+    "keeps continuation blocks after an ordered item's paragraph: %#",
+    (block, expected) => {
+      for (const marker of ["1.", "10.", "a.", "A.", "i.", "I.", "IV)"]) {
+        for (const separator of ["\n", "\n\n"]) {
+          for (const text of ["a", "A. Smith wrote"]) {
+            const continuation = block
+              .split("\n")
+              .map((line) => `${" ".repeat(marker.length + 1)}${line}`)
+              .join("\n");
+
+            const markdown = `${marker} ${text}${separator}${continuation}`;
+            const doc = manager.parse(markdown);
+            const once = manager.serialize(doc);
+
+            expect(doc.content?.[0]?.content?.[0]?.content).toEqual([
+              textParagraph(text),
+              expected,
+            ]);
+            schema.nodeFromJSON(doc).check();
+            expect(manager.parse(once)).toEqual(doc);
+            expect(roundTrip(once)).toBe(once);
+          }
+        }
+      }
+    }
+  );
+
+  test("keeps continuation blocks in nested and loose ordered items", () => {
+    const markdown =
+      "1. outer\n   10. child\n\n       ```\n       code\n       ```\n\n2. next\n\n   paragraph\n\n   > quote";
+
+    const doc = manager.parse(markdown);
+    const items = doc.content?.[0]?.content;
+    const once = manager.serialize(doc);
+
+    expect(items?.[0]?.content?.[1]?.content?.[0]?.content).toEqual([
+      textParagraph("child"),
+      {
+        attrs: { language: null },
+        content: [{ text: "code", type: "text" }],
+        type: "codeBlock",
+      },
+    ]);
+    expect(items?.[1]?.content?.map((node) => node.type)).toEqual([
+      "paragraph",
+      "paragraph",
+      "blockquote",
+    ]);
+    schema.nodeFromJSON(doc).check();
+    expect(manager.parse(once)).toEqual(doc);
+    expect(roundTrip(once)).toBe(once);
+  });
+
+  test.each<[string, string[]]>([
+    ["1. a\n continued", ["a\ncontinued"]],
+    ["1. a\n   continued", ["a\n continued"]],
+    ["1. a\nlazy continuation", ["a\nlazy continuation"]],
+    ["1. a\n\n   second\n   continued", ["a", "second\n continued"]],
+    ["1. \n continued", ["continued"]],
+    ["1. a\n   ---", ["a\n ---"]],
+  ])("preserves continuation paragraph parsing: %#", (markdown, paragraphs) => {
+    expect(manager.parse(markdown).content?.[0]?.content?.[0]?.content).toEqual(
+      paragraphs.map(textParagraph)
+    );
+  });
 
   test.each([
     ["1. A. Smith wrote", "orderedList", "A. Smith wrote"],
