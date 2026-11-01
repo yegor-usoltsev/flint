@@ -4,8 +4,19 @@ import type {
   NodeViewRenderer,
 } from "@tiptap/core";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
-import { Table, TableKit, TableView } from "@tiptap/extension-table";
+import {
+  ListItem,
+  OrderedList,
+  TaskItem,
+  TaskList,
+} from "@tiptap/extension-list";
+import {
+  Table,
+  TableCell,
+  TableHeader,
+  TableKit,
+  TableView,
+} from "@tiptap/extension-table";
 import { Markdown, MarkdownManager } from "@tiptap/markdown";
 import { StarterKit } from "@tiptap/starter-kit";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
@@ -224,6 +235,63 @@ const taskItem = TaskItem.extend({
   },
 });
 
+const isEmptyParagraph = (node?: JSONContent) =>
+  node?.type === "paragraph" && (node.content ?? []).length === 0;
+
+const withLeadingParagraph = (content: JSONContent[] = []) => {
+  const start = content.findIndex((node) => !isEmptyParagraph(node));
+  const rest = start === -1 ? [] : content.slice(start);
+
+  if (rest.length === 0) {
+    return [{ type: "paragraph" }];
+  }
+
+  return rest[0]?.type === "paragraph"
+    ? rest
+    : [{ type: "paragraph" }, ...rest];
+};
+
+const listItem = ListItem.extend({
+  parseMarkdown(token, helpers) {
+    const item = this.parent?.(token, helpers);
+
+    return item === undefined || Array.isArray(item)
+      ? (item ?? [])
+      : { ...item, content: withLeadingParagraph(item.content) };
+  },
+  renderMarkdown(node, helpers, context) {
+    const content = withLeadingParagraph(node.content);
+
+    const markdown =
+      this.parent?.({ ...node, content }, helpers, context) ?? "";
+
+    return isEmptyParagraph(content[0]) && content.length > 1
+      ? markdown.replace(/^(?<marker>[^\n]*)\n[ \t]*/u, "$<marker>")
+      : markdown;
+  },
+});
+
+const orderedList = OrderedList.extend({
+  parseMarkdown(token, helpers) {
+    const list = this.parent?.(token, helpers);
+
+    return list === undefined || Array.isArray(list)
+      ? (list ?? [])
+      : {
+          ...list,
+          content: list.content?.map((item) =>
+            item.type === "listItem"
+              ? { ...item, content: withLeadingParagraph(item.content) }
+              : item
+          ),
+        };
+  },
+});
+
+const tableCell = TableCell.extend({ content: "paragraph+" });
+
+const tableHeader = TableHeader.extend({ content: "paragraph+" });
+
 export const markdownExtensions = ({
   codeBlockView,
   onReadOnlyChecked,
@@ -239,16 +307,22 @@ export const markdownExtensions = ({
       openOnClick: false,
       shouldAutoLink: (url) => isSafeUrl(url) || !url.includes(":"),
     },
+    listItem: false,
+    orderedList: false,
     paragraph: false,
     underline: false,
   }),
+  listItem,
+  orderedList,
   codeBlockView === undefined
     ? codeBlock
     : codeBlock.extend({ addNodeView: () => codeBlockView }),
   TaskList,
   taskItem.configure({ nested: true, onReadOnlyChecked }),
   table,
-  TableKit.configure({ table: false }),
+  TableKit.configure({ table: false, tableCell: false, tableHeader: false }),
+  tableCell,
+  tableHeader,
   ...mediaExtensions,
   Markdown.configure({ markedOptions: { gfm: true } }),
 ];

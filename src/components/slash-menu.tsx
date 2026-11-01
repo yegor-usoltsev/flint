@@ -1,6 +1,7 @@
 import { Extension } from "@tiptap/core";
-import type { ChainedCommands } from "@tiptap/core";
+import type { ChainedCommands, Range } from "@tiptap/core";
 import { PluginKey } from "@tiptap/pm/state";
+import type { EditorState } from "@tiptap/pm/state";
 import { Suggestion } from "@tiptap/suggestion";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import {
@@ -145,6 +146,18 @@ const slashItems: SlashItem[] = [
   },
 ];
 
+const allowSlash = (props: { range: Range; state: EditorState }) => {
+  const $from = props.state.doc.resolve(props.range.from);
+
+  for (let { depth } = $from; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.spec["tableRole"] !== undefined) {
+      return false;
+    }
+  }
+
+  return allowTrigger(props);
+};
+
 const matches = (text: string, needle: string) =>
   text
     .toLowerCase()
@@ -181,7 +194,7 @@ const SlashCommands = Extension.create<{
 
     return [
       Suggestion<SlashItem, SlashItem>({
-        allow: allowTrigger,
+        allow: allowSlash,
         allowedPrefixes,
         char: "/",
         command: ({ editor, props, range }) => {
