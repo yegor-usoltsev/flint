@@ -340,6 +340,19 @@ describe("editor blocks", () => {
     ).toBe("- # Heading");
   });
 
+  test("parses a deeply nested numbered outline in linear time", () => {
+    const outline = Array.from(
+      { length: 24 },
+      (_, depth) => `${" ".repeat(3 * depth)}1. item ${depth}`
+    ).join("\n");
+
+    const start = performance.now();
+
+    manager.parse(outline);
+
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
   test("table cells hold only paragraphs", () => {
     expect(schema.nodes["tableCell"]?.spec.content).toBe("paragraph+");
     expect(schema.nodes["tableHeader"]?.spec.content).toBe("paragraph+");

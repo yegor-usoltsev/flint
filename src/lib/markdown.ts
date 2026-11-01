@@ -311,18 +311,7 @@ const blockFirstItem = (
   const first = match.groups?.["first"] ?? "";
   const source = first + unindentItem(raw.slice(match[0].length), width);
 
-  const nested =
-    item.tokens?.filter(
-      (token) => token.type === "list" && token["ordered"] === true
-    ) ?? [];
-
-  const blocks = lexer.blockTokens(
-    [
-      source,
-      ...nested.map((token) => unindentItem(token.raw ?? "", width)),
-    ].join("\n")
-  );
-
+  const blocks = lexer.blockTokens(source);
   const type = blocks[0]?.type;
 
   if (
@@ -333,7 +322,23 @@ const blockFirstItem = (
     return original();
   }
 
-  return { ...item, tokens: blocks };
+  const nested =
+    item.tokens?.filter(
+      (token) => token.type === "list" && token["ordered"] === true
+    ) ?? [];
+
+  return {
+    ...item,
+    tokens:
+      nested.length === 0
+        ? blocks
+        : lexer.blockTokens(
+            [
+              source,
+              ...nested.map((token) => unindentItem(token.raw ?? "", width)),
+            ].join("\n")
+          ),
+  };
 };
 
 const orderedList = OrderedList.extend({
