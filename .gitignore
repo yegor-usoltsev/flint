@@ -17,3 +17,6 @@
 *.log
 *.pem
 /cli/dist
+
+# Go prototype binary
+/cli-go/flint-go

@@ -1,0 +1,9 @@
+emit:
+  - "@typespec/openapi3"
+options:
+  "@typespec/openapi3":
+    emitter-output-dir: "{project-root}"
+    output-file: openapi.yaml
+    openapi-versions:
+      - 3.2.0
+warn-as-error: true

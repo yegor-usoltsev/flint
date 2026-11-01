@@ -10,6 +10,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 - `bun run lint` (tsc and Ultracite; `lint:fix` fixes) runs in the prek pre-commit hook over the whole working tree, so each parallel writer needs its own worktree.
 - `bun test` needs the compose Postgres and gives each checkout its own test database. Call `resetDatabase` in `beforeEach`, test a route with `callRoute(Route, request)` from `test/helpers.ts`, and stub Gitea by spying on `fetch`.
 - `bun run cli:smoke` drives every CLI command group against the running app after `bun run demo` (it signs in as alice and uses `acme/ENG`).
+- `api/` and `cli-go/` hold the FLN-6 OpenAPI prototype ([docs/openapi-plan.md](docs/openapi-plan.md)) covering five operations; `src/lib/endpoints.ts` stays the source of truth. After editing `api/main.tsp`, run `bun run api:build` (needs Go) to regenerate `api/openapi.yaml`, `src/lib/openapi/` and the Go client.
 
 ## Code
 

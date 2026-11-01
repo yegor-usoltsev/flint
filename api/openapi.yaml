@@ -1,0 +1,834 @@
+openapi: 3.2.0
+info:
+  title: Flint API
+  version: 0.0.5
+  license:
+    name: MIT
+    identifier: MIT
+  description: Prototype slice of the Flint REST API (FLN-6). The full API lives in src/lib/endpoints.ts.
+tags: []
+paths:
+  /issues/{issueKey}:
+    get:
+      operationId: getIssue
+      summary: Get an issue
+      parameters:
+        - name: issueKey
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/IssueKey"
+      responses:
+        "200":
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "400":
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "404":
+          description: Also answered for resources outside the caller's workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateIssue
+      summary: Change an issue
+      parameters:
+        - name: issueKey
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/IssueKey"
+      responses:
+        "200":
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "400":
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "404":
+          description: Also answered for resources outside the caller's workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        "409":
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueConflictError"
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateIssue"
+  /issues/{issueKey}/attachments:
+    post:
+      operationId: uploadIssueAttachment
+      summary: Attach a file to an issue
+      parameters:
+        - name: issueKey
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/IssueKey"
+      responses:
+        "201":
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "400":
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "404":
+          description: Also answered for resources outside the caller's workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: {}
+              required:
+                - file
+            encoding:
+              file:
+                contentType: "*/*"
+  /projects/{key}/issues:
+    get:
+      operationId: listProjectIssues
+      summary: List a project's issues
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ProjectKey"
+        - name: assignee
+          in: query
+          required: false
+          description: Usernames; `none` matches unassigned issues.
+          schema:
+            type: array
+            items:
+              type: string
+        - name: closed
+          in: query
+          required: false
+          description: Include completed and canceled issues.
+          schema:
+            type: boolean
+          explode: false
+        - name: label
+          in: query
+          required: false
+          description: Label names.
+          schema:
+            type: array
+            items:
+              type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+          explode: false
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 1000000
+          explode: false
+        - name: priority
+          in: query
+          required: false
+          description: "Numbers 0-4 or names: none, urgent, high, medium, low."
+          schema:
+            type: array
+            items:
+              type: string
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+          explode: false
+        - name: status
+          in: query
+          required: false
+          description: Status names.
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IssueSummary"
+        "400":
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "404":
+          description: Also answered for resources outside the caller's workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /workspaces/{slug}/stream:
+    get:
+      operationId: streamWorkspace
+      summary: Stream workspace changes
+      description: "Server-sent events: each `data:` line holds one RealtimeEvent; the first chunk is a comment."
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request has succeeded.
+          content:
+            text/event-stream:
+              itemSchema:
+                type: object
+                properties:
+                  event:
+                    type: string
+                  data:
+                    type: string
+                required:
+                  - event
+                oneOf:
+                  - properties:
+                      data:
+                        contentMediaType: application/json
+                        contentSchema:
+                          $ref: "#/components/schemas/RealtimeEvent"
+        "400":
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          description: Access is unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "404":
+          description: Also answered for resources outside the caller's workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundError"
+        default:
+          description: An unexpected error response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+security:
+  - BearerAuth: []
+components:
+  schemas:
+    ApiError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+    Attachment:
+      type: object
+      required:
+        - contentType
+        - createdAt
+        - filename
+        - id
+        - issueId
+        - pageId
+        - size
+        - uploader
+        - url
+      properties:
+        contentType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        filename:
+          type: string
+        id:
+          $ref: "#/components/schemas/Uuid"
+        issueId:
+          anyOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        pageId:
+          anyOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        size:
+          type: integer
+        uploader:
+          $ref: "#/components/schemas/UserRef"
+        url:
+          type: string
+    BadRequestError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+    CommitCheck:
+      type: object
+      required:
+        - context
+        - description
+        - state
+        - targetUrl
+        - updatedAt
+      properties:
+        context:
+          type: string
+        description:
+          type: string
+        state:
+          $ref: "#/components/schemas/CommitStatusState"
+        targetUrl:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    CommitStatusState:
+      type: string
+      enum:
+        - error
+        - failure
+        - pending
+        - skipped
+        - success
+        - warning
+    Description:
+      type: string
+      maxLength: 200000
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: A stable machine-readable code such as `not_found` or `invalid_request`.
+        message:
+          type: string
+    GitLink:
+      type: object
+      required:
+        - authorLogin
+        - checks
+        - ciState
+        - externalId
+        - headSha
+        - id
+        - kind
+        - occurredAt
+        - repo
+        - repoUrl
+        - state
+        - title
+        - url
+      properties:
+        authorLogin:
+          anyOf:
+            - type: string
+            - type: "null"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommitCheck"
+        ciState:
+          anyOf:
+            - $ref: "#/components/schemas/CommitStatusState"
+            - type: "null"
+        externalId:
+          type: string
+        headSha:
+          anyOf:
+            - type: string
+            - type: "null"
+        id:
+          $ref: "#/components/schemas/Uuid"
+        kind:
+          $ref: "#/components/schemas/GitLinkKind"
+        occurredAt:
+          type: string
+          format: date-time
+        repo:
+          type: string
+        repoUrl:
+          type: string
+        state:
+          anyOf:
+            - $ref: "#/components/schemas/GitLinkState"
+            - type: "null"
+        title:
+          type: string
+        url:
+          type: string
+    GitLinkKind:
+      type: string
+      enum:
+        - branch
+        - commit
+        - pull_request
+    GitLinkState:
+      type: string
+      enum:
+        - closed
+        - deleted
+        - draft
+        - merged
+        - open
+      description: A pull request state, or `deleted` for a removed branch.
+    Issue:
+      type: object
+      required:
+        - assigneeId
+        - canceledAt
+        - checklistDone
+        - checklistTotal
+        - ciState
+        - completedAt
+        - createdAt
+        - creatorId
+        - id
+        - key
+        - labelIds
+        - number
+        - priority
+        - projectId
+        - pullRequestState
+        - sortKey
+        - statusId
+        - title
+        - updatedAt
+        - version
+        - deletedAt
+        - description
+        - links
+      properties:
+        assigneeId:
+          anyOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        canceledAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        checklistDone:
+          type: integer
+          format: int32
+        checklistTotal:
+          type: integer
+          format: int32
+        ciState:
+          anyOf:
+            - $ref: "#/components/schemas/CommitStatusState"
+            - type: "null"
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        creatorId:
+          $ref: "#/components/schemas/Uuid"
+        id:
+          $ref: "#/components/schemas/Uuid"
+        key:
+          type: string
+        labelIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        number:
+          type: integer
+          format: int32
+        priority:
+          $ref: "#/components/schemas/Priority"
+        projectId:
+          $ref: "#/components/schemas/Uuid"
+        pullRequestState:
+          anyOf:
+            - $ref: "#/components/schemas/PullRequestState"
+            - type: "null"
+        sortKey:
+          type: string
+        statusId:
+          $ref: "#/components/schemas/Uuid"
+        title:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+        deletedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        description:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitLink"
+    IssueConflictDetail:
+      type: object
+      required:
+        - message
+        - code
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+          enum:
+            - conflict
+            - deleted
+            - user_changed
+        current:
+          $ref: "#/components/schemas/Issue"
+          description: The issue as it is now, so the client can rebase its change.
+    IssueConflictError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/IssueConflictDetail"
+    IssueKey:
+      type: string
+      description: An issue key such as ENG-12, matched case-insensitively.
+    IssueSummary:
+      type: object
+      required:
+        - assigneeId
+        - canceledAt
+        - checklistDone
+        - checklistTotal
+        - ciState
+        - completedAt
+        - createdAt
+        - creatorId
+        - id
+        - key
+        - labelIds
+        - number
+        - priority
+        - projectId
+        - pullRequestState
+        - sortKey
+        - statusId
+        - title
+        - updatedAt
+        - version
+      properties:
+        assigneeId:
+          anyOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        canceledAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        checklistDone:
+          type: integer
+          format: int32
+        checklistTotal:
+          type: integer
+          format: int32
+        ciState:
+          anyOf:
+            - $ref: "#/components/schemas/CommitStatusState"
+            - type: "null"
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        creatorId:
+          $ref: "#/components/schemas/Uuid"
+        id:
+          $ref: "#/components/schemas/Uuid"
+        key:
+          type: string
+        labelIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        number:
+          type: integer
+          format: int32
+        priority:
+          $ref: "#/components/schemas/Priority"
+        projectId:
+          $ref: "#/components/schemas/Uuid"
+        pullRequestState:
+          anyOf:
+            - $ref: "#/components/schemas/PullRequestState"
+            - type: "null"
+        sortKey:
+          type: string
+        statusId:
+          $ref: "#/components/schemas/Uuid"
+        title:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+    NotFoundError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+      description: Also answered for resources outside the caller's workspaces.
+    Priority:
+      type: number
+      enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+      description: 0 none, 1 urgent, 2 high, 3 medium, 4 low.
+      x-go-type: int
+    ProjectKey:
+      type: string
+      description: A project key such as ENG, matched case-insensitively.
+    PullRequestState:
+      type: string
+      enum:
+        - closed
+        - draft
+        - merged
+        - open
+    RealtimeEvent:
+      type: object
+      required:
+        - entity
+        - id
+        - projectId
+      properties:
+        entity:
+          type: string
+          enum:
+            - attachment
+            - comment
+            - issue
+            - label
+            - member
+            - project
+            - wiki
+            - workspace
+        id:
+          $ref: "#/components/schemas/Uuid"
+        issueId:
+          $ref: "#/components/schemas/Uuid"
+        pageId:
+          $ref: "#/components/schemas/Uuid"
+        projectId:
+          anyOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+    SortKey:
+      type: string
+      maxLength: 100
+      pattern: ^[0-9A-Za-z]+$
+      description: A fractional index key; the server also checks that it is well formed.
+    Title:
+      type: string
+      minLength: 1
+      maxLength: 500
+      pattern: \S
+      description: Trimmed before validation, so whitespace-only titles are rejected.
+    UnauthorizedError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+    UpdateIssue:
+      type: object
+      properties:
+        assigneeId:
+          anyOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        description:
+          $ref: "#/components/schemas/Description"
+        addLabelIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        labelIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        priority:
+          $ref: "#/components/schemas/Priority"
+        removeLabelIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        sortKey:
+          $ref: "#/components/schemas/SortKey"
+        statusId:
+          $ref: "#/components/schemas/Uuid"
+        title:
+          $ref: "#/components/schemas/Title"
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+          description: The version the change is based on; a stale one answers 409 with the current issue.
+      description: "Fields left out stay unchanged; `assigneeId: null` unassigns."
+    UserRef:
+      type: object
+      required:
+        - avatarUrl
+        - displayName
+        - id
+        - username
+      properties:
+        avatarUrl:
+          type: string
+        displayName:
+          type: string
+        id:
+          $ref: "#/components/schemas/Uuid"
+        username:
+          type: string
+    Uuid:
+      type: string
+      format: uuid
+    WorkspaceEvents:
+      $ref: "#/components/schemas/RealtimeEvent"
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: Bearer
+servers:
+  - url: "{origin}/api/v1"
+    description: A Flint instance
+    variables:
+      origin:
+        default: http://localhost:4700
