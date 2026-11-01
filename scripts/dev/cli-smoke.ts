@@ -156,7 +156,31 @@ const readEvents = async (signal: AbortSignal) => {
   assert.equal(response.status, 200);
   assert.ok(response.body);
 
-  return response.body.pipeThrough(new TextDecoderStream()).getReader();
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+
+  const nextFrame = async (skipPings = false): Promise<string> => {
+    const end = buffer.indexOf("\n\n");
+
+    if (end === -1) {
+      const { done, value } = await reader.read();
+
+      assert.ok(!done);
+      buffer += value;
+
+      return await nextFrame(skipPings);
+    }
+
+    const frame = buffer.slice(0, end);
+
+    buffer = buffer.slice(end + 2);
+
+    return frame.startsWith("event: ping") && skipPings
+      ? await nextFrame(true)
+      : frame;
+  };
+
+  return nextFrame;
 };
 
 const lines = (args: string[]) => flint(args).stdout.split("\n");
@@ -173,11 +197,10 @@ const issueFlows = async () => {
     labels.find((label) => label.name === name)?.id;
 
   const abort = new AbortController();
-  const events = await readEvents(abort.signal);
+  const nextFrame = await readEvents(abort.signal);
 
-  const greeting = await events.read();
-
-  assert.equal(greeting.value, "retry: 3000\n\n");
+  assert.equal(await nextFrame(), "retry: 3000");
+  assert.equal(await nextFrame(), "event: ping\ndata:");
 
   const issue = ok(IssueSchema, [
     "issue",
@@ -207,12 +230,19 @@ const issueFlows = async () => {
     [2, alice.id, statusId("In Progress"), 1, 2]
   );
 
-  const event = await events.read();
+  const deadline = setTimeout(() => {
+    abort.abort();
+  }, 10_000);
 
-  assert.deepEqual(
-    v.parse(EventSchema, JSON.parse(event.value?.slice(6) ?? "null")),
-    { entity: "issue", id: issue.id, projectId: issue.projectId }
-  );
+  const event = await nextFrame(true);
+
+  clearTimeout(deadline);
+
+  assert.deepEqual(v.parse(EventSchema, JSON.parse(event.slice(6))), {
+    entity: "issue",
+    id: issue.id,
+    projectId: issue.projectId,
+  });
   abort.abort();
 
   const edited = ok(IssueSchema, [
