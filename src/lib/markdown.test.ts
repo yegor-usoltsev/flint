@@ -211,7 +211,6 @@ describe("editor blocks", () => {
     ["- | a   | b   |\n  | --- | --- |\n  | 1   | 2   |\n- next", "table"],
     ["- # Heading", "heading"],
     ["- outer\n  - # Heading\n  - next", "bulletList"],
-    ["- 1. child", "orderedList"],
     ["1. ```ts\n   const a = 1;\n   ```\n2. two", "codeBlock"],
     ["1. before\n2. ```ts\n   const a = 1;\n   ```\n3. after", "codeBlock"],
     ["1. before\n2. ```ts\n   const a = 1;\n   ```", "codeBlock"],
@@ -251,6 +250,40 @@ describe("editor blocks", () => {
       expect(manager.parse(once)).toEqual(doc);
       expect(once).toBe(markdown);
       expect(roundTrip(once)).toBe(once);
+    }
+  );
+
+  test.each([
+    ["1. A. Smith wrote", "orderedList", "A. Smith wrote"],
+    ["- e. coli bacteria", "bulletList", "e. coli bacteria"],
+    ["- a) option", "bulletList", "a) option"],
+    ["1. I. Overview", "orderedList", "I. Overview"],
+    ["- 2024. was a year", "bulletList", "2024. was a year"],
+    ["1. 2. foo", "orderedList", "2. foo"],
+    ["- 1. child", "bulletList", "1. child"],
+  ])(
+    "keeps same-line markers as paragraph text: %#",
+    (markdown, type, text) => {
+      const doc = manager.parse(markdown);
+
+      expect(doc).toEqual({
+        content: [
+          {
+            content: [
+              {
+                content: [
+                  { content: [{ text, type: "text" }], type: "paragraph" },
+                ],
+                type: "listItem",
+              },
+            ],
+            type,
+          },
+        ],
+        type: "doc",
+      });
+      schema.nodeFromJSON(doc).check();
+      expect(manager.parse(manager.serialize(doc))).toEqual(doc);
     }
   );
 

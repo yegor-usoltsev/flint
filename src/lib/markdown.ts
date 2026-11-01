@@ -255,7 +255,7 @@ const withLeadingParagraph = (content: JSONContent[] = []) => {
 
 const listItem = ListItem.extend({
   parseMarkdown(token, helpers) {
-    const item = this.parent?.({ ...token, text: "" }, helpers);
+    const item = this.parent?.(token, helpers);
 
     return item === undefined || Array.isArray(item)
       ? (item ?? [])
@@ -288,12 +288,12 @@ const blockFirstItem = (
   const original = () => ({
     ...item,
     tokens: item.tokens?.map((token) =>
-      token.items === undefined
-        ? token
-        : {
+      token.type === "list" && token["ordered"] === true
+        ? {
             ...token,
-            items: token.items.map((child) => blockFirstItem(child, lexer)),
+            items: token.items?.map((child) => blockFirstItem(child, lexer)),
           }
+        : token
     ),
   });
 
@@ -310,34 +310,30 @@ const blockFirstItem = (
   const width = match.groups?.["prefix"]?.length ?? 0;
   const first = match.groups?.["first"] ?? "";
   const source = first + unindentItem(raw.slice(match[0].length), width);
-  const blocks = lexer.blockTokens(source);
-  const type = blocks[0]?.type;
-
-  if (
-    type === undefined ||
-    ["paragraph", "text", "space", "html"].includes(type) ||
-    (type === "heading" && !/^#{1,6}(?:[ \t]|$)/u.test(first))
-  ) {
-    return original();
-  }
 
   const nested =
     item.tokens?.filter(
       (token) => token.type === "list" && token["ordered"] === true
     ) ?? [];
 
-  return {
-    ...item,
-    tokens:
-      nested.length === 0
-        ? blocks
-        : lexer.blockTokens(
-            [
-              source,
-              ...nested.map((token) => unindentItem(token.raw ?? "", width)),
-            ].join("\n")
-          ),
-  };
+  const blocks = lexer.blockTokens(
+    [
+      source,
+      ...nested.map((token) => unindentItem(token.raw ?? "", width)),
+    ].join("\n")
+  );
+
+  const type = blocks[0]?.type;
+
+  if (
+    type === undefined ||
+    ["paragraph", "text", "space", "html", "list"].includes(type) ||
+    (type === "heading" && !/^#{1,6}(?:[ \t]|$)/u.test(first))
+  ) {
+    return original();
+  }
+
+  return { ...item, tokens: blocks };
 };
 
 const orderedList = OrderedList.extend({
