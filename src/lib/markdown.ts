@@ -184,7 +184,6 @@ const table = Table.extend({
   },
 }).configure({ resizable: false, View: ScrollingTableView });
 
-// In a read-only body Tiptap only flips the checkbox and leaves saving to the app, so the tick is written into the document, which saves it like any edit.
 const taskItem = TaskItem.extend({
   addNodeView() {
     const view = this.parent?.();
