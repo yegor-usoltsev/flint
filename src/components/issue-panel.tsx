@@ -248,19 +248,23 @@ const useSlide = (shown: boolean) => {
     };
   }, []);
 
-  const { moving } = slide;
+  const { moving, shown: target } = slide;
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (moving) {
-        setSlide((last) => ({ ...last, moving: false, mounted: last.shown }));
+        setSlide((last) =>
+          last.shown === target
+            ? { ...last, moving: false, mounted: last.shown }
+            : last
+        );
       }
     }, 220);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [moving]);
+  }, [moving, target]);
 
   return slide;
 };

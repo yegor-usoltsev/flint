@@ -157,7 +157,6 @@ export const syncPanelIssue = (issue: string | null, slug: string) => {
   }
 };
 
-// TanStack Router wraps history.replaceState; the native method keeps a panel switch from re-running every route match.
 export const writePanelUrl = () => {
   const url = new URL(window.location.href);
   const key = panelIssue();
