@@ -205,6 +205,27 @@ const registerWorkspaces = (program: Command) => {
   );
 };
 
+const patchProject = "PATCH /projects/:key";
+const patchLabel = "PATCH /labels/:labelId";
+
+interface Placement {
+  after?: string;
+  first?: boolean;
+}
+
+const placement = (options: Placement) => {
+  if ((options.after === undefined) === (options.first !== true)) {
+    throw usageError("Pass --after <item> or --first");
+  }
+
+  return options.after;
+};
+
+const placementOptions = (command: Command, item: string) =>
+  command
+    .option("--after <item>", `put it after this ${item}`)
+    .option("--first", "put it first");
+
 const registerProjects = (program: Command) => {
   const project = program.command("project").description("Work with projects");
 
@@ -293,8 +314,8 @@ const registerProjects = (program: Command) => {
           key: string,
           options: { color?: Color; icon?: ProjectIcon; name?: string }
         ) => ({
-          result: await call(await readConfig(), "PATCH /projects/:key", {
-            body: changes("PATCH /projects/:key", {
+          result: await call(await readConfig(), patchProject, {
+            body: changes(patchProject, {
               color: options.color,
               icon: options.icon,
               name: options.name,
@@ -304,6 +325,21 @@ const registerProjects = (program: Command) => {
         })
       )
     );
+
+  placementOptions(
+    project
+      .command("move")
+      .description("Change the workspace's project order (admin)")
+      .argument("<key>", "project to move"),
+    "project"
+  ).action(
+    action(async (key: string, options: Placement) => ({
+      result: await call(await readConfig(), patchProject, {
+        body: { after: placement(options) ?? null },
+        params: { key },
+      }),
+    }))
+  );
 
   project
     .command("delete")
@@ -516,7 +552,7 @@ const registerLabels = (program: Command) => {
         name: string,
         options: Scope & { color?: Color; name?: string }
       ) => {
-        const body = changes("PATCH /labels/:labelId", {
+        const body = changes(patchLabel, {
           color: options.color,
           name: options.name,
         });
@@ -525,13 +561,39 @@ const registerLabels = (program: Command) => {
         const found = await findLabel(config, options, name);
 
         return {
-          result: await call(config, "PATCH /labels/:labelId", {
+          result: await call(config, patchLabel, {
             body,
             params: { labelId: found.id },
           }),
         };
       }
     )
+  );
+
+  workspaceOption(
+    placementOptions(
+      label
+        .command("move")
+        .description("Change the workspace's label order")
+        .argument("<label>", "label to move, by name or id"),
+      "label"
+    )
+  ).action(
+    action(async (name: string, options: Placement & Scope) => {
+      const after = placement(options);
+      const config = await readConfig();
+      const found = await findLabel(config, options, name);
+
+      const target =
+        after === undefined ? null : await findLabel(config, options, after);
+
+      return {
+        result: await call(config, patchLabel, {
+          body: { after: target?.id ?? null },
+          params: { labelId: found.id },
+        }),
+      };
+    })
   );
 
   workspaceOption(

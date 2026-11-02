@@ -143,9 +143,10 @@ export const createWorkspace = async (
 
     await tx`
       insert into labels ${tx(
-        defaultLabels.map((label) => ({
+        defaultLabels.map((label, position) => ({
           ...label,
           id: Bun.randomUUIDv7(),
+          position,
           workspace_id: id,
         }))
       )}

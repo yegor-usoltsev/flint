@@ -102,8 +102,10 @@ In descriptions, comments and pages, a bare `ENG-12` shows as an issue chip, and
 flint workspace create web -n "Web team" --demo                # --demo adds a Getting started project and wiki guide
 flint project list --human
 flint project create OPS -n "Operations" --icon server           # workspace admins
+flint project move OPS --after ENG                               # admins; --first; lists follow this order
 flint member add bob                                             # a Gitea username; admins, --role admin
 flint label create regression -c orange
+flint label move regression --first                              # or --after bug
 flint token create ci -w acme                                    # shown once; without -w it reaches all your workspaces
 ```
 

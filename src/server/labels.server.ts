@@ -13,6 +13,7 @@ import {
 import { ApiError } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
+import { moveAfter } from "~/server/order.server";
 import { publish } from "~/server/realtime.server";
 
 const NameSchema = v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(40));
@@ -24,6 +25,7 @@ export const CreateLabelSchema = v.object({
 });
 
 export const UpdateLabelSchema = v.object({
+  after: v.optional(v.nullable(v.string())),
   color: v.optional(ColorSchema),
   name: v.optional(NameSchema),
 });
@@ -64,7 +66,7 @@ export const listLabels = async (actor: Actor, slug: string) => {
       ) as "issueCount"
     from labels l
     where l.workspace_id = ${workspace.id}
-    order by lower(l.name)
+    order by l.position, l.created_at, l.id
   `;
 };
 
@@ -76,8 +78,14 @@ export const createLabel = async (
   const workspace = await requireWorkspace(actor, slug);
 
   const [label] = await db<Label[]>`
-    insert into labels (id, workspace_id, name, color)
-    values (${Bun.randomUUIDv7()}, ${workspace.id}, ${name}, ${color})
+    insert into labels (id, workspace_id, name, color, position)
+    values (
+      ${Bun.randomUUIDv7()}, ${workspace.id}, ${name}, ${color},
+      (
+        select coalesce(max(position) + 1, 0) from labels
+        where workspace_id = ${workspace.id}
+      )
+    )
     on conflict (workspace_id, lower(name)) do nothing
     returning id, name, color
   `;
@@ -99,17 +107,25 @@ export const updateLabel = async (
   const workspaceId = await findLabel(actor, id);
 
   try {
-    const [label] = await db<Label[]>`
-      update labels set
-        name = coalesce(${changes.name ?? null}, name),
-        color = coalesce(${changes.color ?? null}, color)
-      where id = ${id}
-      returning id, name, color
-    `;
+    const label = await db.begin(async (tx) => {
+      if (changes.after !== undefined) {
+        await moveAfter(tx, "labels", workspaceId, id, changes.after);
+      }
 
-    if (label === undefined) {
-      throw notFound("Label");
-    }
+      const [row] = await tx<Label[]>`
+        update labels set
+          name = coalesce(${changes.name ?? null}, name),
+          color = coalesce(${changes.color ?? null}, color)
+        where id = ${id}
+        returning id, name, color
+      `;
+
+      if (row === undefined) {
+        throw notFound("Label");
+      }
+
+      return row;
+    });
 
     labelChanged(workspaceId, id);
 

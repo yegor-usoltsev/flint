@@ -75,7 +75,12 @@ export const IssueLabels = ({
   lookup: IssueLookup;
   max?: number;
 }) => {
-  const labels = issue.labelIds.flatMap((id) => lookup.labels.get(id) ?? []);
+  const ids = new Set(issue.labelIds);
+
+  const labels = [...lookup.labels.values()].filter((label) =>
+    ids.has(label.id)
+  );
+
   const hidden = labels.length - max;
 
   return (

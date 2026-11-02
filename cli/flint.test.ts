@@ -263,6 +263,25 @@ test("adding and removing labels sends only the change, so a concurrent label su
   expect(requests.at(-1)).toBe('PATCH /issues/ENG-1 {"labelIds":["b"]}');
 });
 
+test("move places a project or label after another one or first", async () => {
+  stubApi({
+    "GET /workspaces/acme/labels": labels,
+    "PATCH /labels/b": reply({ id: "b", name: "Docs" }),
+    "PATCH /projects/OPS": reply({ key: "OPS" }),
+  });
+
+  expect(await flint("project", "move", "OPS", "--after", "ENG")).toBe(0);
+  expect(requests.at(-1)).toBe('PATCH /projects/OPS {"after":"ENG"}');
+  expect(await flint("project", "move", "OPS", "--first")).toBe(0);
+  expect(requests.at(-1)).toBe('PATCH /projects/OPS {"after":null}');
+  expect(await flint("label", "move", "docs", "-w", "acme", "--first")).toBe(0);
+  expect(requests.at(-1)).toBe('PATCH /labels/b {"after":null}');
+  expect(
+    await flint("label", "move", "Docs", "-w", "acme", "--after", "bug")
+  ).toBe(0);
+  expect(requests.at(-1)).toBe('PATCH /labels/b {"after":"a"}');
+});
+
 test("an unknown label name lists the workspace's labels", async () => {
   stubApi({
     "GET /projects/ENG": project,
@@ -363,6 +382,9 @@ test("usage errors exit 2 before any request", async () => {
     ["workspace", "view", "acme", "-w", "acme"],
     ["attachment", "list"],
     ["attachment", "list", "ENG-1", "-i", "ENG-1"],
+    ["project", "move", "OPS"],
+    ["project", "move", "OPS", "--first", "--after", "ENG"],
+    ["label", "move", "Bug", "-w", "acme"],
   ]) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reuses the same console spy.
     expect(await flint(...argv)).toBe(2);
