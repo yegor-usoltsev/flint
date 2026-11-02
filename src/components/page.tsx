@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 import { useOpenPalette } from "~/components/command-palette";
+import { PanelToggle } from "~/components/panel-toggle";
 import { Keys } from "~/components/shortcuts-dialog";
 import {
   Breadcrumb,
@@ -151,6 +152,7 @@ export const Page = ({
             {actions}
           </div>
         )}
+        <PanelToggle />
       </header>
       <div className={cn("min-h-0 flex-1 overflow-y-auto", className)}>
         {children}

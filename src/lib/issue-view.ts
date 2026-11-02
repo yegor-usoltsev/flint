@@ -175,8 +175,8 @@ export const useProjectView = (projectKey: string): ViewKind =>
   );
 
 export type IssueOrigin =
-  | { projectKey: string; search: IssueSearch; view: ViewKind }
-  | { view: "mine" };
+  | { panel?: string; projectKey: string; search: IssueSearch; view: ViewKind }
+  | { panel?: string; view: "mine" };
 
 export const orderIssues = (
   issues: IssueSummary[],

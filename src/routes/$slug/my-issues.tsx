@@ -31,6 +31,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { useMe } from "~/lib/api";
 import type { IssueSummary } from "~/lib/api-types";
 import { selectByClick } from "~/lib/issue-focus";
+import { interceptIssueClick, usePanelShows } from "~/lib/issue-panel";
 import { useSelected, useSelectionScope } from "~/lib/issue-selection";
 import { useMyIssues } from "~/lib/my-issues";
 import { loadMyIssues, preload } from "~/lib/preload";
@@ -109,14 +110,18 @@ const IssueRow = ({
   slug: string;
 }) => {
   const selected = useSelected(issue.id);
+  const current = usePanelShows(issue.key);
 
   return (
     <Link
       className={rowClass}
+      data-current={current ? "true" : undefined}
       data-issue={issue.id}
       data-selected={selected ? "true" : undefined}
       onClick={(event) => {
-        selectByClick(event, issue.id);
+        if (!selectByClick(event, issue.id)) {
+          interceptIssueClick(event, issue.key);
+        }
       }}
       params={{ issueKey: issue.key, slug }}
       state={{ from: { view: "mine" } }}

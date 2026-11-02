@@ -68,6 +68,14 @@ import {
 } from "~/lib/issue-options";
 import type { Picker, PickerOption } from "~/lib/issue-options";
 import {
+  focusPanelRow,
+  followFocus,
+  panelAvailable,
+  peekFocused,
+  togglePanel,
+  usePanelOpen,
+} from "~/lib/issue-panel";
+import {
   clearSelection,
   extended,
   getSelection,
@@ -717,6 +725,7 @@ const useLayerCommands = ({
   const projects = useQuery(projectsQuery(workspace.slug));
   const { slug } = workspace;
   const targets = target();
+  const panelOpen = usePanelOpen();
 
   const project = () => {
     const [issue] = target();
@@ -786,6 +795,15 @@ const useLayerCommands = ({
   };
 
   useHoverFocus();
+
+  const follow = (step: 1 | -1) => {
+    if (focusedId() === null) {
+      focusPanelRow(queryClient);
+    }
+
+    moveFocus(step);
+    followFocus(queryClient);
+  };
 
   const commands: PaletteCommand[] = [
     ...selectionCommands,
@@ -941,6 +959,24 @@ const useLayerCommands = ({
     },
     {
       group: "View",
+      hotkey: { keys: "]" },
+      id: "issue-panel",
+      label: panelOpen ? "Close issue panel" : "Open issue panel",
+      run: () => {
+        togglePanel(queryClient);
+      },
+      when: panelAvailable,
+    },
+    {
+      hotkey: { keys: "space" },
+      id: "peek",
+      run: () => {
+        peekFocused(queryClient);
+      },
+      when: () => panelAvailable() && focusedId() !== null,
+    },
+    {
+      group: "View",
       hotkey: { keys: "?" },
       id: "shortcuts",
       label: "Keyboard shortcuts",
@@ -977,7 +1013,7 @@ const useLayerCommands = ({
       hotkey: { keys: "j", repeat: true },
       id: "next",
       run: () => {
-        moveFocus(1);
+        follow(1);
       },
       when: hasRows,
     },
@@ -985,7 +1021,7 @@ const useLayerCommands = ({
       hotkey: { keys: "k", repeat: true },
       id: "previous",
       run: () => {
-        moveFocus(-1);
+        follow(-1);
       },
       when: hasRows,
     },
@@ -993,7 +1029,7 @@ const useLayerCommands = ({
       hotkey: { keys: "arrowdown", repeat: true },
       id: "next-arrow",
       run: () => {
-        moveFocus(1);
+        follow(1);
       },
       when: hasRows,
     },
@@ -1001,7 +1037,7 @@ const useLayerCommands = ({
       hotkey: { keys: "arrowup", repeat: true },
       id: "previous-arrow",
       run: () => {
-        moveFocus(-1);
+        follow(-1);
       },
       when: hasRows,
     },

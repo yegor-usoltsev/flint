@@ -199,6 +199,21 @@ test("held keys repeat only for commands that allow it", () => {
   expect(calls).toEqual(["next"]);
 });
 
+test("space and the right bracket match by their physical keys", () => {
+  const { calls, command } = recorder();
+  register([command("peek", "space"), command("panel", "]")]);
+
+  expect(press(" ", { code: "Space" })).toBe(true);
+  expect(press(" ", { code: "Space", shiftKey: true })).toBe(false);
+  expect(press("]", { code: "BracketRight" })).toBe(true);
+  expect(press("ъ", { code: "BracketRight" })).toBe(true);
+  expect(calls).toEqual(["peek", "panel", "panel"]);
+  expect(hotkeyCaps({ keys: "space", shift: true }, true)).toEqual([
+    "⇧",
+    "Space",
+  ]);
+});
+
 test("hotkeyCaps renders platform modifiers", () => {
   expect(hotkeyCaps({ keys: "g m" }, true)).toEqual(["G", "M"]);
   expect(hotkeyCaps({ keys: "backspace", mod: true }, true)).toEqual([

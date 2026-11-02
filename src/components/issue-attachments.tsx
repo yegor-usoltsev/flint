@@ -117,12 +117,14 @@ export const AttachmentList = ({
   editable,
   hint,
   id,
+  label = "Attachments",
   path,
 }: {
   body?: string;
   editable: boolean;
   hint: string;
   id: string;
+  label?: string;
   path: string;
 }) => {
   const { attachments, failed, loaded, remove, retry, upload, uploads } =
@@ -135,14 +137,9 @@ export const AttachmentList = ({
   }
 
   return (
-    <section aria-labelledby="attachments-heading" className="flex flex-col">
+    <section aria-label={label} className="flex flex-col">
       <header className="flex h-7 items-center gap-2">
-        <h2
-          className="text-muted-foreground font-medium"
-          id="attachments-heading"
-        >
-          Attachments
-        </h2>
+        <h2 className="text-muted-foreground font-medium">Attachments</h2>
         {attachments.length > 0 ? (
           <span className="text-muted-foreground text-xs tabular-nums">
             {attachments.length}
@@ -277,6 +274,7 @@ export const IssueAttachments = ({
     editable={editable}
     hint="Paste or drop files into the description, or attach them here."
     id={issue.id}
+    label={`${issue.key} attachments`}
     path={`/issues/${issue.key}/attachments`}
   />
 );

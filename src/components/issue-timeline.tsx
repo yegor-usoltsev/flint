@@ -7,7 +7,7 @@ import {
   TagIcon,
   Trash2Icon,
 } from "lucide-react";
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
@@ -689,6 +689,7 @@ export const IssueTimeline = ({
   issue: Issue;
   project: ProjectDetail;
 }) => {
+  const heading = useId();
   const me = useMe().data;
   const timeline = useQuery(timelineQuery(issue));
 
@@ -698,13 +699,10 @@ export const IssueTimeline = ({
 
   return (
     <section
-      aria-labelledby="activity-heading"
+      aria-labelledby={heading}
       className="flex flex-col gap-4 border-t pt-5"
     >
-      <h2
-        className="text-prose leading-5.75 font-semibold"
-        id="activity-heading"
-      >
+      <h2 className="text-prose leading-5.75 font-semibold" id={heading}>
         Activity
       </h2>
       {timeline.isPending ? (

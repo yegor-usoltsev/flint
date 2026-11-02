@@ -8,6 +8,7 @@ import { useSyncExternalStore } from "react";
 import { StatusIcon } from "~/components/status-icon";
 import { isNotFound } from "~/lib/api";
 import { findIssueByKey } from "~/lib/issue-focus";
+import { interceptIssueClick } from "~/lib/issue-panel";
 import { docPath } from "~/lib/markdown-mentions";
 import { issueQuery, projectQuery, projectsQuery } from "~/lib/queries";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -73,6 +74,9 @@ const IssueChip = ({ node }: ReactNodeViewProps) => {
           className="mention"
           data-mention=""
           draggable={false}
+          onClick={(event) => {
+            interceptIssueClick(event, key);
+          }}
           params={{ issueKey: key, slug: workspace.slug }}
           to="/$slug/issue/$issueKey"
         >

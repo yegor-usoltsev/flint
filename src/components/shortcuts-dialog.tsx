@@ -56,6 +56,7 @@ const sections: { rows: Row[]; title: string }[] = [
       { hotkeys: [{ keys: "/" }], label: "Search" },
       { hotkeys: [{ keys: "c" }], label: "Create issue" },
       { hotkeys: [{ keys: "[" }], label: "Toggle sidebar" },
+      { hotkeys: [{ keys: "]" }], label: "Toggle issue panel" },
       { hotkeys: [{ keys: "?" }], label: "Keyboard shortcuts" },
       {
         hotkeys: [{ keys: "escape" }],
@@ -87,6 +88,11 @@ const sections: { rows: Row[]; title: string }[] = [
         label: "Previous or next column on the board",
       },
       { hotkeys: [{ keys: "enter" }], label: "Open issue" },
+      { hotkeys: [{ keys: "space" }], label: "Peek in the issue panel" },
+      {
+        hotkeys: [{ keys: "space", shift: true }],
+        label: "Move the issue with arrows",
+      },
       { hotkeys: [{ keys: "f" }], label: "Filter" },
       { hotkeys: [{ keys: "b", mod: true }], label: "Toggle list and board" },
     ],

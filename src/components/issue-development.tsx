@@ -4,7 +4,7 @@ import {
   GitBranchIcon,
   GitCommitHorizontalIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 
 import { CiIcon, PullRequestIcon } from "~/components/issue-parts";
@@ -182,6 +182,7 @@ const Group = ({ children, title }: { children: ReactNode; title: string }) => (
 );
 
 export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
+  const heading = useId();
   const [allCommits, setAllCommits] = useState(false);
   const pulls = issue.links.filter((link) => link.kind === "pull_request");
   const branches = issue.links.filter((link) => link.kind === "branch");
@@ -190,10 +191,10 @@ export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
   const manyRepos = new Set(issue.links.map((link) => link.repo)).size > 1;
 
   return (
-    <section aria-labelledby="development-heading" className="flex flex-col">
+    <section aria-labelledby={heading} className="flex flex-col">
       <h2
         className="text-muted-foreground flex h-7 items-center font-medium"
-        id="development-heading"
+        id={heading}
       >
         Development
       </h2>

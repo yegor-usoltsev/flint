@@ -49,6 +49,8 @@ let chord: { at: number; key: string } | null = null;
 
 const codeKeys = new Map([
   ["BracketLeft", "["],
+  ["BracketRight", "]"],
+  ["Space", "space"],
   ["Comma", ","],
   ["Period", "."],
   ["Quote", "'"],
@@ -269,6 +271,7 @@ const keyNames = new Map([
   ["backspace", "⌫"],
   ["enter", "↵"],
   ["escape", "Esc"],
+  ["space", "Space"],
 ]);
 
 export const hotkeyCaps = (hotkey: Hotkey, mac: boolean) => [

@@ -75,6 +75,7 @@ import {
 } from "~/components/ui/tooltip";
 import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
 import { closeIssueMenu, selectByClick, toggleRow } from "~/lib/issue-focus";
+import { peekIssue, showInPanel, usePanelShows } from "~/lib/issue-panel";
 import {
   useSelected,
   useSelecting,
@@ -122,6 +123,7 @@ const sensors: Customizable<Sensors> = (defaults) => [
       start: ["Space"],
       up: ["ArrowUp"],
     },
+    preventActivation: (event) => !event.shiftKey,
   }),
   PointerSensor.configure({
     activationConstraints: (event) =>
@@ -192,10 +194,12 @@ const Sortable = ({
   });
 
   const selected = useSelected(id);
+  const current = usePanelShows(issue.key);
 
   return (
     <button
       className={cn(className, isDragSource && "opacity-40")}
+      data-current={current ? "true" : undefined}
       data-issue={id}
       data-selected={selected ? "true" : undefined}
       onAuxClick={(event) => {
@@ -204,7 +208,10 @@ const Sortable = ({
         }
       }}
       onClick={(event) => {
-        if (!selectByClick(event, id)) {
+        if (
+          !selectByClick(event, id) &&
+          !(event.altKey && peekIssue(issue.key))
+        ) {
           onOpen(issue, "open");
         }
       }}
@@ -224,7 +231,7 @@ const Sortable = ({
 };
 
 export const rowClass =
-  "group/row relative flex min-h-11 w-full cursor-default flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2 py-2 text-left outline-none select-none hover:bg-row-focus focus-visible:bg-row-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover data-selected:focus-visible:bg-row-selected-hover data-menu-target:bg-row-focus data-selected:data-menu-target:bg-row-selected-hover md:h-11 md:min-h-0 md:flex-nowrap md:py-0";
+  "group/row relative flex min-h-11 w-full cursor-default flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2 py-2 text-left outline-none select-none hover:bg-row-focus focus-visible:bg-row-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover data-selected:focus-visible:bg-row-selected-hover data-menu-target:bg-row-focus data-current:bg-row-focus data-selected:data-menu-target:bg-row-selected-hover md:h-11 md:min-h-0 md:flex-nowrap md:py-0";
 
 export const RowCheck = ({ id }: { id: string }) => {
   const selected = useSelected(id);
@@ -392,7 +399,7 @@ const List = ({ columns, statuses, ...props }: ViewProps) => (
 );
 
 const cardClass =
-  "relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
+  "relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
 
 const CardContent = ({
   issue,
@@ -808,7 +815,7 @@ const Issues = ({
       queryClient.query(issueQuery(project.id, issue.key)).catch(() => null);
     } else if (how === "tab") {
       window.open(`/${workspace.slug}/issue/${issue.key}`, "_blank");
-    } else {
+    } else if (!showInPanel(issue.key)) {
       void navigate({
         params: { issueKey: issue.key, slug: workspace.slug },
         state: { from: { projectKey: project.key, search, view } },

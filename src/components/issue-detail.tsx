@@ -14,6 +14,7 @@ import {
   EllipsisIcon,
   GitBranchIcon,
   LinkIcon,
+  Maximize2Icon,
   RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -39,7 +40,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "~/components/ui/alert";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -154,14 +155,20 @@ const originCrumb = (
   origin.view === "mine"
     ? {
         label: "My issues",
-        link: <Link params={{ slug }} to="/$slug/my-issues" />,
+        link: (
+          <Link
+            params={{ slug }}
+            search={{ issue: origin.panel }}
+            to="/$slug/my-issues"
+          />
+        ),
       }
     : {
         label: project.name,
         link: (
           <Link
             params={{ key: project.key, slug }}
-            search={origin.search}
+            search={{ ...origin.search, issue: origin.panel }}
             to="/$slug/project/$key"
           />
         ),
@@ -174,11 +181,15 @@ const useBack = (origin: IssueOrigin, project: ProjectDetail) => {
 
   return () => {
     if (origin.view === "mine") {
-      void navigate({ params: { slug }, to: "/$slug/my-issues" });
+      void navigate({
+        params: { slug },
+        search: { issue: origin.panel },
+        to: "/$slug/my-issues",
+      });
     } else {
       void navigate({
         params: { key: project.key, slug },
-        search: origin.search,
+        search: { ...origin.search, issue: origin.panel },
         to: "/$slug/project/$key",
       });
     }
@@ -545,23 +556,10 @@ const useWide = (layout: RefObject<HTMLDivElement | null>, shown: boolean) => {
   return wide;
 };
 
-const IssueScreen = ({
-  issueKey,
-  project,
-}: {
-  issueKey: string;
-  project: ProjectDetail;
-}) => {
-  const workspace = useWorkspace();
+const useIssueQuery = (project: ProjectDetail, issueKey: string) => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const updateIssue = useUpdateIssue();
-  const deletion = useDeleteIssue();
-  const neighbors = useNeighbors(project, issueKey);
-  const description = useRef<MarkdownEditorHandle>(null);
-  const columns = useRef<HTMLDivElement>(null);
 
-  const issue = useQuery({
+  return useQuery({
     ...issueQuery(project.id, issueKey),
     placeholderData: () => {
       const cached = findCachedIssue(queryClient, project.id, issueKey);
@@ -569,61 +567,28 @@ const IssueScreen = ({
       return cached === undefined ? undefined : placeholderIssue(cached);
     },
   });
+};
 
-  const { origin } = neighbors;
-  const back = useBack(origin, project);
+const IssueBody = ({
+  data,
+  placeholder,
+  project,
+  toolbar,
+}: {
+  data: Issue | undefined;
+  placeholder: boolean;
+  project: ProjectDetail;
+  toolbar: boolean;
+}) => {
+  const workspace = useWorkspace();
+  const updateIssue = useUpdateIssue();
+  const deletion = useDeleteIssue();
   const username = useUsername();
-
-  const go = (key: string | undefined) => {
-    if (key !== undefined) {
-      void navigate({
-        params: { issueKey: key, slug: workspace.slug },
-        replace: true,
-        state: { from: origin, walk: neighbors.keys },
-        to: "/$slug/issue/$issueKey",
-      });
-    }
-  };
-
-  const { data } = issue;
-  const ready = data !== undefined && !issue.isPlaceholderData;
+  const description = useRef<MarkdownEditorHandle>(null);
+  const columns = useRef<HTMLDivElement>(null);
+  const wide = useWide(columns, true);
+  const ready = data !== undefined && !placeholder;
   const editable = ready && data.deletedAt === null;
-  const failed = issue.isError && data === undefined;
-  const wide = useWide(columns, !failed);
-
-  const remove = () => {
-    if (editable) {
-      void deletion.remove([data]);
-      back();
-    }
-  };
-
-  const step = (offset: -1 | 1) => {
-    go(offset === 1 ? neighbors.next : neighbors.previous);
-  };
-
-  useHotkey("j", () => {
-    step(1);
-  });
-  useHotkey("k", () => {
-    step(-1);
-  });
-  useHotkey("escape", back);
-  useContextIssue(data, editable);
-  usePageTitle(data && `${data.key} ${data.title}`);
-  useHotkey("backspace", remove, { mod: true });
-
-  if (failed) {
-    return (
-      <LoadError
-        error={issue.error}
-        issueKey={issueKey}
-        onRetry={() => {
-          void issue.refetch();
-        }}
-      />
-    );
-  }
 
   const properties = (layout: "pills" | "rail") =>
     data === undefined ? null : (
@@ -640,29 +605,8 @@ const IssueScreen = ({
     );
 
   return (
-    <Page
-      actions={
-        <>
-          <Neighbors
-            count={neighbors.count}
-            index={neighbors.index}
-            onGo={step}
-          />
-          {ready ? (
-            <IssueActions
-              branch={branchName(username, data.key, data.title)}
-              issue={data}
-              onDelete={remove}
-              slug={workspace.slug}
-            />
-          ) : null}
-        </>
-      }
-      className="@container"
-      crumbs={[originCrumb(origin, project, workspace.slug)]}
-      title={data === undefined ? issueKey : `${issueKey} ${data.title}`}
-    >
-      {ready ? (
+    <>
+      {ready && toolbar ? (
         <Toolbar
           branch={branchName(username, data.key, data.title)}
           issue={data}
@@ -670,7 +614,12 @@ const IssueScreen = ({
         />
       ) : null}
       <div className="issue-layout pb-16" ref={columns}>
-        <article className="flex min-w-0 flex-col gap-4 px-3.5 pt-2.5 md:pt-5.75 @min-[820px]:col-start-2 @min-[820px]:pt-14.75">
+        <article
+          className={cn(
+            "flex min-w-0 flex-col gap-4 px-3.5 pt-2.5 md:pt-5.75 @min-[820px]:col-start-2",
+            toolbar && "@min-[820px]:pt-14.75"
+          )}
+        >
           {ready && data.deletedAt !== null ? (
             <DeletedBanner
               onRestore={() => {
@@ -717,7 +666,10 @@ const IssueScreen = ({
         {wide ? (
           <aside
             aria-label="Issue details"
-            className="sticky top-0 col-start-3 flex flex-col gap-8 self-start px-1 pt-18.75"
+            className={cn(
+              "sticky top-0 col-start-3 flex flex-col gap-8 self-start px-1",
+              toolbar ? "pt-18.75" : "pt-5.75"
+            )}
           >
             {properties("rail")}
             {ready ? (
@@ -729,7 +681,251 @@ const IssueScreen = ({
           </aside>
         ) : null}
       </div>
+    </>
+  );
+};
+
+const IssueScreen = ({
+  issueKey,
+  project,
+}: {
+  issueKey: string;
+  project: ProjectDetail;
+}) => {
+  const workspace = useWorkspace();
+  const navigate = useNavigate();
+  const deletion = useDeleteIssue();
+  const neighbors = useNeighbors(project, issueKey);
+  const issue = useIssueQuery(project, issueKey);
+  const { origin } = neighbors;
+  const back = useBack(origin, project);
+  const username = useUsername();
+
+  const go = (key: string | undefined) => {
+    if (key !== undefined) {
+      void navigate({
+        params: { issueKey: key, slug: workspace.slug },
+        replace: true,
+        state: { from: origin, walk: neighbors.keys },
+        to: "/$slug/issue/$issueKey",
+      });
+    }
+  };
+
+  const { data } = issue;
+  const ready = data !== undefined && !issue.isPlaceholderData;
+  const editable = ready && data.deletedAt === null;
+
+  const remove = () => {
+    if (editable) {
+      void deletion.remove([data]);
+      back();
+    }
+  };
+
+  const step = (offset: -1 | 1) => {
+    go(offset === 1 ? neighbors.next : neighbors.previous);
+  };
+
+  useHotkey("j", () => {
+    step(1);
+  });
+  useHotkey("k", () => {
+    step(-1);
+  });
+  useHotkey("escape", back);
+  useContextIssue(data, editable);
+  usePageTitle(data && `${data.key} ${data.title}`);
+  useHotkey("backspace", remove, { mod: true });
+
+  if (issue.isError && data === undefined) {
+    return (
+      <LoadError
+        error={issue.error}
+        issueKey={issueKey}
+        onRetry={() => {
+          void issue.refetch();
+        }}
+      />
+    );
+  }
+
+  return (
+    <Page
+      actions={
+        <>
+          <Neighbors
+            count={neighbors.count}
+            index={neighbors.index}
+            onGo={step}
+          />
+          {ready ? (
+            <IssueActions
+              branch={branchName(username, data.key, data.title)}
+              issue={data}
+              onDelete={remove}
+              slug={workspace.slug}
+            />
+          ) : null}
+        </>
+      }
+      className="@container"
+      crumbs={[originCrumb(origin, project, workspace.slug)]}
+      title={data === undefined ? issueKey : `${issueKey} ${data.title}`}
+    >
+      <IssueBody
+        data={data}
+        placeholder={issue.isPlaceholderData}
+        project={project}
+        toolbar
+      />
     </Page>
+  );
+};
+
+const PanelError = ({
+  error,
+  issueKey,
+  onRetry,
+}: {
+  error: Error;
+  issueKey: string;
+  onRetry: () => void;
+}) => {
+  if (isNotFound(error)) {
+    return (
+      <p className="text-muted-foreground p-4">
+        {issueKey} does not exist or was deleted.
+      </p>
+    );
+  }
+
+  return (
+    <LoadFailed
+      className="m-4"
+      error={error}
+      onRetry={onRetry}
+      title={`Could not load ${issueKey}`}
+    />
+  );
+};
+
+const PanelScreen = ({
+  issueKey,
+  origin,
+  project,
+}: {
+  issueKey: string;
+  origin: IssueOrigin | undefined;
+  project: ProjectDetail;
+}) => {
+  const workspace = useWorkspace();
+  const deletion = useDeleteIssue();
+  const username = useUsername();
+  const issue = useIssueQuery(project, issueKey);
+  const { data } = issue;
+  const ready = data !== undefined && !issue.isPlaceholderData;
+  const editable = ready && data.deletedAt === null;
+
+  useContextIssue(data, editable);
+
+  return (
+    <>
+      <header className="flex h-11 shrink-0 items-center gap-1 border-b pr-2 pl-4">
+        <h2 className="min-w-0 flex-1 truncate font-medium">
+          <span className="text-muted-foreground tracking-key mr-2">
+            {issueKey}
+          </span>
+          {data?.title}
+        </h2>
+        <Hint label="Open full page">
+          <Link
+            aria-label="Open full page"
+            className={buttonVariants({ size: "icon-sm", variant: "ghost" })}
+            params={{ issueKey, slug: workspace.slug }}
+            state={{
+              from:
+                origin === undefined
+                  ? undefined
+                  : { ...origin, panel: issueKey },
+            }}
+            to="/$slug/issue/$issueKey"
+          >
+            <Maximize2Icon />
+          </Link>
+        </Hint>
+        {ready ? (
+          <IssueActions
+            branch={branchName(username, data.key, data.title)}
+            issue={data}
+            onDelete={() => {
+              if (editable) {
+                void deletion.remove([data]);
+              }
+            }}
+            slug={workspace.slug}
+          />
+        ) : null}
+      </header>
+      <div className="@container min-h-0 flex-1 overflow-y-auto">
+        {issue.isError && data === undefined ? (
+          <PanelError
+            error={issue.error}
+            issueKey={issueKey}
+            onRetry={() => {
+              void issue.refetch();
+            }}
+          />
+        ) : (
+          <IssueBody
+            data={data}
+            placeholder={issue.isPlaceholderData}
+            project={project}
+            toolbar={false}
+          />
+        )}
+      </div>
+    </>
+  );
+};
+
+export const IssuePanelContent = ({
+  issueKey,
+  origin,
+}: {
+  issueKey: string;
+  origin: IssueOrigin | undefined;
+}) => {
+  const project = useQuery(projectQuery(issueKey.split("-")[0] ?? ""));
+
+  if (project.isError && project.data === undefined) {
+    return (
+      <PanelError
+        error={project.error}
+        issueKey={issueKey}
+        onRetry={() => {
+          void project.refetch();
+        }}
+      />
+    );
+  }
+
+  if (project.data === undefined) {
+    return (
+      <div aria-busy className="flex flex-col gap-3 p-4">
+        <Skeleton className="h-6 w-1/2" />
+        <Skeleton className="h-4 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <PanelScreen
+      issueKey={issueKey}
+      key={issueKey}
+      origin={origin}
+      project={project.data}
+    />
   );
 };
 

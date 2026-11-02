@@ -8,10 +8,13 @@ import {
 } from "@tanstack/react-router";
 import { LockIcon, TriangleAlertIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+// oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
+import * as v from "valibot";
 
 import { AppSidebar } from "~/components/app-sidebar";
 import { CommandLayer } from "~/components/command-palette";
 import { CreateIssueProvider } from "~/components/create-issue";
+import { IssuePanelHost } from "~/components/issue-panel";
 import { Page } from "~/components/page";
 import { RouteNotFound } from "~/components/route-not-found";
 import { SelectionBar } from "~/components/selection-bar";
@@ -35,6 +38,8 @@ import { RealtimeStatus, useRealtime } from "~/lib/realtime";
 import { adoptDrafts } from "~/lib/use-draft";
 import { useWorkspace } from "~/lib/use-workspace";
 import { followWorkspace, rememberWorkspace } from "~/lib/workspace";
+
+const panelPages = /^\/[^/]+\/(?:project|my-issues|wiki)(?:\/|$)/u;
 
 const readSidebarOpen = () =>
   !document.cookie.split("; ").includes("sidebar_state=false");
@@ -172,7 +177,9 @@ const WorkspaceLayout = () => {
               <AppSidebar me={me.data} workspace={workspace} />
             )}
             <SidebarInset className="min-h-0 overflow-hidden" id="main">
-              <Outlet />
+              <IssuePanelHost enabled={panelPages.test(pathname)}>
+                <Outlet />
+              </IssuePanelHost>
               <SelectionBar />
             </SidebarInset>
           </CommandLayer>
@@ -205,6 +212,12 @@ const AppNotFound = () => {
 };
 
 export const Route = createFileRoute("/$slug")({
+  validateSearch: v.object({
+    issue: v.fallback(
+      v.optional(v.pipe(v.string(), v.toUpperCase())),
+      undefined
+    ),
+  }),
   component: WorkspaceLayout,
   notFoundComponent: AppNotFound,
 });
