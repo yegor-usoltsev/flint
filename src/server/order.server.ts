@@ -16,14 +16,15 @@ export const moveAfter = async (
     order by position, created_at, id
   `;
 
-  const ids = rows.flatMap((row) => (row.id === id ? [] : [row.id]));
-  const index = after === null ? 0 : ids.indexOf(after) + 1;
+  const moving = id.toLowerCase();
+  const ids = rows.flatMap((row) => (row.id === moving ? [] : [row.id]));
+  const index = after === null ? 0 : ids.indexOf(after.toLowerCase()) + 1;
 
   if (after !== null && index === 0) {
     throw notFound(table === "labels" ? "Label" : "Project");
   }
 
-  ids.splice(index, 0, id);
+  ids.splice(index, 0, moving);
 
   await tx`
     update ${tx(table)} t set position = o.ordinality - 1

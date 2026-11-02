@@ -127,7 +127,9 @@ test("admins reorder projects and members reorder labels for the whole workspace
   const [bug, feature, improvement] = await listLabels(alice, "acme");
   const [foreign] = await listLabels(root, "globex");
 
-  await updateLabel(alice, bug?.id ?? "", { after: improvement?.id ?? "" });
+  await updateLabel(alice, bug?.id.toUpperCase() ?? "", {
+    after: improvement?.id.toUpperCase() ?? "",
+  });
   expect(await names()).toEqual(["Feature", "Improvement", "Bug"]);
   expect(
     await failure(
