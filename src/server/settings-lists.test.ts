@@ -138,3 +138,32 @@ test("admins reorder projects and members reorder labels for the whole workspace
   await createLabel(alice, "acme", { color: "green", name: "Docs" });
   expect(await names()).toEqual(["Feature", "Improvement", "Bug", "Docs"]);
 });
+
+test("concurrent moves keep both changes", async () => {
+  const root = { userId: await createUser("root") };
+
+  await createWorkspace(root, { name: "Acme", slug: "acme" });
+
+  const [bug, feature, improvement] = await listLabels(root, "acme");
+
+  for (let round = 0; round < 10; round += 1) {
+    // oxlint-disable-next-line no-await-in-loop -- Each round resets the order before racing two moves.
+    await updateLabel(root, improvement?.id ?? "", {
+      after: feature?.id ?? "",
+    });
+    // oxlint-disable-next-line no-await-in-loop -- The two moves race within a round.
+    await Promise.all([
+      updateLabel(root, improvement?.id ?? "", { after: null }),
+      updateLabel(root, feature?.id ?? "", { after: bug?.id ?? "" }),
+    ]);
+
+    // oxlint-disable-next-line no-await-in-loop -- Checks this round's result.
+    const labels = await listLabels(root, "acme");
+
+    expect(labels.map((label) => label.name)).toEqual([
+      "Improvement",
+      "Bug",
+      "Feature",
+    ]);
+  }
+});

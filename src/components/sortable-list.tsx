@@ -106,7 +106,20 @@ export const useSortableItem = ({
   group: string;
   id: string;
   index: number;
-}) => useSortable({ disabled, group, id, index, transition, type: group });
+}) => {
+  const sortable = useSortable({
+    disabled,
+    group,
+    id,
+    index,
+    transition,
+    type: group,
+  });
+
+  return disabled
+    ? { handleRef: null, isDragSource: false, ref: null }
+    : sortable;
+};
 
 export const useReorder = <Item extends { id: string }>({
   failure,
@@ -149,7 +162,7 @@ export const useReorder = <Item extends { id: string }>({
     },
   });
 
-  return (items: Item[], id: string, index: number) => {
+  const move = (items: Item[], id: string, index: number) => {
     const item = items.find((other) => other.id === id);
 
     if (item === undefined) {
@@ -160,6 +173,8 @@ export const useReorder = <Item extends { id: string }>({
 
     mutation.mutate({ after: rest[index - 1] ?? null, item });
   };
+
+  return { move, moving: mutation.isPending };
 };
 
 export const useReorderProjects = (slug: string) =>

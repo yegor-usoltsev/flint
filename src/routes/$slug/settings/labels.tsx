@@ -392,7 +392,7 @@ const Labels = () => {
         {shown === undefined || shown.length === 0 ? null : (
           <SortableList
             onMove={(id, index) => {
-              reorder(labels.data ?? [], id, index);
+              reorder.move(labels.data ?? [], id, index);
             }}
           >
             <ul aria-label="Labels">
@@ -402,7 +402,7 @@ const Labels = () => {
                   key={label.id}
                   label={label}
                   slug={workspace.slug}
-                  sorting={words === ""}
+                  sorting={words === "" && !reorder.moving}
                 />
               ))}
             </ul>

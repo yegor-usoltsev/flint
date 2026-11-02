@@ -9,10 +9,11 @@ export const moveAfter = async (
   id: string,
   after: string | null
 ) => {
+  await tx`select 1 from workspaces where id = ${workspaceId} for update`;
+
   const rows = await tx<{ id: string }[]>`
     select id from ${tx(table)} where workspace_id = ${workspaceId}
     order by position, created_at, id
-    for update
   `;
 
   const ids = rows.flatMap((row) => (row.id === id ? [] : [row.id]));

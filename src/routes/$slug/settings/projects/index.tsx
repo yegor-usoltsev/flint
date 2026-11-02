@@ -183,7 +183,7 @@ const Projects = () => {
           ) : null}
           <SortableList
             onMove={(id, index) => {
-              reorder(projects.data ?? [], id, index);
+              reorder.move(projects.data ?? [], id, index);
             }}
           >
             <ul aria-label="Projects">
@@ -193,7 +193,7 @@ const Projects = () => {
                   key={project.id}
                   project={project}
                   sortable={sortable}
-                  sorting={words === ""}
+                  sorting={words === "" && !reorder.moving}
                 />
               ))}
             </ul>

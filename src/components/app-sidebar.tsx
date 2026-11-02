@@ -290,17 +290,19 @@ const useWikiPath = (prefix: string) => {
 const ProjectItem = ({
   index,
   isAdmin,
+  movable,
   project,
 }: {
   index: number;
   isAdmin: boolean;
+  movable: boolean;
   project: Project;
 }) => {
   const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState("");
 
   const { handleRef, ref } = useSortableItem({
-    disabled: !isAdmin,
+    disabled: !movable,
     group: "projects",
     id: project.id,
     index,
@@ -421,7 +423,7 @@ const Projects = ({ workspace }: { workspace: Workspace }) => {
         ) : null}
         <SortableList
           onMove={(id, index) => {
-            reorder(projects.data ?? [], id, index);
+            reorder.move(projects.data ?? [], id, index);
           }}
         >
           {projects.data?.map((project, index) => (
@@ -429,6 +431,7 @@ const Projects = ({ workspace }: { workspace: Workspace }) => {
               index={index}
               isAdmin={isAdmin}
               key={project.id}
+              movable={isAdmin && !reorder.moving}
               project={project}
             />
           ))}
