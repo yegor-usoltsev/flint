@@ -1,19 +1,25 @@
-import { beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 
 import { createIssue, deleteIssue, updateIssue } from "~/server/issues.server";
-import { createLabel, listLabels } from "~/server/labels.server";
-import { listMembers } from "~/server/members.server";
+import { createLabel, listLabels, updateLabel } from "~/server/labels.server";
+import { addMember, listMembers } from "~/server/members.server";
 import {
   createProject,
   getProject,
   listProjects,
+  updateProject,
 } from "~/server/projects.server";
 import { createWorkspace } from "~/server/workspaces.server";
 
-import { createUser, resetDatabase } from "../../test/helpers";
+import { createUser, resetDatabase, stubGiteaUsers } from "../../test/helpers";
 
 beforeEach(async () => {
   await resetDatabase();
+  stubGiteaUsers();
+});
+
+afterEach(() => {
+  mock.restore();
 });
 
 const issue = (labelIds: string[]) => ({
@@ -57,12 +63,78 @@ test("settings lists carry open issue counts, label usage and join dates", async
   ]);
   expect([...(await listLabels(actor, "acme"))]).toMatchObject([
     { issueCount: 0, name: "Bug" },
-    { issueCount: 2, name: "Crash" },
-    { issueCount: 0, name: "Docs" },
     { issueCount: 0, name: "Feature" },
     { issueCount: 0, name: "Improvement" },
+    { issueCount: 2, name: "Crash" },
+    { issueCount: 0, name: "Docs" },
   ]);
   expect(projects[0]?.createdAt).toBeTruthy();
   expect(members).toMatchObject([{ username: "root" }]);
   expect(members[0]?.joinedAt).toBeTruthy();
+});
+
+const failure = async (promise: Promise<unknown>) => {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+
+  return null;
+};
+
+test("admins reorder projects and members reorder labels for the whole workspace", async () => {
+  const root = { userId: await createUser("root") };
+  const alice = { userId: await createUser("alice") };
+
+  await createWorkspace(root, { name: "Acme", slug: "acme" });
+  await createWorkspace(root, { name: "Globex", slug: "globex" });
+  await addMember(root, "acme", { role: "member", username: "alice" });
+
+  for (const key of ["AAA", "BBB", "CCC"]) {
+    // oxlint-disable-next-line no-await-in-loop -- Creation order sets the initial order.
+    await createProject(root, "acme", { color: "blue", key, name: key });
+  }
+
+  await createProject(root, "globex", { color: "red", key: "GLO", name: "G" });
+
+  const keys = async () => {
+    const projects = await listProjects(alice, "acme");
+
+    return projects.map((project) => project.key);
+  };
+
+  const names = async () => {
+    const labels = await listLabels(alice, "acme");
+
+    return labels.map((label) => label.name);
+  };
+
+  await updateProject(root, "AAA", { after: "CCC" });
+  expect(await keys()).toEqual(["BBB", "CCC", "AAA"]);
+
+  await updateProject(root, "CCC", { after: null });
+  expect(await keys()).toEqual(["CCC", "BBB", "AAA"]);
+
+  expect(
+    await failure(updateProject(alice, "AAA", { after: null }))
+  ).toMatchObject({ status: 403 });
+  expect(
+    await failure(updateProject(root, "AAA", { after: "GLO" }))
+  ).toMatchObject({ status: 404 });
+  expect(await keys()).toEqual(["CCC", "BBB", "AAA"]);
+
+  const [bug, feature, improvement] = await listLabels(alice, "acme");
+  const [foreign] = await listLabels(root, "globex");
+
+  await updateLabel(alice, bug?.id ?? "", { after: improvement?.id ?? "" });
+  expect(await names()).toEqual(["Feature", "Improvement", "Bug"]);
+  expect(
+    await failure(
+      updateLabel(alice, feature?.id ?? "", { after: foreign?.id ?? "" })
+    )
+  ).toMatchObject({ status: 404 });
+
+  await createLabel(alice, "acme", { color: "green", name: "Docs" });
+  expect(await names()).toEqual(["Feature", "Improvement", "Bug", "Docs"]);
 });

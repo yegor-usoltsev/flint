@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { cn } from "cn";
 import { TrashIcon } from "lucide-react";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
@@ -15,6 +16,12 @@ import {
   tableNumber,
   tableRow,
 } from "~/components/settings-page";
+import {
+  DragHandle,
+  SortableList,
+  useReorderLabels,
+  useSortableItem,
+} from "~/components/sortable-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -166,8 +173,26 @@ const DeleteLabel = ({
   </AlertDialog>
 );
 
-const LabelRow = ({ label, slug }: { label: LabelSummary; slug: string }) => {
+const LabelRow = ({
+  index,
+  label,
+  slug,
+  sorting,
+}: {
+  index: number;
+  label: LabelSummary;
+  slug: string;
+  sorting: boolean;
+}) => {
   const queryClient = useQueryClient();
+
+  const { handleRef, ref } = useSortableItem({
+    disabled: !sorting,
+    group: "labels",
+    id: label.id,
+    index,
+  });
+
   const { queryKey } = labelsQuery(slug);
 
   const optimistic = {
@@ -227,7 +252,13 @@ const LabelRow = ({ label, slug }: { label: LabelSummary; slug: string }) => {
   });
 
   return (
-    <li className={tableRow}>
+    <li
+      className={cn(tableRow, "group/sortable pl-8 pointer-coarse:pl-2")}
+      ref={ref}
+    >
+      {sorting ? (
+        <DragHandle handleRef={handleRef} label={`Move ${label.name}`} />
+      ) : null}
       <ColorPicker
         label={`Color of ${label.name}`}
         onChange={(color) => {
@@ -287,6 +318,7 @@ const Labels = () => {
   const [filter, setFilter] = useState("");
   const words = filter.trim().toLowerCase();
   const empty = labels.data?.length === 0;
+  const reorder = useReorderLabels(workspace.slug);
 
   const shown = labels.data?.filter((label) =>
     label.name.toLowerCase().includes(words)
@@ -317,21 +349,12 @@ const Labels = () => {
               value={filter}
             />
             <div aria-hidden className={tableHead}>
-              <span className="flex-1 pl-10">Name</span>
+              <span className="flex-1 pl-16 pointer-coarse:pl-10">Name</span>
               <span className={tableNumber}>Issues</span>
               <span className="w-7" />
             </div>
           </>
         )}
-        {creating && labels.data !== undefined ? (
-          <CreateLabel
-            count={labels.data.length}
-            onDone={() => {
-              setCreating(false);
-            }}
-            slug={workspace.slug}
-          />
-        ) : null}
         {labels.isPending ? <Skeleton className="h-20 w-full" /> : null}
         {labels.isError && labels.data === undefined ? (
           <LoadFailed
@@ -363,12 +386,33 @@ const Labels = () => {
           />
         ) : null}
         {shown === undefined || shown.length === 0 ? null : (
-          <ul aria-label="Labels">
-            {shown.map((label) => (
-              <LabelRow key={label.id} label={label} slug={workspace.slug} />
-            ))}
-          </ul>
+          <SortableList
+            onMove={(id, index) => {
+              reorder(labels.data ?? [], id, index);
+            }}
+          >
+            <ul aria-label="Labels">
+              {shown.map((label, index) => (
+                <LabelRow
+                  index={index}
+                  key={label.id}
+                  label={label}
+                  slug={workspace.slug}
+                  sorting={words === ""}
+                />
+              ))}
+            </ul>
+          </SortableList>
         )}
+        {creating && labels.data !== undefined ? (
+          <CreateLabel
+            count={labels.data.length}
+            onDone={() => {
+              setCreating(false);
+            }}
+            slug={workspace.slug}
+          />
+        ) : null}
       </div>
     </SettingsPage>
   );

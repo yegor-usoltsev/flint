@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { cn } from "cn";
 import { ChevronRightIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -15,12 +16,73 @@ import {
   tableNumber,
   tableRow,
 } from "~/components/settings-page";
+import {
+  DragHandle,
+  SortableList,
+  useReorderProjects,
+  useSortableItem,
+} from "~/components/sortable-list";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
+import type { ProjectSummary } from "~/lib/api-types";
 import { formatDate } from "~/lib/issue-view";
 import { projectsQuery } from "~/lib/queries";
 import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
+
+const ProjectRow = ({
+  index,
+  project,
+  sortable,
+  sorting,
+}: {
+  index: number;
+  project: ProjectSummary;
+  sortable: boolean;
+  sorting: boolean;
+}) => {
+  const workspace = useWorkspace();
+
+  const { handleRef, ref } = useSortableItem({
+    disabled: !(sortable && sorting),
+    group: "projects",
+    id: project.id,
+    index,
+  });
+
+  return (
+    <li className="group/sortable relative" ref={ref}>
+      {sortable && sorting ? (
+        <DragHandle handleRef={handleRef} label={`Move ${project.name}`} />
+      ) : null}
+      <Link
+        className={cn(tableRow, sortable && "pl-8 pointer-coarse:pl-2")}
+        params={{ key: project.key, slug: workspace.slug }}
+        to="/$slug/settings/projects/$key"
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <ProjectIcon color={project.color} icon={project.icon} />
+          <span className="truncate font-medium">{project.name}</span>
+          <span className="text-muted-foreground tracking-key">
+            {project.key}
+          </span>
+        </span>
+        <span className={tableNumber}>
+          {project.openIssues}
+          <span className="sr-only"> open issues</span>
+        </span>
+        <span className={tableDate}>
+          <span className="sr-only">Created </span>
+          {formatDate(project.createdAt)}
+        </span>
+        <ChevronRightIcon
+          aria-hidden
+          className="text-muted-foreground size-4 shrink-0"
+        />
+      </Link>
+    </li>
+  );
+};
 
 const Projects = () => {
   const workspace = useWorkspace();
@@ -30,6 +92,8 @@ const Projects = () => {
   const [filter, setFilter] = useState("");
   const isAdmin = workspace.role === "admin";
   const words = filter.trim().toLowerCase();
+  const sortable = isAdmin;
+  const reorder = useReorderProjects(workspace.slug);
 
   const shown = projects.data?.filter(
     (project) =>
@@ -79,7 +143,14 @@ const Projects = () => {
         <div>
           {projects.data?.length === 0 ? null : (
             <div aria-hidden className={tableHead}>
-              <span className="flex-1 pl-6">Name</span>
+              <span
+                className={cn(
+                  "flex-1",
+                  sortable ? "pl-12 pointer-coarse:pl-6" : "pl-6"
+                )}
+              >
+                Name
+              </span>
               <span className={tableNumber}>Open issues</span>
               <span className={tableDate}>Created</span>
               <span className="w-4" />
@@ -106,37 +177,23 @@ const Projects = () => {
               title="No projects yet"
             />
           ) : null}
-          <ul aria-label="Projects">
-            {shown?.map((project) => (
-              <li key={project.id}>
-                <Link
-                  className={tableRow}
-                  params={{ key: project.key, slug: workspace.slug }}
-                  to="/$slug/settings/projects/$key"
-                >
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
-                    <ProjectIcon color={project.color} icon={project.icon} />
-                    <span className="truncate font-medium">{project.name}</span>
-                    <span className="text-muted-foreground tracking-key">
-                      {project.key}
-                    </span>
-                  </span>
-                  <span className={tableNumber}>
-                    {project.openIssues}
-                    <span className="sr-only"> open issues</span>
-                  </span>
-                  <span className={tableDate}>
-                    <span className="sr-only">Created </span>
-                    {formatDate(project.createdAt)}
-                  </span>
-                  <ChevronRightIcon
-                    aria-hidden
-                    className="text-muted-foreground size-4 shrink-0"
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <SortableList
+            onMove={(id, index) => {
+              reorder(projects.data ?? [], id, index);
+            }}
+          >
+            <ul aria-label="Projects">
+              {shown?.map((project, index) => (
+                <ProjectRow
+                  index={index}
+                  key={project.id}
+                  project={project}
+                  sortable={sortable}
+                  sorting={words === ""}
+                />
+              ))}
+            </ul>
+          </SortableList>
         </div>
       </div>
     </SettingsPage>

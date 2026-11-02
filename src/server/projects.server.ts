@@ -19,6 +19,7 @@ import {
 import { ApiError } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
+import { moveAfter } from "~/server/order.server";
 import { publish } from "~/server/realtime.server";
 import { deleteObjects } from "~/server/s3.server";
 
@@ -42,6 +43,7 @@ export const CreateProjectSchema = v.object({
 });
 
 export const UpdateProjectSchema = v.object({
+  after: v.optional(v.nullable(v.string())),
   color: v.optional(ColorSchema),
   icon: v.optional(IconSchema),
   name: v.optional(NameSchema),
@@ -98,7 +100,7 @@ export const listProjects = async (actor: Actor, slug: string) => {
           and s.category not in ('completed', 'canceled')
       ) as "openIssues"
     from projects p where p.workspace_id = ${workspace.id}
-    order by lower(p.name), p.key
+    order by p.position, p.created_at, p.id
   `;
 };
 
@@ -119,8 +121,14 @@ export const insertProject = async (
   const id = Bun.randomUUIDv7();
 
   const inserted = await tx<{ id: string }[]>`
-    insert into projects (id, workspace_id, key, name, icon, color)
-    values (${id}, ${workspaceId}, ${key}, ${name}, ${icon}, ${color})
+    insert into projects (id, workspace_id, key, name, icon, color, position)
+    values (
+      ${id}, ${workspaceId}, ${key}, ${name}, ${icon}, ${color},
+      (
+        select coalesce(max(position) + 1, 0) from projects
+        where workspace_id = ${workspaceId}
+      )
+    )
     on conflict (key) do nothing
     returning id
   `;
@@ -164,6 +172,14 @@ export const createProject = async (
   return await getProject(actor, key);
 };
 
+const projectId = async (tx: TransactionSQL, key: string) => {
+  const [row] = await tx<{ id: string }[]>`
+    select id from projects where key = ${key.toUpperCase()}
+  `;
+
+  return row?.id ?? "";
+};
+
 export const updateProject = async (
   actor: Actor,
   key: string,
@@ -173,14 +189,26 @@ export const updateProject = async (
 
   requireRole(role, "admin");
 
-  await db`
-    update projects set
-      name = coalesce(${changes.name ?? null}, name),
-      color = coalesce(${changes.color ?? null}, color),
-      icon = coalesce(${changes.icon ?? null}, icon),
-      updated_at = now()
-    where id = ${project.id}
-  `;
+  await db.begin(async (tx) => {
+    if (changes.after !== undefined) {
+      await moveAfter(
+        tx,
+        "projects",
+        workspaceId,
+        project.id,
+        changes.after === null ? null : await projectId(tx, changes.after)
+      );
+    }
+
+    await tx`
+      update projects set
+        name = coalesce(${changes.name ?? null}, name),
+        color = coalesce(${changes.color ?? null}, color),
+        icon = coalesce(${changes.icon ?? null}, icon),
+        updated_at = now()
+      where id = ${project.id}
+    `;
+  });
 
   publish(workspaceId, {
     entity: "project",

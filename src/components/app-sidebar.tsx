@@ -32,6 +32,11 @@ import { RootMenuFilter } from "~/components/menu-filter";
 import { ProjectDialog } from "~/components/project-dialog";
 import { ProjectIcon } from "~/components/project-icon";
 import { FlintMark } from "~/components/sign-in";
+import {
+  SortableList,
+  useReorderProjects,
+  useSortableItem,
+} from "~/components/sortable-list";
 import { Button } from "~/components/ui/button";
 import {
   ContextMenu,
@@ -283,23 +288,35 @@ const useWikiPath = (prefix: string) => {
 };
 
 const ProjectItem = ({
+  index,
   isAdmin,
   project,
 }: {
+  index: number;
   isAdmin: boolean;
   project: Project;
 }) => {
   const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState("");
 
+  const { handleRef, ref } = useSortableItem({
+    disabled: !isAdmin,
+    group: "projects",
+    id: project.id,
+    index,
+  });
+
   return (
     <Menu.FilterProvider autoHighlight onValueChange={setQuery} value={query}>
       <ContextMenu>
-        <ContextMenuTrigger render={<SidebarMenuItem />}>
+        <ContextMenuTrigger render={<SidebarMenuItem ref={ref} />}>
           <SidebarMenuButton
             render={
               <Link
                 params={{ key: project.key, slug: project.workspaceSlug }}
+                ref={handleRef}
+                // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle the button role.
+                role="link"
                 to="/$slug/project/$key"
               />
             }
@@ -366,6 +383,7 @@ const Projects = ({ workspace }: { workspace: Workspace }) => {
   const [creating, setCreating] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   const isAdmin = workspace.role === "admin";
+  const reorder = useReorderProjects(workspace.slug);
 
   return (
     <SidebarGroup>
@@ -401,9 +419,20 @@ const Projects = ({ workspace }: { workspace: Workspace }) => {
             </SidebarMenuButton>
           </SidebarMenuItem>
         ) : null}
-        {projects.data?.map((project) => (
-          <ProjectItem isAdmin={isAdmin} key={project.id} project={project} />
-        ))}
+        <SortableList
+          onMove={(id, index) => {
+            reorder(projects.data ?? [], id, index);
+          }}
+        >
+          {projects.data?.map((project, index) => (
+            <ProjectItem
+              index={index}
+              isAdmin={isAdmin}
+              key={project.id}
+              project={project}
+            />
+          ))}
+        </SortableList>
         {projects.data?.length === 0 && isAdmin ? (
           <SidebarMenuItem>
             <SidebarMenuButton
