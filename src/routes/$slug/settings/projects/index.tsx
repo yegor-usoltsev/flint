@@ -32,11 +32,13 @@ import { useWorkspace } from "~/lib/use-workspace";
 
 const ProjectRow = ({
   index,
+  moving,
   project,
   sortable,
   sorting,
 }: {
   index: number;
+  moving: boolean;
   project: ProjectSummary;
   sortable: boolean;
   sorting: boolean;
@@ -44,7 +46,7 @@ const ProjectRow = ({
   const workspace = useWorkspace();
 
   const { handleRef, isDragSource, ref } = useSortableItem({
-    disabled: !(sortable && sorting),
+    disabled: !(sortable && sorting) || moving,
     group: "projects",
     id: project.id,
     index,
@@ -193,7 +195,8 @@ const Projects = () => {
                   key={project.id}
                   project={project}
                   sortable={sortable}
-                  sorting={words === "" && !reorder.moving}
+                  moving={reorder.moving}
+                  sorting={words === ""}
                 />
               ))}
             </ul>

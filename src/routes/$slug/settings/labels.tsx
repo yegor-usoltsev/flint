@@ -175,11 +175,13 @@ const DeleteLabel = ({
 
 const LabelRow = ({
   index,
+  moving,
   label,
   slug,
   sorting,
 }: {
   index: number;
+  moving: boolean;
   label: LabelSummary;
   slug: string;
   sorting: boolean;
@@ -187,7 +189,7 @@ const LabelRow = ({
   const queryClient = useQueryClient();
 
   const { handleRef, isDragSource, ref } = useSortableItem({
-    disabled: !sorting,
+    disabled: !sorting || moving,
     group: "labels",
     id: label.id,
     index,
@@ -402,7 +404,8 @@ const Labels = () => {
                   key={label.id}
                   label={label}
                   slug={workspace.slug}
-                  sorting={words === "" && !reorder.moving}
+                  moving={reorder.moving}
+                  sorting={words === ""}
                 />
               ))}
             </ul>
