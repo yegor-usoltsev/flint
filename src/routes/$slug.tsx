@@ -214,7 +214,13 @@ const AppNotFound = () => {
 export const Route = createFileRoute("/$slug")({
   validateSearch: v.object({
     issue: v.fallback(
-      v.optional(v.pipe(v.string(), v.toUpperCase())),
+      v.optional(
+        v.pipe(
+          v.string(),
+          v.toUpperCase(),
+          v.regex(/^[A-Z][A-Z0-9]{1,4}-\d+$/u)
+        )
+      ),
       undefined
     ),
   }),
