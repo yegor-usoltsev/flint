@@ -8,7 +8,7 @@ import { useSyncExternalStore } from "react";
 import { StatusIcon } from "~/components/status-icon";
 import { isNotFound } from "~/lib/api";
 import { findIssueByKey } from "~/lib/issue-focus";
-import { interceptIssueClick } from "~/lib/issue-panel";
+import { interceptIssueClick, panelShown } from "~/lib/issue-panel";
 import { docPath } from "~/lib/markdown-mentions";
 import { issueQuery, projectQuery, projectsQuery } from "~/lib/queries";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -122,6 +122,9 @@ const PageChip = ({ node }: ReactNodeViewProps) => {
   );
 };
 
-export const issueChipView = ReactNodeViewRenderer(IssueChip, { as: "span" });
+export const issueChipView = ReactNodeViewRenderer(IssueChip, {
+  as: "span",
+  stopEvent: ({ event }) => event.type === "mousedown" && panelShown(),
+});
 
 export const pageChipView = ReactNodeViewRenderer(PageChip, { as: "span" });
