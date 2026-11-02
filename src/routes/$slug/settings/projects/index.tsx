@@ -43,7 +43,7 @@ const ProjectRow = ({
 }) => {
   const workspace = useWorkspace();
 
-  const { handleRef, ref } = useSortableItem({
+  const { handleRef, isDragSource, ref } = useSortableItem({
     disabled: !(sortable && sorting),
     group: "projects",
     id: project.id,
@@ -51,7 +51,11 @@ const ProjectRow = ({
   });
 
   return (
-    <li className="group/sortable relative" ref={ref}>
+    <li
+      className="group/sortable data-dragging:bg-popover data-dragging:shadow-raised relative rounded-md data-dragging:z-10"
+      data-dragging={isDragSource ? "" : undefined}
+      ref={ref}
+    >
       {sortable && sorting ? (
         <DragHandle handleRef={handleRef} label={`Move ${project.name}`} />
       ) : null}

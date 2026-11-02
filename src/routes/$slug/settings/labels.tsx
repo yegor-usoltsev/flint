@@ -186,7 +186,7 @@ const LabelRow = ({
 }) => {
   const queryClient = useQueryClient();
 
-  const { handleRef, ref } = useSortableItem({
+  const { handleRef, isDragSource, ref } = useSortableItem({
     disabled: !sorting,
     group: "labels",
     id: label.id,
@@ -253,7 +253,11 @@ const LabelRow = ({
 
   return (
     <li
-      className={cn(tableRow, "group/sortable pl-8 pointer-coarse:pl-2")}
+      className={cn(
+        tableRow,
+        "group/sortable data-dragging:bg-popover data-dragging:shadow-raised pl-8 data-dragging:z-10 pointer-coarse:pl-2"
+      )}
+      data-dragging={isDragSource ? "" : undefined}
       ref={ref}
     >
       {sorting ? (
