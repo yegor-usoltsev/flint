@@ -75,7 +75,7 @@ import {
 } from "~/components/ui/tooltip";
 import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
 import { closeIssueMenu, selectByClick, toggleRow } from "~/lib/issue-focus";
-import { peekIssue, showInPanel, usePanelShows } from "~/lib/issue-panel";
+import { openPanel, showInPanel, usePanelShows } from "~/lib/issue-panel";
 import {
   useSelected,
   useSelecting,
@@ -210,7 +210,7 @@ const Sortable = ({
       onClick={(event) => {
         if (
           !selectByClick(event, id) &&
-          !(event.altKey && peekIssue(issue.key))
+          !(event.altKey && openPanel(issue.key))
         ) {
           onOpen(issue, "open");
         }

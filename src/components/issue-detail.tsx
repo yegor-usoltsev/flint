@@ -81,7 +81,11 @@ const placeholderIssue = (summary: IssueSummary): Issue => ({
 const useOrigin = (project: ProjectDetail): IssueOrigin => {
   const from = useLocation({ select: (location) => location.state.from });
 
-  if (from?.view === "mine" || from?.projectKey === project.key) {
+  if (
+    from?.view === "mine" ||
+    from?.projectKey === project.key ||
+    from?.panel !== undefined
+  ) {
     return from;
   }
 
@@ -164,17 +168,18 @@ const originCrumb = (
         ),
       }
     : {
-        label: project.name,
+        label:
+          origin.projectKey === project.key ? project.name : origin.projectKey,
         link: (
           <Link
-            params={{ key: project.key, slug }}
+            params={{ key: origin.projectKey, slug }}
             search={{ ...origin.search, issue: origin.panel }}
             to="/$slug/project/$key"
           />
         ),
       };
 
-const useBack = (origin: IssueOrigin, project: ProjectDetail) => {
+const useBack = (origin: IssueOrigin) => {
   const workspace = useWorkspace();
   const navigate = useNavigate();
   const { slug } = workspace;
@@ -188,7 +193,7 @@ const useBack = (origin: IssueOrigin, project: ProjectDetail) => {
       });
     } else {
       void navigate({
-        params: { key: project.key, slug },
+        params: { key: origin.projectKey, slug },
         search: { ...origin.search, issue: origin.panel },
         to: "/$slug/project/$key",
       });
@@ -698,7 +703,7 @@ const IssueScreen = ({
   const neighbors = useNeighbors(project, issueKey);
   const issue = useIssueQuery(project, issueKey);
   const { origin } = neighbors;
-  const back = useBack(origin, project);
+  const back = useBack(origin);
   const username = useUsername();
 
   const go = (key: string | undefined) => {
@@ -896,6 +901,7 @@ export const IssuePanelContent = ({
   issueKey: string;
   origin: IssueOrigin | undefined;
 }) => {
+  const workspace = useWorkspace();
   const project = useQuery(projectQuery(issueKey.split("-")[0] ?? ""));
 
   if (project.isError && project.data === undefined) {
@@ -916,6 +922,21 @@ export const IssuePanelContent = ({
         <Skeleton className="h-6 w-1/2" />
         <Skeleton className="h-4 w-full" />
       </div>
+    );
+  }
+
+  if (project.data.workspaceSlug !== workspace.slug) {
+    return (
+      <p className="text-muted-foreground p-4">
+        {issueKey} is in another workspace.{" "}
+        <Link
+          className="text-foreground underline underline-offset-4"
+          params={{ issueKey, slug: project.data.workspaceSlug }}
+          to="/$slug/issue/$issueKey"
+        >
+          Open it
+        </Link>
+      </p>
     );
   }
 

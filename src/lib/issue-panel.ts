@@ -6,6 +6,8 @@ import {
   findIssue,
   findIssueByKey,
   focusedId,
+  hasRows,
+  moveFocus,
   rowOrder,
 } from "~/lib/issue-focus";
 
@@ -144,8 +146,15 @@ export const setPanelAvailable = (available: boolean) => {
   update({ available });
 };
 
-export const syncPanelIssue = (issue: string | null) => {
-  update({ issue });
+let workspace: string | null = null;
+
+export const syncPanelIssue = (issue: string | null, slug: string) => {
+  if (slug !== workspace) {
+    workspace = slug;
+    update({ issue });
+  } else if (issue !== null) {
+    update({ issue });
+  }
 };
 
 // TanStack Router wraps history.replaceState; the native method keeps a panel switch from re-running every route match.
@@ -246,6 +255,19 @@ export const focusPanelRow = (queryClient: QueryClient) => {
   return row !== null;
 };
 
+export const returnFocusToList = (queryClient: QueryClient) => {
+  if (focusPanelRow(queryClient)) {
+    return;
+  }
+
+  if (hasRows()) {
+    moveFocus(1);
+  } else if (document.activeElement instanceof HTMLElement) {
+    // oxlint-disable-next-line github/no-blur -- Escape leaves the panel; no list row exists to take the focus.
+    document.activeElement.blur();
+  }
+};
+
 let follow: ReturnType<typeof setTimeout> | undefined;
 
 export const followFocus = (queryClient: QueryClient) => {
@@ -271,7 +293,7 @@ export const interceptIssueClick = (event: MouseEvent, key: string) => {
     return false;
   }
 
-  const handled = event.altKey ? peekIssue(key) : showInPanel(key);
+  const handled = event.altKey ? openPanel(key) : showInPanel(key);
 
   if (handled) {
     event.preventDefault();

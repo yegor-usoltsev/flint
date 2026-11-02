@@ -1,5 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocation, useMatch, useSearch } from "@tanstack/react-router";
+import {
+  useLocation,
+  useMatch,
+  useParams,
+  useSearch,
+} from "@tanstack/react-router";
 import { cn } from "cn";
 import { PanelRightIcon } from "lucide-react";
 import {
@@ -20,15 +25,14 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 import { Skeleton } from "~/components/ui/skeleton";
-import { hasRows, moveFocus } from "~/lib/issue-focus";
 import {
   clampWidth,
-  focusPanelRow,
   listMin,
   panelMin,
   setPanelAvailable,
   setPanelWidth,
   syncPanelIssue,
+  returnFocusToList,
   usePanel,
   writePanelUrl,
 } from "~/lib/issue-panel";
@@ -93,16 +97,7 @@ const PanelBody = ({
       hotkey: { keys: "escape" },
       id: "panel-escape",
       run: () => {
-        if (focusPanelRow(queryClient)) {
-          return;
-        }
-
-        if (hasRows()) {
-          moveFocus(1);
-        } else if (document.activeElement instanceof HTMLElement) {
-          // oxlint-disable-next-line github/no-blur -- Escape leaves the panel; no list row exists to take the focus.
-          document.activeElement.blur();
-        }
+        returnFocusToList(queryClient);
       },
       when: () => panel.current?.contains(document.activeElement) === true,
     },
@@ -279,7 +274,13 @@ export const IssuePanelHost = ({
 }) => {
   const host = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLElement>(null);
+  const queryClient = useQueryClient();
   const href = useLocation({ select: (location) => location.href });
+
+  const slug = useParams({
+    select: (params) => params.slug ?? "",
+    strict: false,
+  });
 
   const issue = useSearch({
     select: (search) => search.issue ?? null,
@@ -293,16 +294,14 @@ export const IssuePanelHost = ({
   const width = clampWidth(state.width, space);
 
   useEffect(() => {
-    if (issue !== null) {
-      syncPanelIssue(issue);
-    }
-  }, [issue]);
+    syncPanelIssue(issue, slug);
+  }, [issue, slug]);
 
   useEffect(() => {
-    if (enabled && href !== "") {
+    if (enabled && href !== "" && slug !== "") {
       writePanelUrl();
     }
-  }, [enabled, href]);
+  }, [enabled, href, slug]);
 
   return (
     <div className="flex min-h-0 flex-1" ref={host}>
@@ -317,6 +316,15 @@ export const IssuePanelHost = ({
               "transition-all duration-200 ease-out motion-reduce:transition-none"
           )}
           inert={!shown}
+          onKeyDownCapture={(event) => {
+            if (event.key === "Escape") {
+              requestAnimationFrame(() => {
+                if (document.activeElement === document.body) {
+                  returnFocusToList(queryClient);
+                }
+              });
+            }
+          }}
           ref={panel}
           style={{ "--panel-width": `${width}px` }}
         >
