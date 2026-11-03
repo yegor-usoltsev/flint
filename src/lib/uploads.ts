@@ -3,41 +3,10 @@ import * as v from "valibot";
 
 import { ApiError } from "~/lib/api";
 import type { Attachment } from "~/lib/api-types";
-import { mediaHtml } from "~/lib/media-html";
 
 const ErrorBodySchema = v.object({
   error: v.object({ code: v.string(), message: v.string() }),
 });
-
-const inlineImage = /^image\/(?!svg)/u;
-
-export const isInlineImage = (attachment: Attachment) =>
-  inlineImage.test(attachment.contentType);
-
-export const mediaKind = ({ contentType }: Pick<Attachment, "contentType">) => {
-  if (inlineImage.test(contentType)) {
-    return "image";
-  }
-
-  if (contentType.startsWith("video/")) {
-    return "video";
-  }
-
-  return contentType.startsWith("audio/") ? "audio" : null;
-};
-
-export const attachmentMarkdown = (attachment: Attachment) => {
-  const name = attachment.filename.replaceAll(/[[\]\\]/gu, String.raw`\$&`);
-  const kind = mediaKind(attachment);
-
-  if (kind === "image") {
-    return `![${name}](${attachment.url})`;
-  }
-
-  return kind === null
-    ? `[${name}](${attachment.url})`
-    : mediaHtml(kind, { src: attachment.url });
-};
 
 const failure = (request: XMLHttpRequest) => {
   const parsed = v.safeParse(ErrorBodySchema, request.response);

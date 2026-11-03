@@ -649,6 +649,67 @@ test("wiki attach --inline appends to the page by id, wherever it moved", async 
   });
 });
 
+test("issue attach --inline embeds images, video and audio as the editor does", async () => {
+  await withFiles(async (directory) => {
+    const uploaded = [
+      {
+        contentType: "image/webp",
+        filename: "shot.webp",
+        id: "i",
+        url: "/files/i",
+      },
+      {
+        contentType: "video/webm",
+        filename: "rec.webm",
+        id: "v",
+        url: "/files/v",
+      },
+      {
+        contentType: "audio/ogg",
+        filename: "voice.ogg",
+        id: "a",
+        url: "/files/a",
+      },
+      {
+        contentType: "text/plain",
+        filename: "a.txt",
+        id: "t",
+        url: "/files/t",
+      },
+    ];
+
+    let uploads = 0;
+
+    stubApi({
+      "GET /issues/ENG-1": reply(issue("ENG-1", { description: "Steps" })),
+      "PATCH /issues/ENG-1": echo("ENG-1"),
+      "POST /issues/ENG-1/attachments": () => {
+        uploads += 1;
+
+        return Response.json(uploaded[uploads - 1], { status: 201 });
+      },
+    });
+
+    const a = path.join(directory, "a.txt");
+
+    expect(
+      await flint("issue", "attach", "ENG-1", a, a, a, a, "--inline")
+    ).toBe(0);
+    expect(requests.filter((line) => line.startsWith("PATCH"))).toEqual([
+      `PATCH /issues/ENG-1 ${JSON.stringify({
+        description: [
+          "Steps",
+          "![shot.webp](/files/i)",
+          '<video src="/files/v" controls></video>',
+          '<audio src="/files/a" controls></audio>',
+          "[a.txt](/files/t)",
+        ].join("\n\n"),
+        version: 5,
+      })}`,
+    ]);
+  });
+});
+
 test("a network failure during uploads still lists the finished uploads", async () => {
   await withFiles(async (directory) => {
     let uploads = 0;

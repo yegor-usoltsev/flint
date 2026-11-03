@@ -49,7 +49,7 @@ EOF
 flint issue attach ENG-31 crash.log screen.png --inline
 ```
 
-`--inline` also appends a Markdown link to each file (images show inline) to the description; without it the files only appear in the issue's attachments. The output lists each file's `url` (`/files/<id>`), which works as a link in comments and pages too. Uploads check every file before sending any; when one fails after others finished, the error lists the finished ones in `attachments`, so retry only the rest.
+`--inline` also appends each file to the description, as the editor does: images inline, video and audio as players, other files as links; without it the files only appear in the issue's attachments. The output lists each file's `url` (`/files/<id>`), which works as a link in comments and pages too. Uploads check every file before sending any; when one fails after others finished, the error lists the finished ones in `attachments`, so retry only the rest.
 
 ## Write a wiki page
 

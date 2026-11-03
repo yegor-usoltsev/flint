@@ -70,8 +70,9 @@ import {
   mentionsKey,
   PageMention,
 } from "~/lib/markdown-mentions";
+import { mediaKind } from "~/lib/media-html";
 import { projectsQuery } from "~/lib/queries";
-import { mediaKind, uploadFile } from "~/lib/uploads";
+import { uploadFile } from "~/lib/uploads";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const TaskShortcut = Extension.create({
