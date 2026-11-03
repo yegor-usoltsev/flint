@@ -4,4 +4,4 @@ set -euo pipefail
 export PATH="$HOME/.local/share/mise/shims:$PATH"
 
 docker compose --profile app up -d --wait --build
-FLINT_URL=http://localhost:4700 bun run demo
+DEMO_HEALTH_URL=http://localhost:4700 bun run demo
