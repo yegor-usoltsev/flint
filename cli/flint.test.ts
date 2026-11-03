@@ -258,6 +258,7 @@ test("login reads the token from stdin, so it never appears in argv", async () =
       [["login", "--url", "http://flint.test/x"], " piped\n", 0],
       [["login", "--url", "http://flint.test", "--token", "-"], "dash", 0],
       [["login", "--url", "http://flint.test"], "\n", 2],
+      [["login", "--url", "http://flint.test", "--token", " "], "", 2],
     ] as const) {
       Object.defineProperty(process, "stdin", {
         configurable: true,

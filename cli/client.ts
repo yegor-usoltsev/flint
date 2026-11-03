@@ -417,10 +417,17 @@ const promptHidden = async (question: string) => {
           });
         }
 
-        typed =
-          character === "\u007F" || character === "\b"
-            ? typed.slice(0, -1)
-            : typed + character;
+        if (character === "\u001B") {
+          break;
+        }
+
+        if (character === "\u0015") {
+          typed = "";
+        } else if (character === "\u007F" || character === "\b") {
+          typed = typed.slice(0, -1);
+        } else if (character >= " ") {
+          typed += character;
+        }
       }
     }
 
@@ -432,19 +439,10 @@ const promptHidden = async (question: string) => {
   }
 };
 
-export const readSecret = async (question: string) => {
-  const secret = (
-    process.stdin.isTTY
-      ? await promptHidden(question)
-      : await readStream(process.stdin)
-  ).trim();
-
-  if (secret === "") {
-    throw usageError("The token must not be empty");
-  }
-
-  return secret;
-};
+export const readSecret = async (question: string) =>
+  process.stdin.isTTY
+    ? await promptHidden(question)
+    : await readStream(process.stdin);
 
 export const yesFlags = ["-y, --yes", "do not ask for confirmation"] as const;
 

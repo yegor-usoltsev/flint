@@ -77,10 +77,15 @@ const registerAccount = (program: Command) => {
       action(async (options: { token?: string; url: string }) => {
         const url = new URL(options.url).origin;
 
-        const token =
+        const token = (
           options.token === undefined || options.token === "-"
             ? await readSecret("API token: ")
-            : options.token;
+            : options.token
+        ).trim();
+
+        if (token === "") {
+          throw usageError("The token must not be empty");
+        }
 
         const config = { token, url };
 
