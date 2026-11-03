@@ -2,7 +2,7 @@
 
 ## Codespaces
 
-To try a pull request without a local setup, open it in GitHub Codespaces: on the pull request, choose **Code → Codespaces → Create codespace on** its branch. The dev container installs the `mise.toml` tools, builds Flint, starts the compose stack with the `app` profile and runs `bun run demo`, which takes about four minutes. Then open the Flint port (4700) from the **Ports** tab and sign in through Gitea (4701) as `alice` with the password `password`.
+To try a pull request without a local setup, open it in GitHub Codespaces: on the pull request, choose **Code → Codespaces → Create codespace on** its branch. The dev container installs Bun and prek through mise, builds Flint, starts the compose stack with the `app` profile and runs `bun run demo`, which takes about four minutes. Then open the Flint port (4700) from the **Ports** tab and sign in through Gitea (4701) as `alice` with the password `password`.
 
 Both ports stay private, so only you can open them, signed in to GitHub. The demo checks Flint through `FLINT_URL=http://localhost:4700`, because a private port's public address asks for that GitHub sign-in. After pulling new commits, rerun `bun run build && docker compose --profile app up -d --wait --build`.
 
