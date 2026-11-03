@@ -53,7 +53,7 @@ docker run -d --name flint -p 3000:3000 --env-file flint.env yusoltsev/flint:lat
 
 ```sh
 npm install -g @yusoltsev/flint-cli    # Node 22.12+ or Bun
-flint login --url https://flint.example.com --token <key from Settings → API keys>
+flint login --url https://flint.example.com   # asks for a key from Settings → API keys
 flint issue list -a @me
 ```
 

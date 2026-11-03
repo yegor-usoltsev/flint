@@ -1,3 +1,4 @@
+import { once } from "node:events";
 import { openAsBlob } from "node:fs";
 import {
   chmod,
@@ -148,16 +149,12 @@ export const readConfig = async (): Promise<Config> => {
   const url = process.env["FLINT_URL"] ?? saved.url;
 
   if (token === undefined || url === undefined) {
-    throw new CliError(
-      "Not logged in: run flint login --url <url> --token <token>",
-      1,
-      {
-        error: {
-          code: "not_logged_in",
-          message: "Run flint login --url <url> --token <token>",
-        },
-      }
-    );
+    throw new CliError("Not logged in: run flint login --url <url>", 1, {
+      error: {
+        code: "not_logged_in",
+        message: "Run flint login --url <url>",
+      },
+    });
   }
 
   return { token, url };
@@ -389,6 +386,64 @@ export const textOf = async (
   }
 
   return options.description ?? argument;
+};
+
+const promptHidden = async (question: string) => {
+  const { stdin, stderr } = process;
+  let typed = "";
+
+  stderr.write(question);
+  stdin.setRawMode(true);
+  stdin.setEncoding("utf-8");
+
+  try {
+    while (!stdin.readableEnded) {
+      const chunk = v.parse(v.nullable(v.string()), stdin.read());
+
+      if (chunk === null) {
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Keys arrive one chunk at a time.
+        await once(stdin, "readable");
+        continue;
+      }
+
+      for (const character of chunk) {
+        if (character === "\r" || character === "\n") {
+          return typed;
+        }
+
+        if (character === "\u0003") {
+          throw new CliError("Canceled", 1, {
+            error: { code: "canceled", message: "Canceled" },
+          });
+        }
+
+        typed =
+          character === "\u007F" || character === "\b"
+            ? typed.slice(0, -1)
+            : typed + character;
+      }
+    }
+
+    return typed;
+  } finally {
+    stdin.setRawMode(false);
+    stdin.pause();
+    stderr.write("\n");
+  }
+};
+
+export const readSecret = async (question: string) => {
+  const secret = (
+    process.stdin.isTTY
+      ? await promptHidden(question)
+      : await readStream(process.stdin)
+  ).trim();
+
+  if (secret === "") {
+    throw usageError("The token must not be empty");
+  }
+
+  return secret;
 };
 
 export const yesFlags = ["-y, --yes", "do not ask for confirmation"] as const;
