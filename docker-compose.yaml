@@ -1,7 +1,7 @@
 ---
 x-flint-env: &flint-env
-  APP_URL: http://${PUBLIC_HOST:-localhost}:4700
-  GITEA_PUBLIC_URL: http://${PUBLIC_HOST:-localhost}:4701
+  APP_URL: ${APP_URL:-http://${PUBLIC_HOST:-localhost}:4700}
+  GITEA_PUBLIC_URL: ${GITEA_PUBLIC_URL:-http://${PUBLIC_HOST:-localhost}:4701}
   GITEA_URL: http://gitea:3000
   GITEA_WEBHOOK_SECRET: flint-webhook-secret
 
@@ -87,7 +87,7 @@ services:
       GITEA__log__LEVEL: Warn
       GITEA__security__INSTALL_LOCK: "true"
       GITEA__server__DISABLE_SSH: "true"
-      GITEA__server__ROOT_URL: http://${PUBLIC_HOST:-localhost}:4701/
+      GITEA__server__ROOT_URL: ${GITEA_PUBLIC_URL:-http://${PUBLIC_HOST:-localhost}:4701}/
       GITEA__security__ALLOWED_HOST_LIST: private
       GITEA__security__EGRESS_MODE: lax
       GITEA__ui__FEED_MAX_COMMIT_NUM: "50"

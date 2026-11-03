@@ -79,7 +79,7 @@ See [draft recovery](docs/drafts.md) for offline text saves, conflicts and accou
 
 ## Development
 
-[mise](https://mise.jdx.dev) installs Bun and the pre-commit hook. `bun run lint` checks types and formatting, `bun test` runs against the compose PostgreSQL and S3, and `bun run cli:smoke` drives the CLI against the running app after `bun run demo`. [AGENTS.md](AGENTS.md) and [docs/development.md](docs/development.md) hold the conventions.
+[mise](https://mise.jdx.dev) installs Bun and the pre-commit hook; Docker comes from your system. `bun run lint` checks types and formatting, `bun test` runs against the compose PostgreSQL and S3, and `bun run cli:smoke` drives the CLI against the running app after `bun run demo`. A GitHub codespace on any branch starts the whole stack with demo data ([docs/development.md](docs/development.md#codespaces)). [AGENTS.md](AGENTS.md) and [docs/development.md](docs/development.md) hold the conventions.
 
 ## License
 
