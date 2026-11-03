@@ -258,7 +258,7 @@ export const RowCheck = ({ id }: { id: string }) => {
   );
 };
 
-export const listClass = "flex flex-col gap-1 px-2 pb-16";
+export const listClass = "flex flex-col gap-1 px-2 pt-2 pb-16";
 
 const IssueStatus = ({
   issue,
