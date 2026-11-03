@@ -4,7 +4,7 @@ set -euo pipefail
 curl -fsSL https://mise.run | sh
 export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
 mise trust --yes
-mise install
+mise install bun prek
 
 origin="https://$CODESPACE_NAME"
 domain="$GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN"
