@@ -12,7 +12,9 @@
     "4701": { "label": "Gitea", "onAutoForward": "silent" }
   },
   "otherPortsAttributes": { "onAutoForward": "ignore" },
-  "remoteEnv": { "PATH": "/home/vscode/.bun/bin:${containerEnv:PATH}" },
+  "remoteEnv": {
+    "PATH": "/home/vscode/.local/bin:/home/vscode/.local/share/mise/shims:${containerEnv:PATH}"
+  },
   "postCreateCommand": ".devcontainer/create.sh",
   "postStartCommand": ".devcontainer/start.sh"
 }
