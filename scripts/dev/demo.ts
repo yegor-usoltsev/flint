@@ -32,13 +32,13 @@ import { setExternalTracker } from "../gitea-external-tracker";
 
 const gitea = giteaClient(v.parse(GiteaEnvSchema, process.env));
 
-const health = await fetch(new URL("/api/health", env.APP_URL)).catch(
-  () => null
-);
+const flintUrl = process.env["FLINT_URL"] ?? env.APP_URL;
+
+const health = await fetch(new URL("/api/health", flintUrl)).catch(() => null);
 
 if (health?.ok !== true) {
   throw new Error(
-    `Flint is not answering at ${env.APP_URL}; start it first (bun run dev or the app profile), because Gitea links the demo pull request through its webhook`
+    `Flint is not answering at ${flintUrl}; start it first (bun run dev or the app profile), because Gitea links the demo pull request through its webhook`
   );
 }
 

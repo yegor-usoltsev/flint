@@ -1,0 +1,17 @@
+{
+  "name": "Flint",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "hostRequirements": { "cpus": 2, "memory": "8gb" },
+  "forwardPorts": [4700, 4701],
+  "portsAttributes": {
+    "4700": { "label": "Flint", "onAutoForward": "openBrowser" },
+    "4701": { "label": "Gitea", "onAutoForward": "silent" }
+  },
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
+  "remoteEnv": { "PATH": "/home/vscode/.bun/bin:${containerEnv:PATH}" },
+  "postCreateCommand": ".devcontainer/create.sh",
+  "postStartCommand": ".devcontainer/start.sh"
+}
