@@ -14,6 +14,7 @@ import type {
 import { branchName } from "../src/lib/branch.ts";
 import { setChecklistItem } from "../src/lib/checklist.ts";
 import type { Body } from "../src/lib/endpoints.ts";
+import { attachmentMarkdown } from "../src/lib/media-html.ts";
 import { priorities } from "../src/lib/priorities.ts";
 import type { Priority } from "../src/lib/priorities.ts";
 import {
@@ -704,14 +705,6 @@ const checkItem = async (
   );
 };
 
-export const markdownLinks = (
-  attachments: { contentType: string; filename: string; url: string }[]
-) =>
-  attachments.map(
-    ({ contentType, filename, url }) =>
-      `${contentType.startsWith("image/") ? "!" : ""}[${filename.replaceAll(/[[\]]/gu, "")}](${url})`
-  );
-
 const attachFiles = async (
   key: string,
   files: string[],
@@ -739,7 +732,10 @@ const attachFiles = async (
   try {
     const issue = await getIssue(lookup.config, key);
 
-    const description = [issue.description, ...markdownLinks(attachments)]
+    const description = [
+      issue.description,
+      ...attachments.map(attachmentMarkdown),
+    ]
       .filter((part) => part !== "")
       .join("\n\n");
 

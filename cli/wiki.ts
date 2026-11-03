@@ -7,6 +7,7 @@ import type {
   WikiPageSummary,
   WikiRevision,
 } from "../src/lib/api-types.ts";
+import { attachmentMarkdown } from "../src/lib/media-html.ts";
 import {
   action,
   call,
@@ -24,7 +25,6 @@ import {
   yesFlags,
 } from "./client.ts";
 import type { Config, Output, Scope } from "./client.ts";
-import { markdownLinks } from "./issues.ts";
 
 const scoped = (command: Command) =>
   command
@@ -299,7 +299,7 @@ const attachFiles = async (
     return { result: attachments, text };
   }
 
-  const append = `\n${markdownLinks(attachments).join("\n\n")}\n`;
+  const append = `\n${attachments.map(attachmentMarkdown).join("\n\n")}\n`;
 
   const appendTo = async (attempt: number): Promise<WikiPage> => {
     const current = await call(config, "GET /wiki/:pageId", {

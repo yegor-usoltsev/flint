@@ -7,8 +7,8 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 import type { Attachment } from "~/lib/api-types";
 import { newId } from "~/lib/ids";
+import { attachmentMarkdown, mediaKind } from "~/lib/media-html";
 import { notifyError } from "~/lib/notify";
-import { attachmentMarkdown, mediaKind } from "~/lib/uploads";
 import { trackUpload } from "~/lib/use-draft";
 
 export type Uploader = (

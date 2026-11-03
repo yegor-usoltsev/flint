@@ -19,8 +19,9 @@ import { api } from "~/lib/api";
 import type { Attachment, Issue } from "~/lib/api-types";
 import { newId } from "~/lib/ids";
 import { formatRelative } from "~/lib/issue-view";
+import { isInlineImage } from "~/lib/media-html";
 import { notifyError } from "~/lib/notify";
-import { formatBytes, isInlineImage, uploadFile } from "~/lib/uploads";
+import { formatBytes, uploadFile } from "~/lib/uploads";
 
 interface Upload {
   id: string;
