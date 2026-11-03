@@ -174,6 +174,43 @@ export const useProjectView = (projectKey: string): ViewKind =>
     () => "list"
   );
 
+const collapsedKey = "collapsed-statuses";
+
+const collapsedListeners = new Set<() => void>();
+
+const storedCollapsed = () =>
+  (localStorage.getItem(collapsedKey) ?? "")
+    .split("\n")
+    .filter((id) => id !== "");
+
+export const setStatusCollapsed = (statusId: string, collapsed: boolean) => {
+  const ids = storedCollapsed().filter((id) => id !== statusId);
+
+  localStorage.setItem(
+    collapsedKey,
+    (collapsed ? [...ids, statusId] : ids).join("\n")
+  );
+
+  for (const listener of collapsedListeners) {
+    listener();
+  }
+};
+
+const subscribeCollapsed = (listener: () => void) => {
+  collapsedListeners.add(listener);
+
+  return () => {
+    collapsedListeners.delete(listener);
+  };
+};
+
+export const useStatusCollapsed = (statusId: string) =>
+  useSyncExternalStore(
+    subscribeCollapsed,
+    () => storedCollapsed().includes(statusId),
+    () => false
+  );
+
 export type IssueOrigin =
   | { panel?: string; projectKey: string; search: IssueSearch; view: ViewKind }
   | { panel?: string; view: "mine" };
