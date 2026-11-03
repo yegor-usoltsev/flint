@@ -88,8 +88,10 @@ import {
   isClosedStatus,
   isFiltered,
   rememberView,
+  setStatusCollapsed,
   shownStatuses,
   useProjectView,
+  useStatusCollapsed,
   sortKeyBetween,
   withKnownLabels,
 } from "~/lib/issue-view";
@@ -256,7 +258,7 @@ export const RowCheck = ({ id }: { id: string }) => {
   );
 };
 
-export const listClass = "px-2 pb-16";
+export const listClass = "flex flex-col gap-1 px-2 pt-2 pb-16";
 
 const IssueStatus = ({
   issue,
@@ -332,7 +334,7 @@ const ListGroup = ({
   ids: string[];
   status: Status;
 }) => {
-  const [open, setOpen] = useState(true);
+  const open = !useStatusCollapsed(status.id);
   const { isDropTarget, ref } = useColumn(status, !open);
   const shown = open ? ids : ids.filter((id) => id === dragging);
 
@@ -346,7 +348,7 @@ const ListGroup = ({
             isDropTarget && "bg-row-selected"
           )}
           onClick={() => {
-            setOpen(!open);
+            setStatusCollapsed(status.id, open);
           }}
           type="button"
         >
