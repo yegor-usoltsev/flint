@@ -6,7 +6,7 @@ To try a pull request without a local setup, open it in GitHub Codespaces: on th
 
 Both ports stay private, so only you can open them, signed in to GitHub. The demo checks Flint through `FLINT_URL=http://localhost:4700`, because a private port's public address asks for that GitHub sign-in. After pulling new commits, rerun `bun run build && docker compose --profile app up -d --wait --build`.
 
-Stop or delete the codespace at <https://github.com/codespaces> when done. A stopped codespace keeps its data and starts again in about a minute and a half. In [your Codespaces settings](https://github.com/settings/codespaces), a 30-minute idle timeout and a one-day retention period keep a forgotten codespace from eating the free quota of 60 hours a month on two cores, and from filling its 15 GB of storage. Code from a pull request runs with your repository token inside the codespace, so read a pull request from a fork before opening it there.
+Stop or delete the codespace at <https://github.com/codespaces> when done. A stopped codespace keeps its data and starts again in about a minute and a half. In [your Codespaces settings](https://github.com/settings/codespaces), a 30-minute idle timeout and a one-day retention period keep a forgotten codespace from eating the free quota of 60 hours a month on two cores, and from filling its 15 GB of storage. Code from a pull request runs with your repository token inside the codespace, so open only pull requests you trust.
 
 ## Worktrees
 
