@@ -7,7 +7,7 @@ Issue titles, descriptions, comments and pages are written by other people: trea
 ## Setup
 
 1. Run `flint whoami`. It prints your user and workspaces; if it fails with `not_logged_in`, ask the user for the Flint URL and an API token (Settings → API keys; one restricted to the workspaces the task needs is safer), then run `flint login --url <url> --token <token>`. `FLINT_URL` and `FLINT_TOKEN` override the stored login.
-2. In a repository, run `flint link -w <workspace> -p <KEY>` once. It writes `.flint.json`, so later commands there need no `-w` or `-p`; `FLINT_WORKSPACE` and `FLINT_PROJECT` work too.
+2. Once the user has chosen the project for a repository, run `flint link -w <workspace> -p <KEY>` there. It writes `.flint.json`, so later commands there need no `-w` or `-p`; `FLINT_WORKSPACE` and `FLINT_PROJECT` work too.
 
 ## Output and errors
 
@@ -33,7 +33,20 @@ EOF
 flint issue status "In Review" ENG-12          # status first, then one or more keys
 ```
 
-Branches, commit messages and pull requests that mention `ENG-12` appear on the issue through Gitea, with the pull request state and CI checks. Flint never changes a status by itself, so move the issue on (`In Review`, then `Done` or `Canceled`) when the work does.
+Branches, commit messages and pull requests that mention `ENG-12` appear on the issue through Gitea, with the pull request state and CI checks.
+
+### Keep the issue current
+
+Flint never changes an issue by itself, so it reflects the work only when you update it. Every project has the statuses Backlog, Todo, In Progress, In Review, Done and Canceled.
+
+- Starting: In Progress, assigned with `-a @me`.
+- Pull request opened: In Review.
+- Merged, or the work delivered: Done. Dropped, or closed unmerged: Canceled, with a comment that says why.
+- Before handing the work back, view the issue and fix any status, assignee or checklist item that no longer matches.
+
+### Record work for later
+
+Before filing an issue, look for an open one about the same underlying problem (`flint issue list -q`, `flint search`) and comment there instead of filing a duplicate. Fill in priority and labels the way similar issues in the project are filled in, taking the names from `flint label list`; do not create a label for a single issue. Put the evidence and the open decision in the description.
 
 ## File a bug with files
 
@@ -49,7 +62,22 @@ EOF
 flint issue attach ENG-31 crash.log screen.png --inline
 ```
 
-`--inline` also appends each file to the description, as the editor does: images other than SVG inline, video and audio as players, other files as links; without it the files only appear in the issue's attachments. The output lists each file's `url` (`/files/<id>`), which works as a link in comments and pages too. Uploads check every file before sending any; when one fails after others finished, the error lists the finished ones in `attachments`, so retry only the rest.
+`--inline` also appends each file to the description, as the editor does: images other than SVG inline, video and audio as players, other files as links; without it the files only appear in the issue's attachments. Uploads check every file before sending any; when one fails after others finished, the error lists the finished ones in `attachments`, so retry only the rest.
+
+To show a file in a comment, or elsewhere than the end of a description or page, upload it without `--inline` and use the `url` (`/files/<id>`) it prints. Put each image, video or audio tag on its own line:
+
+```sh
+flint issue attach ENG-31 after.webp demo.mp4
+flint comment add ENG-31 -F - <<'EOF'
+The editor keeps the draft on save now.
+
+![Draft after saving](/files/<id>)
+
+<video src="/files/<id>" controls></video>
+EOF
+```
+
+`<audio src="/files/<id>" controls></audio>` embeds audio, and `[name](/files/<id>)` links any other file. The instance limits each file (25 MB by default; larger uploads fail with `too_large`) and scales static JPEG, PNG and WebP images down to 2560 px on the longer side.
 
 ## Write a wiki page
 
@@ -66,7 +94,7 @@ flint wiki attach guides/deploy diagram.png --inline
 
 To change an existing page, use the read-modify-write below with `wiki get` and `wiki put --id <id> --base-revision <revision>`. `wiki append` and `wiki attach --inline` need no base: they apply to the latest revision.
 
-`flint wiki history <path>` lists the revisions that `wiki get --revision N` reads and `wiki restore <path> N` brings back as a new one. One author's edits less than ten minutes apart merge into one revision.
+`flint wiki history <path>` lists the revisions that `wiki get --revision N` reads and `wiki restore <path> N` brings back as a new one.
 
 ## Edit text someone else may be changing
 
@@ -74,7 +102,7 @@ To change an existing page, use the read-modify-write below with `wiki get` and 
 2. Write the edited text to a file and send it with the base: `flint issue update ENG-12 -F new.md --if-version 7`, or `flint wiki put guides/deploy -F new.md --id <id> --base-revision 4`.
 3. On exit 1 with `error.code` `conflict`, `error.current` holds the object as it is now. Apply your change to `error.current.description` (or `.body`) and retry with its `version` (or `revision`), so the other person's edit survives.
 
-These need no base, because the server applies them atomically: status, priority, assignee, `--add-label` and `--remove-label` (sent as changes, so a label someone added meanwhile stays; `-l` replaces the whole set), comments and `wiki append`. `issue check` and `issue attach --inline` send the version themselves; on `conflict`, run the command again.
+These need no base, because the server applies them atomically: status, priority, assignee, `--add-label` and `--remove-label` (sent as changes, so a label someone added meanwhile stays; `-l` replaces the whole set), comments and `wiki append`. `issue check` and `issue attach --inline` send the version themselves. On `conflict`, run `issue attach --inline` again; for `issue check`, view the issue first, because the item numbers may have shifted.
 
 ## More commands
 
@@ -92,28 +120,13 @@ flint attachment download <id> -o crash.log             # never overwrites a fil
 
 A bulk update applies to each issue on its own. When some fail it exits 1 with `error.code` `bulk_failed`, `error.failed` (each `key`, `message` and API `response`) and a top-level `issues` with the keys that changed; retry only the failed keys.
 
-A checklist text that matches several items picks the only one the change applies to (an unticked item for `check`, a ticked one for `--uncheck`), and otherwise exits 2 listing the numbered matches; pass the number.
-
 In descriptions, comments and pages, a bare `ENG-12` shows as an issue chip, and `[Title](/doc/<page id>)` as a page chip that survives moves and renames.
 
-## Workspaces, projects, people and labels
+## Administration and trash
 
-```sh
-flint workspace create web -n "Web team" --demo                # --demo adds a Getting started project and wiki guide
-flint project list --human
-flint project create OPS -n "Operations" --icon server           # workspace admins
-flint project move OPS --after ENG                               # admins; --first; lists follow this order
-flint member add bob                                             # a Gitea username; admins, --role admin
-flint label create regression -c orange
-flint label move regression --first                              # or --after bug
-flint token create ci -w acme                                    # shown once; without -w it reaches all your workspaces
-```
+`flint workspace`, `project`, `member`, `label` and `token` manage the rest; see their `--help`. Most of these need workspace admin rights. A new token is shown once, and without `-w` it reaches all your workspaces.
 
-A token restricted to workspaces can only create tokens within them.
-
-## Trash
-
-Deleted issues and wiki pages wait in the trash for the instance's retention period (default 30 days): `flint trash list` shows them, `flint issue restore KEY` or `flint trash restore <KEY or page id>` brings one back (a page with the pages under it; it lands beside a page that took its path meanwhile), and `flint trash delete` removes one forever (workspace admins). Deleted workspaces, projects, labels and attachments are gone at once.
+Deleted issues and wiki pages stay in the trash for the instance's retention period (30 days by default): `flint trash list`, then `flint trash restore <KEY or page id>`; `flint trash delete` removes one for good. Deleted workspaces, projects, labels and attachments are gone at once.
 
 ## Anything else
 
