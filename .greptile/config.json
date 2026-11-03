@@ -7,6 +7,8 @@
   "shouldUpdateDescription": false,
   "fixWithAI": false,
   "hideFooter": true,
+  "statusCheck": true,
+  "statusCommentsEnabled": false,
   "summarySection": { "included": false },
   "issuesTableSection": { "included": false },
   "confidenceScoreSection": { "included": false },

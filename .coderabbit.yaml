@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 reviews:
-  profile: quiet
+  profile: chill
   high_level_summary: false
   review_status: false
   review_details: false
@@ -45,4 +45,8 @@ reviews:
     issue_assessment:
       mode: "off"
 chat:
+  art: false
   auto_reply: false
+issue_enrichment:
+  planning:
+    enabled: false
