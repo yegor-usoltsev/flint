@@ -853,13 +853,11 @@ const cliFlows = () => {
 };
 
 try {
-  ok(v.looseObject({ username: v.literal("alice") }), [
-    "login",
-    "--url",
-    url,
-    "--token",
-    token.token,
-  ]);
+  ok(
+    v.looseObject({ username: v.literal("alice") }),
+    ["login", "--url", url],
+    `${token.token}\n`
+  );
   ok(AnySchema, ["link", "-w", "acme", "-p", "eng"]);
   assert.ok(ok(v.array(v.unknown()), ["member", "list"]).length > 0);
 

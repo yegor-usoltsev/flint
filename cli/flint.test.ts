@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
@@ -235,6 +236,51 @@ test("the stored token is readable only by its owner, also over an existing file
     url: "http://flint.test",
   });
   await rm(directory, { force: true, recursive: true });
+});
+
+test("login reads the token from stdin, so it never appears in argv", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "flint-login-"));
+  const config = path.join(directory, "config.json");
+  const tokens: (string | null)[] = [];
+  const stdin = Object.getOwnPropertyDescriptor(process, "stdin");
+
+  process.env["FLINT_CONFIG"] = config;
+  stubApi({
+    "GET /me": (request) => {
+      tokens.push(request.headers.get("authorization"));
+
+      return Response.json({ username: "alice" });
+    },
+  });
+
+  try {
+    for (const [argv, input, code] of [
+      [["login", "--url", "http://flint.test/x"], " piped\n", 0],
+      [["login", "--url", "http://flint.test", "--token", "-"], "dash", 0],
+      [["login", "--url", "http://flint.test"], "\n", 2],
+      [["login", "--url", "http://flint.test", "--token", " "], "", 2],
+    ] as const) {
+      Object.defineProperty(process, "stdin", {
+        configurable: true,
+        value: Readable.from([input]),
+      });
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each case replaces stdin.
+      expect(await flint(...argv)).toBe(code);
+    }
+
+    expect(tokens).toEqual(["Bearer piped", "Bearer dash"]);
+    expect(JSON.parse(printed.join(""))).toEqual({
+      error: { code: "usage", message: "The token must not be empty" },
+    });
+    expect(await Bun.file(config).json()).toEqual({
+      token: "dash",
+      url: "http://flint.test",
+    });
+  } finally {
+    Object.defineProperty(process, "stdin", stdin ?? {});
+    delete process.env["FLINT_CONFIG"];
+    await rm(directory, { force: true, recursive: true });
+  }
 });
 
 test("adding and removing labels sends only the change, so a concurrent label survives", async () => {

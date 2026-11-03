@@ -11,6 +11,7 @@ import {
   linkFile,
   parseJson,
   readConfig,
+  readSecret,
   readText,
   removeConfig,
   request,
@@ -68,13 +69,25 @@ const registerAccount = (program: Command) => {
       "--url <url>",
       "Flint URL, such as https://flint.example.com"
     )
-    .requiredOption("--token <token>", "API token")
+    .option(
+      "--token <token>",
+      "API token, visible to other processes; omit it or pass - to read the token from stdin"
+    )
     .action(
-      action(async (options: { token: string; url: string }) => {
-        const config = {
-          token: options.token,
-          url: new URL(options.url).origin,
-        };
+      action(async (options: { token?: string; url: string }) => {
+        const url = new URL(options.url).origin;
+
+        const token = (
+          options.token === undefined || options.token === "-"
+            ? await readSecret("API token: ")
+            : options.token
+        ).trim();
+
+        if (token === "") {
+          throw usageError("The token must not be empty");
+        }
+
+        const config = { token, url };
 
         const me = await call(config, "GET /me");
 

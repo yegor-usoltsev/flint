@@ -9,7 +9,7 @@ npm install -g @yusoltsev/flint-cli
 Create an API key in Flint under **Settings → API keys**, then:
 
 ```sh
-flint login --url https://flint.example.com --token <key>
+flint login --url https://flint.example.com   # asks for the key; or pipe it on stdin
 flint link -w acme -p ENG     # writes .flint.json, so commands here need no -w or -p
 flint issue list -a @me
 flint issue create -t "Fix login redirect" -s Todo --priority high -a @me
