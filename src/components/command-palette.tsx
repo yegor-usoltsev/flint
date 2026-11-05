@@ -550,7 +550,7 @@ const PageResult = ({
   >
     <BookOpenIcon />
     <span className="min-w-0 flex-1 truncate">{page.title}</span>
-    <span className="text-muted-foreground max-w-1/3 truncate text-xs">
+    <span className="text-muted-foreground max-w-1/3 truncate text-xs max-md:hidden">
       {page.path}
     </span>
   </CommandItem>
@@ -733,7 +733,7 @@ const RootList = ({
                   }
                 />
                 <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                <span className="text-muted-foreground max-w-1/3 shrink-0 truncate text-xs tabular-nums">
+                <span className="text-muted-foreground max-w-1/3 shrink-0 truncate text-xs tabular-nums max-md:hidden">
                   {item.label}
                 </span>
               </CommandItem>
