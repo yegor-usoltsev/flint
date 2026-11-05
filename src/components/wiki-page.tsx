@@ -962,7 +962,7 @@ const PageEditor = ({
               value={body.value}
             />
           </div>
-          <div className="mt-8">
+          <div className="mt-8 empty:hidden">
             <AttachmentList
               body={body.value}
               compact
