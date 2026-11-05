@@ -321,7 +321,7 @@ export const SettingsFilter = ({
   onChange: (value: string) => void;
   value: string;
 }) => (
-  <InputGroup className="sm:w-80">
+  <InputGroup>
     <InputGroupAddon>
       <SearchIcon aria-hidden />
     </InputGroupAddon>

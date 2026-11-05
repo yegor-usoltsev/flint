@@ -5,16 +5,9 @@ import {
   SettingsRow,
   SettingsSection,
 } from "~/components/settings-page";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+import { Button } from "~/components/ui/button";
 import { pageHead } from "~/lib/site";
-import { isTheme, setTheme, themeItems, useTheme } from "~/lib/theme";
+import { setTheme, themeItems, useTheme } from "~/lib/theme";
 
 const Preferences = () => {
   const theme = useTheme();
@@ -24,31 +17,23 @@ const Preferences = () => {
       <SettingsSection>
         <SettingsRow
           description="Follow the system setting or pick light or dark"
-          htmlFor="interface-theme"
           label="Theme"
         >
-          <Select
-            items={themeItems}
-            onValueChange={(value) => {
-              if (isTheme(value)) {
-                setTheme(value);
-              }
-            }}
-            value={theme}
-          >
-            <SelectTrigger id="interface-theme">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {themeItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <div className="bg-muted flex rounded-lg p-0.5">
+            {themeItems.map((item) => (
+              <Button
+                aria-pressed={theme === item.value}
+                key={item.value}
+                onClick={() => {
+                  setTheme(item.value);
+                }}
+                size="sm"
+                variant={theme === item.value ? "outline" : "ghost"}
+              >
+                {item.short}
+              </Button>
+            ))}
+          </div>
         </SettingsRow>
       </SettingsSection>
     </SettingsPage>

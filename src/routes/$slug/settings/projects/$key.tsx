@@ -5,7 +5,6 @@ import { LockIcon } from "lucide-react";
 import { ConfirmDelete } from "~/components/confirm-delete";
 import { IconPicker } from "~/components/icon-picker";
 import { LoadFailed } from "~/components/load-failed";
-import { ProjectIcon } from "~/components/project-icon";
 import { RouteNotFound } from "~/components/route-not-found";
 import {
   SettingsInput,
@@ -156,20 +155,6 @@ const ProjectSettingsPage = () => {
         ),
       }}
       title={project.data?.name ?? key.toUpperCase()}
-      heading={
-        project.data === undefined ? undefined : (
-          <span className="flex items-center gap-3">
-            <span className="bg-surface-2 flex size-10 shrink-0 items-center justify-center rounded-lg">
-              <ProjectIcon
-                className="size-5"
-                color={project.data.color}
-                icon={project.data.icon}
-              />
-            </span>
-            <span className="truncate">{project.data.name}</span>
-          </span>
-        )
-      }
     >
       {project.isPending ? <Skeleton className="h-48 w-full" /> : null}
       {project.isError && project.data === undefined ? (

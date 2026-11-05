@@ -21,7 +21,6 @@ import {
 import { Button, buttonVariants } from "~/components/ui/button";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
@@ -96,7 +95,7 @@ const NewKey = ({ slug }: { slug: string }) => (
   </Link>
 );
 
-const TokenRows = ({ slug }: { slug: string }) => {
+const TokenRows = () => {
   const tokens = useQuery(tokensQuery);
 
   if (tokens.isPending) {
@@ -127,9 +126,6 @@ const TokenRows = ({ slug }: { slug: string }) => {
             <code>FLINT_TOKEN</code> in your scripts.
           </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent>
-          <NewKey slug={slug} />
-        </EmptyContent>
       </Empty>
     );
   }
@@ -157,20 +153,15 @@ const TokenRows = ({ slug }: { slug: string }) => {
 
 const ApiKeys = () => {
   const { slug } = useWorkspace();
-  const tokens = useQuery(tokensQuery);
 
   return (
     <SettingsPage
-      actions={
-        tokens.data === undefined || tokens.data.length > 0 ? (
-          <NewKey slug={slug} />
-        ) : undefined
-      }
+      actions={<NewKey slug={slug} />}
       description="The flint CLI and your scripts use the API as you with these keys."
       title="API keys"
     >
       <SettingsSection>
-        <TokenRows slug={slug} />
+        <TokenRows />
       </SettingsSection>
     </SettingsPage>
   );
