@@ -185,6 +185,9 @@ const useZoom = ({
   }, [enabled, stage]);
 
   return {
+    fill: (scale: number) => {
+      update(zoomAt(view, rest, scale));
+    },
     keys: (key: string) => {
       const step = zoomSteps.get(key);
 
@@ -347,10 +350,12 @@ const Slide = ({
 export const MediaViewer = ({
   index,
   items,
+  natural = false,
   onIndex,
 }: {
   index: number | null;
   items: ViewerItem[];
+  natural?: boolean;
   onIndex: (index: number | null) => void;
 }) => {
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
@@ -468,6 +473,10 @@ export const MediaViewer = ({
                   media={setMedia}
                   onFit={(value) => {
                     setFit({ fit: value, src: item.src });
+
+                    if (natural && value < 1) {
+                      zoom.fill(1 / value);
+                    }
                   }}
                   view={zoom.view}
                 />

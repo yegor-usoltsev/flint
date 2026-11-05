@@ -265,6 +265,7 @@ const useDiagramViewer = () => {
     <MediaViewer
       index={src === null ? null : 0}
       items={src === null ? [] : [{ kind: "image", name: "Diagram.svg", src }]}
+      natural
       onIndex={(index) => {
         if (index === null && src !== null) {
           URL.revokeObjectURL(src);
