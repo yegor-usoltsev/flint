@@ -127,11 +127,25 @@ const useTrashAction = (
 
 const dayMs = 86_400_000;
 
+const startOfDay = (time: number) => new Date(time).setHours(0, 0, 0, 0);
+
 const daysLeft = (deletedAt: string, trashDays: number, now = Date.now()) =>
   Math.max(
     0,
-    Math.ceil((new Date(deletedAt).getTime() + trashDays * dayMs - now) / dayMs)
+    Math.round(
+      (startOfDay(new Date(deletedAt).getTime() + trashDays * dayMs) -
+        startOfDay(now)) /
+        dayMs
+    )
   );
+
+const expiresText = (days: number) => {
+  if (days === 0) {
+    return "today";
+  }
+
+  return days === 1 ? "tomorrow" : `in ${days} days`;
+};
 
 const ExpiresIn = ({ deletedAt }: { deletedAt: string }) => {
   const trashDays = useMe().data?.trashDays;
@@ -146,7 +160,7 @@ const ExpiresIn = ({ deletedAt }: { deletedAt: string }) => {
     <Hint label={`Deleted ${formatDate(deletedAt)}`}>
       <span className={tableDate}>
         <span className="sr-only">Deleted forever </span>
-        {days <= 1 ? "today" : `in ${days} days`}
+        {expiresText(days)}
       </span>
     </Hint>
   );
@@ -162,8 +176,8 @@ const ExpiresLine = ({ deletedAt }: { deletedAt: string }) => {
   const days = daysLeft(deletedAt, trashDays);
 
   return (
-    <span aria-hidden className="text-muted-foreground text-xs md:hidden">
-      Deleted forever {days <= 1 ? "today" : `in ${days} days`}
+    <span className="text-muted-foreground text-xs md:hidden">
+      Deleted forever {expiresText(days)}
     </span>
   );
 };
