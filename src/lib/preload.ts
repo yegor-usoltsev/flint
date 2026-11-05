@@ -41,9 +41,10 @@ const loadTimeline = async (
     staleTime: "static",
   });
 
-  await prefetchDiagrams(
-    queryClient,
-    comments.map((comment) => comment.body).join("\n\n")
+  await Promise.all(
+    comments.map(async (comment) => {
+      await prefetchDiagrams(queryClient, comment.body);
+    })
   );
 };
 
