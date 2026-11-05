@@ -20,7 +20,7 @@ import {
   normalizedTypes,
 } from "~/server/images.server";
 import { findIssue, selectIssue } from "~/server/issues.server";
-import { perKey, roundRobin, tooManyRequests } from "~/server/limits.server";
+import { perKey, roundRobin } from "~/server/limits.server";
 import { findProject } from "~/server/projects.server";
 import { publish } from "~/server/realtime.server";
 import { deleteObjects, s3 } from "~/server/s3.server";
@@ -336,7 +336,9 @@ export const uploadAttachment = async (
   request: Request
 ) => {
   if (!uploading.acquire(actor.userId)) {
-    throw tooManyRequests(
+    throw new ApiError(
+      429,
+      "rate_limited",
       `Up to ${env.UPLOADS_PER_USER} uploads run at once; wait for one to finish`
     );
   }

@@ -97,8 +97,8 @@ test("a JSON body over 4 MB is refused before parsing, and a label list over 100
 });
 
 test("the health check reuses its result for two seconds, so a flood of probes costs one bucket listing", async () => {
-  let now = 1_000_000;
   const realNow = Date.now;
+  let now = realNow() + 10_000;
   const list = spyOn(s3, "list");
 
   Date.now = () => now;

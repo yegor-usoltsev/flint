@@ -1,8 +1,3 @@
-import { ApiError } from "~/server/api.server";
-
-export const tooManyRequests = (message: string) =>
-  new ApiError(429, "rate_limited", message);
-
 export const perMinute = (limit: () => number) => {
   const buckets = new Map<string, { at: number; tokens: number }>();
 
