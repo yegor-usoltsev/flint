@@ -16,6 +16,7 @@ export const listMin = 520;
 const listMax = 1440;
 const panelMaxShare = 0.65;
 const defaultShare = 0.42;
+const boardShare = 0.32;
 const splitByDefault = 1800;
 export const splitQuery = `(min-width: ${splitByDefault}px)`;
 const openKey = "flint:issue-panel";
@@ -160,7 +161,10 @@ export const clampWidth = (
   Math.round(
     Math.min(
       Math.max(
-        width ?? Math.max(space * defaultShare, capList ? space - listMax : 0),
+        width ??
+          (capList
+            ? Math.max(space * defaultShare, space - listMax)
+            : space * boardShare),
         panelMin
       ),
       Math.max(panelMin, Math.min(space * panelMaxShare, space - listMin))

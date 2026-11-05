@@ -24,7 +24,11 @@ test("the panel width stays between its minimum and what leaves the list its min
 test("on very wide screens the panel takes what the capped list leaves", () => {
   expect(clampWidth(null, 3600)).toBe(2160);
   expect(clampWidth(null, 1800)).toBe(756);
-  expect(clampWidth(null, 3600, false)).toBe(1512);
+});
+
+test("a board keeps a narrower panel so more columns fit", () => {
+  expect(clampWidth(null, 3600, false)).toBe(1152);
+  expect(clampWidth(null, 1800, false)).toBe(576);
 });
 
 test("a link replaces the panel issue, page changes keep it and a new scope clears it", () => {

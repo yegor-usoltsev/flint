@@ -469,7 +469,7 @@ const BoardColumn = ({
       data-column={status.id}
       ref={ref}
     >
-      <header className="flex h-[50px] shrink-0 items-center gap-2 px-3">
+      <header className="flex h-[50px] shrink-0 items-center gap-2 px-3 max-md:hidden">
         <StatusIcon category={status.category} color={status.color} />
         <h2 className="truncate font-medium" id={`column-${status.id}`}>
           {status.name}
@@ -589,7 +589,7 @@ const ColumnJump = ({
   return (
     <nav
       aria-label="Board columns"
-      className="flex shrink-0 gap-1 overflow-x-auto px-2 pt-2 md:hidden"
+      className="fade-x flex shrink-0 gap-1 overflow-x-auto px-4 pt-2 md:hidden"
       ref={chips}
     >
       {statuses.map((status) => (
@@ -651,8 +651,8 @@ const useMoreRight = (
 };
 
 const columnGap = 8;
-const columnMin = 264;
-const columnMax = 400;
+const columnMinRem = 16.5;
+const columnMaxRem = 25;
 const buttonStrip = 48;
 
 const useColumnWidth = (
@@ -665,6 +665,16 @@ const useColumnWidth = (
     const element = board.current;
 
     const measure = () => {
+      const rem =
+        Number(
+          getComputedStyle(document.documentElement).fontSize.replace(
+            /px$/u,
+            ""
+          )
+        ) || 16;
+
+      const columnMin = columnMinRem * rem;
+      const columnMax = columnMaxRem * rem;
       const inner = (element?.clientWidth ?? 0) - columnGap * 2;
       const all = (inner - columnGap * (count - 1)) / count;
 
@@ -736,7 +746,7 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
           ))}
         </div>
         {layout.fits ? null : (
-          <div className="flex w-12 shrink-0 items-center justify-center max-md:hidden">
+          <div className="flex w-12 shrink-0 justify-center pt-4.5 max-md:hidden">
             <Button
               aria-label={more ? "Show more columns" : "Show first columns"}
               onClick={() => {

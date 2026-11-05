@@ -269,6 +269,16 @@
   mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
 }
 
+@utility fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 1rem,
+    black calc(100% - 1.5rem),
+    transparent
+  );
+}
+
 @utility mention {
   @apply bg-surface-2 hover:bg-surface-3 text-foreground -my-1 inline-flex items-baseline rounded-[4px] border-[0.5px] font-normal no-underline;
   padding: 1.5px 4.5px 1.5px 3px;
