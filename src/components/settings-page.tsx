@@ -196,7 +196,7 @@ export const SettingsInput = ({
       }
     },
     readOnly: field.status === "saving",
-    required: true,
+    required: !emptyAllowed,
     spellCheck: false,
     value: disabled ? value : field.text,
   } as const;

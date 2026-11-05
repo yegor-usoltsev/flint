@@ -209,7 +209,6 @@ const linkIssues = async (
     insert into git_links ${tx(rows)}
     on conflict (issue_id, kind, repo_full_name, external_id) do update set
       url = excluded.url, title = excluded.title, state = excluded.state,
-      repo_private = excluded.repo_private,
       head_sha = case
         when git_links.kind = 'commit' and git_links.ref is distinct from excluded.ref
           then git_links.head_sha
@@ -290,25 +289,25 @@ const handlePush = async (
     texts: [commit.message],
   }));
 
-  const issues = await linkIssues(tx, push.repository, [
-    {
-      link: branchLink(push.repository, branch, push.pusher?.login ?? null),
-      refs: [branch],
-      texts: [],
-    },
-    ...commits,
+  const [issues, moved] = await Promise.all([
+    linkIssues(tx, push.repository, [
+      {
+        link: branchLink(push.repository, branch, push.pusher?.login ?? null),
+        refs: [branch],
+        texts: [],
+      },
+      ...commits,
+    ]),
+    tx<IssueRef[]>`
+      update git_links g set head_sha = ${push.after}, updated_at = now()
+      from issues i join projects p on p.id = i.project_id
+      where g.issue_id = i.id and g.kind = 'commit'
+        and g.repo_full_name = ${push.repository.full_name} and g.ref = ${branch}
+        and g.head_sha is distinct from ${push.after}
+      returning i.id, p.key || '-' || i.number as key,
+        i.project_id as "projectId", p.workspace_id as "workspaceId"
+    `,
   ]);
-
-  // oxlint-disable-next-line react-doctor/server-sequential-independent-await -- Linking share-locks the workspaces first; updating git_links before that would lock in the reverse order of a repository removal and deadlock.
-  const moved = await tx<IssueRef[]>`
-    update git_links g set head_sha = ${push.after}, updated_at = now()
-    from issues i join projects p on p.id = i.project_id
-    where g.issue_id = i.id and g.kind = 'commit'
-      and g.repo_full_name = ${push.repository.full_name} and g.ref = ${branch}
-      and g.head_sha is distinct from ${push.after}
-    returning i.id, p.key || '-' || i.number as key,
-      i.project_id as "projectId", p.workspace_id as "workspaceId"
-  `;
 
   const skipped = push.total_commits - push.commits.length;
 
@@ -433,8 +432,52 @@ const handleStatus = async (
 const json = <Schema extends v.GenericSchema>(schema: Schema) =>
   v.pipe(v.string(), v.parseJson(), schema);
 
-const lockRepository = async (tx: TransactionSQL, repository: Repository) => {
+const unlinkUnlisted = async (tx: TransactionSQL, repository: Repository) => {
+  const issues = await tx<IssueRef[]>`
+    delete from git_links g
+    using issues i, projects p, workspaces w
+    where g.issue_id = i.id and p.id = i.project_id and w.id = p.workspace_id
+      and g.repo_full_name = ${repository.full_name}
+      and not ${repositoryListed(
+        tx`w.gitea_repositories`,
+        repository.full_name,
+        repository.private
+      )}
+    returning i.id, p.key || '-' || i.number as key,
+      i.project_id as "projectId", p.workspace_id as "workspaceId"
+  `;
+
+  await tx`
+    update git_links set repo_private = ${repository.private}
+    where repo_full_name = ${repository.full_name}
+      and repo_private <> ${repository.private}
+  `;
+
+  return issues;
+};
+
+const inRepository = async (
+  tx: TransactionSQL,
+  repository: Repository,
+  handle: () => Promise<Outcome>
+): Promise<Outcome> => {
   await tx`select pg_advisory_xact_lock(hashtextextended('gitea:' || ${repository.full_name}, 0))`;
+  await tx`
+    select w.id from workspaces w
+    where w.id in (
+      select p.workspace_id from git_links g
+      join issues i on i.id = g.issue_id
+      join projects p on p.id = i.project_id
+      where g.repo_full_name = ${repository.full_name}
+    )
+    for share
+  `;
+
+  const outcome = await handle();
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await -- Both run on the transaction's one connection, so they cannot overlap.
+  const unlinked = await unlinkUnlisted(tx, repository);
+
+  return { ...outcome, issues: [...outcome.issues, ...unlinked] };
 };
 
 const processEvent = async (
@@ -444,23 +487,32 @@ const processEvent = async (
 ): Promise<Outcome> => {
   if (event === "push") {
     const push = v.parse(json(PushSchema), payload);
-    await lockRepository(tx, push.repository);
 
-    return await handlePush(tx, push);
+    return await inRepository(
+      tx,
+      push.repository,
+      async () => await handlePush(tx, push)
+    );
   }
 
   if (event === "pull_request") {
     const pullRequest = v.parse(json(PullRequestSchema), payload);
-    await lockRepository(tx, pullRequest.repository);
 
-    return await handlePullRequest(tx, pullRequest);
+    return await inRepository(
+      tx,
+      pullRequest.repository,
+      async () => await handlePullRequest(tx, pullRequest)
+    );
   }
 
   if (event === "status") {
     const status = v.parse(json(StatusSchema), payload);
-    await lockRepository(tx, status.repository);
 
-    return await handleStatus(tx, status);
+    return await inRepository(
+      tx,
+      status.repository,
+      async () => await handleStatus(tx, status)
+    );
   }
 
   if (event !== "create" && event !== "delete") {
@@ -473,21 +525,21 @@ const processEvent = async (
     return ignored;
   }
 
-  await lockRepository(tx, ref.repository);
+  return await inRepository(tx, ref.repository, async () => {
+    if (event === "delete") {
+      return await deleteBranch(tx, ref.repository, ref.ref);
+    }
 
-  if (event === "delete") {
-    return await deleteBranch(tx, ref.repository, ref.ref);
-  }
+    const issues = await linkIssues(tx, ref.repository, [
+      {
+        link: branchLink(ref.repository, ref.ref, ref.sender?.login ?? null),
+        refs: [ref.ref],
+        texts: [],
+      },
+    ]);
 
-  const issues = await linkIssues(tx, ref.repository, [
-    {
-      link: branchLink(ref.repository, ref.ref, ref.sender?.login ?? null),
-      refs: [ref.ref],
-      texts: [],
-    },
-  ]);
-
-  return { issues, note: null, status: "processed" };
+    return { issues, note: null, status: "processed" };
+  });
 };
 
 const isSigned = (body: Uint8Array, signature: string | null) => {

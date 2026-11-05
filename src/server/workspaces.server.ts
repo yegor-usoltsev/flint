@@ -4,7 +4,11 @@ import * as v from "valibot";
 
 import type { Workspace } from "~/lib/api-types";
 import { colors } from "~/lib/colors";
-import { repositoryPattern, reservedSlugs } from "~/lib/workspace";
+import {
+  isRepositoryName,
+  maxRepositories,
+  reservedSlugs,
+} from "~/lib/workspace";
 import {
   requireWorkspace,
   UniqueViolationSchema,
@@ -39,10 +43,10 @@ const RepositoriesSchema = v.pipe(
     v.pipe(
       v.string(),
       v.trim(),
-      v.regex(repositoryPattern, "Enter a Gitea owner or owner/repository")
+      v.check(isRepositoryName, "Enter a Gitea owner or owner/repository")
     )
   ),
-  v.maxLength(100),
+  v.maxLength(maxRepositories),
   v.transform((names) => [
     ...new Map(names.map((name) => [name.toLowerCase(), name])).values(),
   ])

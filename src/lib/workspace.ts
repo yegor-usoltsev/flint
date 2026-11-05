@@ -28,15 +28,29 @@ export const reservedSlugs = new Set([
   "wiki",
 ]);
 
-export const repositoryPattern = /^[\w.-]{1,40}(?:\/[\w.-]{1,100})?$/u;
+export const isRepositoryName = (name: string) => {
+  const [, repository = ""] = name.split("/");
+
+  return (
+    /^[\w.-]{1,40}(?:\/[\w.-]{1,100})?$/u.test(name) &&
+    !repository.includes("..") &&
+    !/\.(?:atom|git|rss|wiki)$/iu.test(repository)
+  );
+};
+
+export const maxRepositories = 100;
 
 export const repositoryList = (text: string) =>
   text.split(/[\s,]+/u).filter((name) => name !== "");
 
 export const repositoryProblem = (text: string) => {
-  const wrong = repositoryList(text).find(
-    (name) => !repositoryPattern.test(name)
-  );
+  const names = repositoryList(text);
+
+  if (names.length > maxRepositories) {
+    return `List at most ${maxRepositories} owners or repositories`;
+  }
+
+  const wrong = names.find((name) => !isRepositoryName(name));
 
   return wrong === undefined
     ? null
