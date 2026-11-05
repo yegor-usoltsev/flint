@@ -8,7 +8,9 @@ docker run -d --name flint -p 3000:3000 --env-file flint.env yusoltsev/flint:lat
 
 The image is also on `ghcr.io/yegor-usoltsev/flint`. Each start applies pending migrations (the first creates the `vector` extension), and `/api/health` answers 200 when PostgreSQL and the bucket are reachable, 503 otherwise.
 
-Put a reverse proxy in front that terminates TLS and serves HTTP/2, because browsers without SharedWorker open an event stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings.
+Put a reverse proxy in front that terminates TLS and serves HTTP/2, because browsers without SharedWorker open an event stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings. Have the proxy send `Strict-Transport-Security: max-age=31536000`, so browsers stop trying plain HTTP after the first visit; add `includeSubDomains` only when every subdomain serves HTTPS.
+
+With an `https` `APP_URL`, the session and sign-in cookies carry the `__Host-` prefix, so a page on a sibling subdomain, such as Gitea's, cannot plant its own session in Flint. A sign-in from before this change keeps working from its old cookie until it expires.
 
 ## Gitea
 
