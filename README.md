@@ -2,6 +2,8 @@
 
 <h1 align="center">Flint</h1>
 
+<p align="center"><a href="https://codecov.io/gh/yegor-usoltsev/flint"><img src="https://codecov.io/gh/yegor-usoltsev/flint/graph/badge.svg" alt="Test coverage"></a></p>
+
 <p align="center"><img src="assets/screenshots/issue.webp" width="500" alt="An issue in Flint with its pull request, branch, commit and passing CI check"></p>
 
 Flint is a self-hosted issue tracker and Markdown wiki for teams that run [Gitea](https://about.gitea.com). People sign in with their Gitea accounts, and branches, commits, pull requests and CI checks that mention `ENG-12` show up on the issue by themselves. A CLI does everything the UI does, so coding agents can work in it too.

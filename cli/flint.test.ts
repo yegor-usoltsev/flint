@@ -61,7 +61,20 @@ const flint = async (...argv: string[]) => {
   return await main(argv);
 };
 
+const terminals = [process.stdin, process.stdout];
+
+const terminalModes = terminals.map((stream) =>
+  Object.getOwnPropertyDescriptor(stream, "isTTY")
+);
+
 beforeEach(() => {
+  for (const stream of terminals) {
+    Object.defineProperty(stream, "isTTY", {
+      configurable: true,
+      value: false,
+    });
+  }
+
   requests = [];
   printed = [];
   spyOn(console, "log").mockImplementation((line: string) => {
@@ -77,6 +90,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const [index, stream] of terminals.entries()) {
+    const mode = terminalModes[index];
+
+    if (mode === undefined) {
+      Reflect.deleteProperty(stream, "isTTY");
+    } else {
+      Object.defineProperty(stream, "isTTY", mode);
+    }
+  }
+
   mock.restore();
   delete process.env["FLINT_TOKEN"];
   delete process.env["FLINT_URL"];
@@ -934,4 +957,132 @@ test("attachment download saves the file under its name and never overwrites it"
       process.chdir(cwd);
     }
   });
+});
+
+test("trash commands tell an issue key from a page id and list both kinds", async () => {
+  const pageId = "0193a1b2-0000-7000-8000-000000000000";
+  const at = "2026-01-01T00:00:00Z";
+
+  stubApi({
+    [`DELETE /trash/wiki/${pageId}`]: () => new Response(null, { status: 204 }),
+    "DELETE /trash/issues/ENG-3": () => new Response(null, { status: 204 }),
+    "GET /workspaces/acme/trash": reply({
+      issues: [
+        {
+          deletedAt: at,
+          deletedBy: { username: "alice" },
+          id: "i",
+          key: "ENG-3",
+          projectId: "p",
+          purgeAt: at,
+          title: "Old bug",
+        },
+      ],
+      pages: [
+        {
+          deletedAt: at,
+          deletedBy: null,
+          descendants: 2,
+          id: pageId,
+          kind: "folder",
+          path: "guides",
+          purgeAt: at,
+          title: "Guides",
+        },
+      ],
+    }),
+    "POST /issues/ENG-3/restore": reply(issue("ENG-3")),
+    [`POST /wiki/${pageId}/restore`]: reply({ path: "guides" }),
+  });
+
+  const { argv } = process;
+
+  process.argv = [...argv, "--human"];
+
+  try {
+    expect(await flint("trash", "list", "-w", "acme")).toBe(0);
+
+    const [, issueRow, pageRow] = printed.join("").split("\n");
+
+    expect(issueRow).toStartWith("ENG-3");
+    expect(issueRow).toContain("Old bug");
+    expect(issueRow).toContain("@alice");
+    expect(pageRow).toStartWith(pageId);
+    expect(pageRow).toContain("Guides · guides/ (+2)");
+    expect(await flint("trash", "restore", "ENG-3")).toBe(0);
+    expect(printed).toEqual(["Restored ENG-3"]);
+    expect(await flint("trash", "restore", pageId)).toBe(0);
+    expect(printed).toEqual(["Restored guides"]);
+  } finally {
+    process.argv = argv;
+  }
+
+  requests = [];
+
+  expect(await flint("trash", "restore", "guides")).toBe(2);
+  expect(JSON.parse(printed.join(""))).toMatchObject({
+    error: { message: "guides is neither an issue key nor a wiki page id" },
+  });
+  expect(await flint("trash", "delete", "ENG-3")).toBe(2);
+  expect(requests).toEqual([]);
+  expect(await flint("trash", "delete", "ENG-3", "--yes")).toBe(0);
+  expect(await flint("trash", "delete", pageId, "-y")).toBe(0);
+  expect(requests).toEqual([
+    "DELETE /trash/issues/ENG-3",
+    `DELETE /trash/wiki/${pageId}`,
+  ]);
+});
+
+test("wiki commands normalize the path, act on the page id and pass a conflict through", async () => {
+  const setup = {
+    body: "old",
+    id: "p1",
+    path: "guides/setup",
+    revision: 3,
+    title: "Setup",
+  };
+
+  const conflict = {
+    current: setup,
+    error: { code: "conflict", message: "The page changed since revision 2" },
+  };
+
+  stubApi({
+    "GET /workspaces/acme/wiki/guides/setup": reply(setup),
+    "POST /wiki/p1/move": reply({ ...setup, path: "howto" }),
+    "POST /wiki/p1/revisions/2/restore": reply({ ...setup, revision: 4 }),
+    "PUT /workspaces/acme/wiki/guides/setup": reply(conflict, 409),
+  });
+
+  expect(
+    await flint(
+      "wiki",
+      "put",
+      "/guides//setup/",
+      "-w",
+      "acme",
+      "-d",
+      "new",
+      "--base-revision",
+      "2"
+    )
+  ).toBe(1);
+  expect(JSON.parse(printed.join(""))).toEqual(conflict);
+  expect(
+    await flint("wiki", "move", "guides/setup", "howto", "-w", "acme")
+  ).toBe(0);
+  expect(
+    await flint("wiki", "restore", "guides/setup", "2", "-w", "acme")
+  ).toBe(0);
+  expect(requests).toEqual([
+    'PUT /workspaces/acme/wiki/guides/setup {"baseRevision":2,"body":"new"}',
+    "GET /workspaces/acme/wiki/guides/setup",
+    'POST /wiki/p1/move {"path":"howto"}',
+    "GET /workspaces/acme/wiki/guides/setup",
+    "POST /wiki/p1/revisions/2/restore",
+  ]);
+  expect(
+    await flint("wiki", "restore", "guides/setup", "two", "-w", "acme")
+  ).toBe(2);
+  expect(requests).toHaveLength(5);
 });

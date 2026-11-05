@@ -160,28 +160,6 @@ test("a workspace token creates only tokens for its workspace and no workspaces"
   ).toEqual(["acme", "same"]);
 });
 
-test("deleting a workspace deletes the tokens restricted to it", async () => {
-  const { alice, full, root, scoped } = await setup();
-
-  await deleteWorkspace(root, "acme");
-
-  expect(await callApi(meRoute, scoped, "GET", "/api/v1/me")).toMatchObject({
-    status: 401,
-  });
-  expect(await callApi(meRoute, full, "GET", "/api/v1/me")).toMatchObject({
-    body: { workspaces: [{ slug: "globex" }] },
-    status: 200,
-  });
-  expect(
-    await callApi(
-      tokensRoute,
-      await sessionCookieFor(alice.userId),
-      "GET",
-      "/api/v1/me/tokens"
-    )
-  ).toMatchObject({ body: [{ name: "all", workspaces: null }] });
-});
-
 const NamesSchema = v.array(v.looseObject({ name: v.string() }));
 
 const names = async (auth: string) => {
@@ -310,7 +288,7 @@ test("a token can only name workspaces its user belongs to", async () => {
 });
 
 test("deleting a workspace drops it from tokens and deletes the emptied ones", async () => {
-  const { alice, root, scoped } = await setup();
+  const { alice, full, root, scoped } = await setup();
 
   const two = await createToken(alice, {
     name: "two",
@@ -325,6 +303,23 @@ test("deleting a workspace drops it from tokens and deletes the emptied ones", a
   expect(
     await callApi(meRoute, `Bearer ${two.token}`, "GET", "/api/v1/me")
   ).toMatchObject({ body: { workspaces: [{ slug: "globex" }] }, status: 200 });
+  expect(await callApi(meRoute, full, "GET", "/api/v1/me")).toMatchObject({
+    body: { workspaces: [{ slug: "globex" }] },
+    status: 200,
+  });
+  expect(
+    await callApi(
+      tokensRoute,
+      await sessionCookieFor(alice.userId),
+      "GET",
+      "/api/v1/me/tokens"
+    )
+  ).toMatchObject({
+    body: [
+      { name: "two", workspaces: [{ slug: "globex" }] },
+      { name: "all", workspaces: null },
+    ],
+  });
 
   await deleteWorkspace(root, "globex");
 
