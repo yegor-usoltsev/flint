@@ -290,25 +290,25 @@ const handlePush = async (
     texts: [commit.message],
   }));
 
-  const [issues, moved] = await Promise.all([
-    linkIssues(tx, push.repository, [
-      {
-        link: branchLink(push.repository, branch, push.pusher?.login ?? null),
-        refs: [branch],
-        texts: [],
-      },
-      ...commits,
-    ]),
-    tx<IssueRef[]>`
-      update git_links g set head_sha = ${push.after}, updated_at = now()
-      from issues i join projects p on p.id = i.project_id
-      where g.issue_id = i.id and g.kind = 'commit'
-        and g.repo_full_name = ${push.repository.full_name} and g.ref = ${branch}
-        and g.head_sha is distinct from ${push.after}
-      returning i.id, p.key || '-' || i.number as key,
-        i.project_id as "projectId", p.workspace_id as "workspaceId"
-    `,
+  const issues = await linkIssues(tx, push.repository, [
+    {
+      link: branchLink(push.repository, branch, push.pusher?.login ?? null),
+      refs: [branch],
+      texts: [],
+    },
+    ...commits,
   ]);
+
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await -- Linking share-locks the workspaces first; updating git_links before that would lock in the reverse order of a repository removal and deadlock.
+  const moved = await tx<IssueRef[]>`
+    update git_links g set head_sha = ${push.after}, updated_at = now()
+    from issues i join projects p on p.id = i.project_id
+    where g.issue_id = i.id and g.kind = 'commit'
+      and g.repo_full_name = ${push.repository.full_name} and g.ref = ${branch}
+      and g.head_sha is distinct from ${push.after}
+    returning i.id, p.key || '-' || i.number as key,
+      i.project_id as "projectId", p.workspace_id as "workspaceId"
+  `;
 
   const skipped = push.total_commits - push.commits.length;
 

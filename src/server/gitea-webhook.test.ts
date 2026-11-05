@@ -877,3 +877,34 @@ test("a push racing a repository's removal from the list cannot leave its link b
   expect(await delivery).toMatchObject({ status: 200 });
   expect(await linksOf(root, "ENG-1")).toEqual([]);
 });
+
+test("a push to a linked branch and a repository's removal take their locks in the same order", async () => {
+  const { root } = await setup();
+
+  await deliver("push", "push-branch");
+
+  const push = await fixture("push-branch");
+
+  const next = push.replace(
+    /"after": "[0-9a-f]+"/u,
+    `"after": "${"f".repeat(40)}"`
+  );
+
+  let delivery: ReturnType<typeof send> | undefined;
+
+  await db.begin(async (tx) => {
+    await tx`
+      update workspaces set gitea_repositories = '{}' where slug = 'acme'
+    `;
+    delivery = send("push", next);
+    await Bun.sleep(300);
+    await tx`
+      delete from git_links g using issues i, projects p, workspaces w
+      where g.issue_id = i.id and p.id = i.project_id
+        and w.id = p.workspace_id and w.slug = 'acme'
+    `;
+  });
+
+  expect(await delivery).toMatchObject({ status: 200 });
+  expect(await linksOf(root, "ENG-1")).toEqual([]);
+});
