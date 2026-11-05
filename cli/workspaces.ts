@@ -728,12 +728,23 @@ const loadedNames = new Set([
   "tsconfig.json",
 ]);
 
+const withoutEndDots = (text: string) => {
+  let end = text.length;
+
+  while (end > 0 && /[\s.]/u.test(text.charAt(end - 1))) {
+    end -= 1;
+  }
+
+  return text.slice(0, end);
+};
+
 const downloadName = (filename: string) => {
-  const name = (filename.split(/[\\/]/u).at(-1) ?? "")
-    .replaceAll(/\p{Cc}/gu, "")
-    .replaceAll(":", "_")
-    .replace(/^[\s.]+/u, "")
-    .trim();
+  const name = withoutEndDots(
+    (filename.split(/[\\/]/u).at(-1) ?? "")
+      .replaceAll(/\p{Cc}/gu, "")
+      .replaceAll(":", "_")
+      .replace(/^[\s.]+/u, "")
+  );
 
   const lower = name.toLowerCase();
 
@@ -742,6 +753,10 @@ const downloadName = (filename: string) => {
       `${name} is a file name that tools load from the current directory; pass -o <path>`,
       1
     );
+  }
+
+  if (/^(?:aux|con|nul|prn|com\d|lpt\d)(?:\.|$)/u.test(lower)) {
+    return `_${name}`;
   }
 
   return name === "" ? "attachment" : name;

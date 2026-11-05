@@ -960,6 +960,8 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
           "Makefile",
           ".\u2028/tmp/flint-elsewhere/.yarnrc",
           "C:package.json",
+          "package.json. ",
+          "NUL.txt",
         ].map((name, index) => [
           `GET /files/f${index}`,
           () =>
@@ -989,6 +991,10 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
       expect(JSON.parse(printed.join(""))).toMatchObject({
         path: "C_package.json",
       });
+      expect(await flint("attachment", "download", "f7")).toBe(1);
+      expect(printed.join("")).toContain("pass -o <path>");
+      expect(await flint("attachment", "download", "f8")).toBe(0);
+      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "_NUL.txt" });
 
       for (const id of ["f2", "f3", "f4"]) {
         // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
@@ -1003,6 +1009,7 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
 
       expect(files.toSorted()).toEqual([
         "C_package.json",
+        "_NUL.txt",
         "a.txt",
         "attachment",
         "b.txt",
