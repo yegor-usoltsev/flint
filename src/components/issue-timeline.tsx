@@ -71,7 +71,7 @@ interface Timeline {
 type EventItem = Extract<ActivityItem, { type: "event" }>;
 
 const cardClass =
-  "bg-card shadow-raised -mx-2 flex flex-col gap-1.5 rounded-md border p-4";
+  "bg-card shadow-raised flex flex-col gap-1.5 rounded-md border p-4";
 
 const Time = ({ at }: { at: string }) => (
   <time

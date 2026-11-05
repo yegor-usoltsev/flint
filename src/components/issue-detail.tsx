@@ -18,7 +18,7 @@ import {
   RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 import { AttachButton } from "~/components/attach-button";
@@ -340,8 +340,8 @@ const Description = ({
       />
       {sections ? (
         <>
-          <IssueDevelopment issue={issue} />
-          <IssueAttachments editable={editable} issue={issue} />
+          <IssueDevelopment compact issue={issue} />
+          <IssueAttachments compact editable={editable} issue={issue} />
         </>
       ) : null}
     </section>
@@ -499,7 +499,7 @@ const Toolbar = ({
   issue: Issue;
   slug: string;
 }) => (
-  <div className="@min-[820px]:sticky @min-[820px]:top-0 @min-[820px]:z-10 @min-[820px]:h-0">
+  <div className="hidden @min-[820px]:sticky @min-[820px]:top-0 @min-[820px]:z-10 @min-[820px]:block @min-[820px]:h-0">
     <div className="flex justify-end gap-1.5 px-3 pt-2 @min-[820px]:pt-1.5">
       {[
         {
@@ -541,24 +541,25 @@ const Toolbar = ({
   </div>
 );
 
-const useWide = (layout: RefObject<HTMLDivElement | null>, shown: boolean) => {
+const useWide = () => {
   const [wide, setWide] = useState(false);
 
-  useLayoutEffect(() => {
+  const measure = useCallback((layout: HTMLDivElement | null) => {
     const observer = new ResizeObserver(([entry]) => {
       setWide((entry?.contentRect.width ?? 0) >= 820);
     });
 
-    if (shown && layout.current !== null) {
-      observer.observe(layout.current);
+    if (layout !== null) {
+      setWide(layout.clientWidth >= 820);
+      observer.observe(layout);
     }
 
     return () => {
       observer.disconnect();
     };
-  }, [layout, shown]);
+  }, []);
 
-  return wide;
+  return { measure, wide };
 };
 
 const useIssueQuery = (project: ProjectDetail, issueKey: string) => {
@@ -590,8 +591,7 @@ const IssueBody = ({
   const deletion = useDeleteIssue();
   const username = useUsername();
   const description = useRef<MarkdownEditorHandle>(null);
-  const columns = useRef<HTMLDivElement>(null);
-  const wide = useWide(columns, true);
+  const { measure, wide } = useWide();
   const ready = data !== undefined && !placeholder;
   const editable = ready && data.deletedAt === null;
 
@@ -618,7 +618,7 @@ const IssueBody = ({
           slug={workspace.slug}
         />
       ) : null}
-      <div className="issue-layout pb-16" ref={columns}>
+      <div className="issue-layout pb-16" ref={measure}>
         <article
           className={cn(
             "flex min-w-0 flex-col gap-4 px-3.5 pt-2.5 md:pt-5.75 @min-[820px]:col-start-2",

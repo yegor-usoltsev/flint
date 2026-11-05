@@ -871,7 +871,7 @@ const PageEditor = ({
             />
           ) : null}
           {deleted || copy.isPending ? null : (
-            <div className="flex max-md:hidden">
+            <div className="flex">
               <AttachButton
                 onFiles={(files) => {
                   editor.current?.upload(files);
@@ -962,9 +962,10 @@ const PageEditor = ({
               value={body.value}
             />
           </div>
-          <div className="mt-8">
+          <div className="mt-8 empty:hidden">
             <AttachmentList
               body={body.value}
+              compact
               editable={!deleted}
               hint="Paste or drop files into the page, or attach them here."
               id={page.id}
