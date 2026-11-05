@@ -1054,6 +1054,41 @@ const CommitStatusSchema = v.object({
   updated_at: v.string(),
 });
 
+const finishedStatuses = async (
+  sha: string,
+  deadline = Date.now() + 180_000
+): Promise<v.InferOutput<typeof CommitStatusSchema>[]> => {
+  const history = await gitea(
+    v.array(CommitStatusSchema),
+    `/repos/${repo}/statuses/${sha}`
+  );
+
+  const statuses = [
+    ...new Map(
+      history
+        .toSorted((a, b) => a.id - b.id)
+        .map((status) => [status.context, status])
+    ).values(),
+  ];
+
+  const done =
+    statuses.length > 0 && statuses.every(({ status }) => status !== "pending");
+
+  if (done) {
+    return statuses;
+  }
+
+  if (Date.now() > deadline) {
+    console.warn("Gitea CI has not finished; replaying its current state");
+
+    return statuses;
+  }
+
+  await Bun.sleep(2000);
+
+  return await finishedStatuses(sha, deadline);
+};
+
 const linkPullRequest = async () => {
   const repository = await gitea(RepositorySchema, `/repos/${repo}`);
 
@@ -1070,10 +1105,8 @@ const linkPullRequest = async () => {
 
   const { sha } = pull.head;
 
-  const [commit, statuses] = await Promise.all([
-    gitea(CommitSchema, `/repos/${repo}/git/commits/${sha}`),
-    gitea(v.array(CommitStatusSchema), `/repos/${repo}/statuses/${sha}`),
-  ]);
+  const commit = await gitea(CommitSchema, `/repos/${repo}/git/commits/${sha}`);
+  const statuses = await finishedStatuses(sha);
 
   await deliver(
     "push",
@@ -1103,14 +1136,8 @@ const linkPullRequest = async () => {
     JSON.stringify({ number: pull.number, pull_request: pull, repository })
   );
 
-  const latest = new Map(
-    statuses
-      .toSorted((a, b) => a.id - b.id)
-      .map((status) => [status.context, status])
-  );
-
   await Promise.all(
-    [...latest.values()].map(async (status) => {
+    statuses.map(async (status) => {
       await deliver(
         "status",
         JSON.stringify({ ...status, repository, sha, state: status.status })
