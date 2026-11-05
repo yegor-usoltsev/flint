@@ -43,7 +43,7 @@ const Usernames = v.pipe(
     v.pipe(
       v.string(),
       v.regex(
-        /^[\w.-]{1,40}$/u,
+        /^[\da-z][\w.-]{0,39}$/u,
         (issue) => `Invalid Gitea username: ${issue.received}`
       )
     )
