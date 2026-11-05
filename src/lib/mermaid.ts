@@ -132,7 +132,7 @@ const load = async (wanted: "dark" | "light") => {
       diagramConfig(
         wanted,
         getComputedStyle(document.documentElement).getPropertyValue(
-          "--font-mono"
+          "--font-sans"
         )
       )
     );
