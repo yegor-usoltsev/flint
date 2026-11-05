@@ -67,10 +67,8 @@ const TitleText = ({ short, title }: { short?: string; title: string }) => {
 
   return (
     <>
+      <span className="truncate md:hidden">{short}</span>
       <span className="truncate max-md:sr-only">{title}</span>
-      <span aria-hidden className="truncate md:hidden">
-        {short}
-      </span>
     </>
   );
 };
