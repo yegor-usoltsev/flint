@@ -289,7 +289,7 @@ export const RowContent = ({
   <>
     <RowCheck id={issue.id} />
     <PriorityIcon
-      className={cn(issue.priority === 0 && "max-md:hidden")}
+      className={cn(issue.priority === 0 && "max-md:invisible")}
       priority={issue.priority}
     />
     <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
@@ -561,22 +561,38 @@ const ColumnJump = ({
   }, [board, statuses]);
 
   const current = active ?? statuses[0]?.id;
+  const chips = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const chip =
+      current === undefined
+        ? null
+        : chips.current?.querySelector(`[data-chip="${CSS.escape(current)}"]`);
+
+    if (chip instanceof HTMLElement && chips.current !== null) {
+      chips.current.scrollTo({
+        behavior: "smooth",
+        left:
+          chip.offsetLeft -
+          chips.current.clientWidth / 2 +
+          chip.clientWidth / 2,
+      });
+    }
+  }, [current]);
 
   return (
     <nav
       aria-label="Board columns"
       className="flex shrink-0 gap-1 overflow-x-auto px-2 pt-2 md:hidden"
+      ref={chips}
     >
       {statuses.map((status) => (
         <Button
           aria-current={status.id === current ? "true" : undefined}
           className="shrink-0"
+          data-chip={status.id}
           key={status.id}
-          onClick={(event) => {
-            event.currentTarget.scrollIntoView({
-              block: "nearest",
-              inline: "nearest",
-            });
+          onClick={() => {
             board.current
               ?.querySelector(`[data-column="${CSS.escape(status.id)}"]`)
               ?.scrollIntoView({ block: "nearest", inline: "start" });
@@ -633,7 +649,7 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
   const more = useMoreRight(board, statuses.at(-1)?.id);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <ColumnJump
         board={board}
         columns={columns}
@@ -657,6 +673,23 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
           />
         ))}
       </div>
+      {more ? (
+        <div className="absolute top-1/2 right-3 -translate-y-1/2 max-md:hidden">
+          <Button
+            aria-label="Show more columns"
+            onClick={() => {
+              board.current?.scrollBy({
+                behavior: "smooth",
+                left: (board.current.clientWidth * 2) / 3,
+              });
+            }}
+            size="icon-round"
+            variant="outline"
+          >
+            <ChevronRightIcon />
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 };

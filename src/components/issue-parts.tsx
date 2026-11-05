@@ -137,7 +137,7 @@ export const Assignee = ({
     return (
       <span
         className={cn(
-          "text-muted-foreground/60 flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed max-md:sr-only md:opacity-0 md:transition-opacity md:duration-150 md:group-hover/issue:opacity-100 md:group-focus-visible/issue:opacity-100 md:group-data-current/issue:opacity-100 md:group-data-menu-target/issue:opacity-100",
+          "text-muted-foreground/60 flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed max-md:opacity-0 md:opacity-0 md:transition-opacity md:duration-150 md:group-hover/issue:opacity-100 md:group-focus-visible/issue:opacity-100 md:group-data-current/issue:opacity-100 md:group-data-menu-target/issue:opacity-100",
           className
         )}
       >

@@ -870,11 +870,11 @@ const PanelScreen = ({
   return (
     <>
       <header className="flex h-11 shrink-0 items-center gap-1 border-b pr-2 pl-4">
-        <h2 className="min-w-0 flex-1 truncate font-medium">
-          <span className="text-muted-foreground tracking-key mr-2">
-            {issueKey}
-          </span>
-          {data?.title}
+        <h2 className="text-muted-foreground tracking-key min-w-0 flex-1 truncate font-medium">
+          {issueKey}
+          {data === undefined ? null : (
+            <span className="sr-only"> {data.title}</span>
+          )}
         </h2>
         <Hint label="Open full page">
           <Link
