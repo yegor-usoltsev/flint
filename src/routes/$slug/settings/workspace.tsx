@@ -102,7 +102,7 @@ const LogoSetting = ({
   const input = useRef<HTMLInputElement>(null);
 
   return (
-    <SettingsRow description="Recommended size is 256×256 px" label="Logo">
+    <SettingsRow description="Square, at least 256 px" label="Logo">
       <div className="flex items-center gap-2">
         {disabled ? null : (
           <>

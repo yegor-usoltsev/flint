@@ -145,7 +145,7 @@ const AddMember = ({ slug }: { slug: string }) => {
       }}
       open={open}
     >
-      <DialogTrigger render={<Button size="pill" />}>Add member</DialogTrigger>
+      <DialogTrigger render={<Button />}>Add member</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add member</DialogTitle>
@@ -353,12 +353,14 @@ const MemberRow = ({
 
 const MemberGroup = ({
   canManage,
+  heading,
   label,
   meId,
   members,
   slug,
 }: {
   canManage: boolean;
+  heading: boolean;
   label: string;
   meId: string | undefined;
   members: Member[];
@@ -370,12 +372,14 @@ const MemberGroup = ({
 
   return (
     <section aria-label={label} className="flex flex-col">
-      <h2 className={tableGroup}>
-        {label}
-        <span className="text-muted-foreground font-normal">
-          {members.length}
-        </span>
-      </h2>
+      {heading ? (
+        <h2 className={tableGroup}>
+          {label}
+          <span className="text-muted-foreground font-normal">
+            {members.length}
+          </span>
+        </h2>
+      ) : null}
       <ul>
         {members.map((member) => (
           <MemberRow
@@ -414,7 +418,6 @@ const Members = () => {
           : "Workspace admins add and remove members."
       }
       title="Members"
-      wide
     >
       <div className="flex flex-col gap-2">
         <SettingsFilter
@@ -452,6 +455,7 @@ const Members = () => {
           <div className="flex flex-col gap-2">
             <MemberGroup
               canManage={isAdmin}
+              heading={shown.some((member) => member.pending)}
               label="Active"
               meId={me?.id}
               members={shown.filter((member) => !member.pending)}
@@ -459,6 +463,7 @@ const Members = () => {
             />
             <MemberGroup
               canManage={isAdmin}
+              heading
               label="Invited"
               meId={me?.id}
               members={shown.filter((member) => member.pending)}

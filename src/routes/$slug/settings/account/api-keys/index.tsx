@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { cn } from "cn";
 
 import { LoadFailed } from "~/components/load-failed";
 import {
@@ -89,7 +88,7 @@ const RevokeToken = ({ token }: { token: ApiToken }) => {
 
 const NewKey = ({ slug }: { slug: string }) => (
   <Link
-    className={cn(buttonVariants({ size: "pill" }))}
+    className={buttonVariants()}
     params={{ slug }}
     to="/$slug/settings/account/api-keys/new"
   >
@@ -167,12 +166,10 @@ const ApiKeys = () => {
           <NewKey slug={slug} />
         ) : undefined
       }
+      description="The flint CLI and your scripts use the API as you with these keys."
       title="API keys"
     >
-      <SettingsSection
-        description="The flint CLI and your scripts use the API as you with these keys."
-        title="Personal API keys"
-      >
+      <SettingsSection>
         <TokenRows slug={slug} />
       </SettingsSection>
     </SettingsPage>

@@ -52,7 +52,7 @@ const LeaveWorkspace = ({
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger render={<Button variant="ghost" />}>
+      <AlertDialogTrigger render={<Button variant="destructive" />}>
         Leave workspace
       </AlertDialogTrigger>
       <AlertDialogContent>
@@ -128,8 +128,11 @@ const Profile = () => {
           </span>
         </SettingsRow>
       </SettingsSection>
-      <SettingsSection title="Workspace access">
-        <SettingsRow label={`Remove yourself from ${workspace.name}`}>
+      <SettingsSection title="Danger zone">
+        <SettingsRow
+          description="You lose access until an admin adds you again"
+          label={`Leave ${workspace.name}`}
+        >
           <LeaveWorkspace me={me} workspace={workspace} />
         </SettingsRow>
       </SettingsSection>

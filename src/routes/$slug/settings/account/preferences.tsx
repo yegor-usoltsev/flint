@@ -21,11 +21,11 @@ const Preferences = () => {
 
   return (
     <SettingsPage title="Preferences">
-      <SettingsSection title="Interface and theme">
+      <SettingsSection>
         <SettingsRow
           description="Follow the system setting or pick light or dark"
           htmlFor="interface-theme"
-          label="Interface theme"
+          label="Theme"
         >
           <Select
             items={themeItems}

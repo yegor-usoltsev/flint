@@ -337,14 +337,12 @@ const Labels = () => {
           onClick={() => {
             setCreating(true);
           }}
-          size="pill"
         >
           New label
         </Button>
       }
       description="Labels are shared by every project in this workspace. Click a name to rename it."
       title="Labels"
-      wide
     >
       <div className="flex flex-col gap-2">
         {empty ? null : (
@@ -355,7 +353,7 @@ const Labels = () => {
               value={filter}
             />
             <div aria-hidden className={tableHead}>
-              <span className="flex-1 pl-16 pointer-coarse:pl-10">Name</span>
+              <span className="flex-1 pl-20 pointer-coarse:pl-14">Name</span>
               <span className={tableNumber}>Issues</span>
               <span className="w-7" />
             </div>
@@ -378,7 +376,6 @@ const Labels = () => {
                 onClick={() => {
                   setCreating(true);
                 }}
-                size="pill"
               >
                 New label
               </Button>

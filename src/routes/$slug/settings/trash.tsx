@@ -407,7 +407,6 @@ const Trash = () => {
     <SettingsPage
       description={`Deleted issues and wiki pages stay here for ${trashDays} days, then they are deleted forever. Anyone can restore them; only admins can delete them sooner.`}
       title="Trash"
-      wide
     >
       <div className="@container/trash flex flex-col gap-2">
         {trash.isPending ? <Skeleton className="h-20 w-full" /> : null}
