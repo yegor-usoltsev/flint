@@ -69,3 +69,24 @@ test("signing out clears every workspace's recent items and nothing else", () =>
 
   expect([...items.keys()]).toEqual(["theme"]);
 });
+
+test("clearRecent does not throw when storage is blocked", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    get: () => {
+      throw new DOMException("blocked", "SecurityError");
+    },
+  });
+
+  try {
+    expect(() => {
+      clearRecent();
+    }).not.toThrow();
+  } finally {
+    if (original !== undefined) {
+      Object.defineProperty(globalThis, "localStorage", original);
+    }
+  }
+});

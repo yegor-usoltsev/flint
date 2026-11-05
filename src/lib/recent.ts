@@ -93,16 +93,33 @@ export const forgetRecent = (
   }
 };
 
-export const clearRecent = () => {
+const storage = () => {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+const removeStored = () => {
+  const store = storage();
+
+  if (store === null || store === undefined) {
+    return;
+  }
+
   const names = Array.from(
-    { length: localStorage.length },
-    (_, index) => localStorage.key(index) ?? ""
+    { length: store.length },
+    (_, index) => store.key(index) ?? ""
   ).filter((name) => name.startsWith(prefix));
 
   for (const name of names) {
-    localStorage.removeItem(name);
+    store.removeItem(name);
   }
+};
 
+export const clearRecent = () => {
+  removeStored();
   cache.clear();
   notify();
 };
