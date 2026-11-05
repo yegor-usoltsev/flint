@@ -26,6 +26,7 @@ import {
   repositoryProblem,
   slugProblem,
   withoutWorkspace,
+  maxRepositoryText,
 } from "~/lib/workspace";
 
 const imageTypes = "image/png,image/jpeg,image/webp,image/avif";
@@ -264,7 +265,7 @@ const General = () => {
             disabled={!isAdmin}
             emptyAllowed
             id="workspace-repositories"
-            maxLength={2000}
+            maxLength={maxRepositoryText}
             onSave={async (list) => {
               await update.mutateAsync({ repositories: repositoryList(list) });
             }}

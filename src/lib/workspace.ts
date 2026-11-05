@@ -40,6 +40,8 @@ export const isRepositoryName = (name: string) => {
 
 export const maxRepositories = 100;
 
+export const maxRepositoryText = maxRepositories * 142;
+
 export const repositoryList = (text: string) =>
   text.split(/[\s,]+/u).filter((name) => name !== "");
 
