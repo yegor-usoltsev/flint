@@ -576,6 +576,26 @@ const useIssueQuery = (project: ProjectDetail, issueKey: string) => {
   });
 };
 
+const recentIssue = (slug: string, issue: Issue): RecentItem => ({
+  href: `/${slug}/issue/${issue.key}`,
+  kind: "issue",
+  label: issue.key,
+  statusId: issue.statusId,
+  title: issue.title,
+});
+
+const useOpenIssue = (
+  slug: string,
+  issue: Issue | undefined,
+  active: boolean
+) => {
+  useContextIssue(issue, active);
+  useRememberRecent(
+    slug,
+    active && issue !== undefined ? recentIssue(slug, issue) : undefined
+  );
+};
+
 const IssueBody = ({
   data,
   placeholder,
@@ -692,14 +712,6 @@ const IssueBody = ({
   );
 };
 
-const recentIssue = (slug: string, issue: Issue): RecentItem => ({
-  href: `/${slug}/issue/${issue.key}`,
-  kind: "issue",
-  label: issue.key,
-  statusId: issue.statusId,
-  title: issue.title,
-});
-
 const IssueScreen = ({
   issueKey,
   project,
@@ -749,11 +761,7 @@ const IssueScreen = ({
     step(-1);
   });
   useHotkey("escape", back);
-  useContextIssue(data, editable);
-  useRememberRecent(
-    workspace.slug,
-    editable ? recentIssue(workspace.slug, data) : undefined
-  );
+  useOpenIssue(workspace.slug, data, editable);
   usePageTitle(data && `${data.key} ${data.title}`);
   useHotkey("backspace", remove, { mod: true });
 
@@ -846,7 +854,7 @@ const PanelScreen = ({
   const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
 
-  useContextIssue(data, editable);
+  useOpenIssue(workspace.slug, data, editable);
 
   return (
     <>

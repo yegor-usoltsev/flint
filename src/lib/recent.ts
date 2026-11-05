@@ -19,7 +19,8 @@ const empty: RecentItem[] = [];
 const listeners = new Set<() => void>();
 const cache = new Map<string, { items: RecentItem[]; raw: string | null }>();
 
-const storageKey = (slug: string) => `flint:recent:${slug}`;
+const prefix = "flint:recent:";
+const storageKey = (slug: string) => `${prefix}${slug}`;
 
 const read = (slug: string) => {
   const raw = localStorage.getItem(storageKey(slug));
@@ -60,18 +61,49 @@ const subscribe = (listener: () => void) => {
   };
 };
 
-export const rememberRecent = (slug: string, item: RecentItem) => {
-  const items = [
-    item,
-    ...read(slug).filter((entry) => entry.href !== item.href),
-  ].slice(0, limit);
-
+const write = (slug: string, items: RecentItem[]) => {
   try {
     localStorage.setItem(storageKey(slug), JSON.stringify(items));
   } catch {
     return;
   }
 
+  notify();
+};
+
+export const rememberRecent = (slug: string, item: RecentItem) => {
+  write(
+    slug,
+    [item, ...read(slug).filter((entry) => entry.href !== item.href)].slice(
+      0,
+      limit
+    )
+  );
+};
+
+export const forgetRecent = (
+  slug: string,
+  matches: (item: RecentItem) => boolean
+) => {
+  const items = read(slug);
+  const kept = items.filter((item) => !matches(item));
+
+  if (kept.length < items.length) {
+    write(slug, kept);
+  }
+};
+
+export const clearRecent = () => {
+  const names = Array.from(
+    { length: localStorage.length },
+    (_, index) => localStorage.key(index) ?? ""
+  ).filter((name) => name.startsWith(prefix));
+
+  for (const name of names) {
+    localStorage.removeItem(name);
+  }
+
+  cache.clear();
   notify();
 };
 
