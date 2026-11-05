@@ -775,7 +775,6 @@ const IssueScreen = ({
         </>
       }
       className="@container"
-      short={issueKey}
       crumbs={[
         {
           label: workspace.name,
@@ -785,7 +784,7 @@ const IssueScreen = ({
         },
         originCrumb(origin, project, workspace.slug),
       ]}
-      title={data === undefined ? issueKey : `${issueKey} ${data.title}`}
+      title={issueKey}
     >
       <IssueBody
         data={data}

@@ -5,7 +5,6 @@ import type { ReactElement, ReactNode } from "react";
 
 import { useOpenPalette } from "~/components/command-palette";
 import { PanelToggle } from "~/components/panel-toggle";
-import { Keys } from "~/components/shortcuts-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,11 +21,6 @@ import {
 import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "~/components/ui/sidebar";
 import { Skeleton } from "~/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
 import { useRealtimeConnected } from "~/lib/realtime";
 
 export interface Crumb {
@@ -53,25 +47,16 @@ const SearchButton = () => {
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            aria-label="Search"
-            className="md:hidden"
-            onClick={openPalette}
-            size="icon"
-            variant="ghost"
-          />
-        }
-      >
-        <SearchIcon />
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        Search
-        <Keys hotkey={{ keys: "k", mod: true }} />
-      </TooltipContent>
-    </Tooltip>
+    <Button
+      aria-keyshortcuts="Control+K Meta+K"
+      aria-label="Search"
+      className="md:hidden"
+      onClick={openPalette}
+      size="icon"
+      variant="ghost"
+    >
+      <SearchIcon />
+    </Button>
   );
 };
 
