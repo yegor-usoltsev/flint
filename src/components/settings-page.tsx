@@ -71,7 +71,7 @@ export const SettingsPage = ({
         className={cn(
           "mx-auto flex w-full flex-col gap-8 px-4 pb-16",
           back === undefined ? "pt-8 md:pt-16" : "pt-4 md:pt-5",
-          wide ? "md:px-14" : "max-w-168"
+          wide ? "max-w-224" : "max-w-168"
         )}
       >
         <div className="flex flex-wrap items-start gap-4">
