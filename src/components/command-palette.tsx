@@ -112,7 +112,6 @@ import {
   focusPanelRow,
   followFocus,
   panelAvailable,
-  panelVisible,
   peekFocused,
   togglePanel,
   usePanel,
@@ -527,10 +526,15 @@ const IssueResult = ({
     {status === undefined ? (
       <FileTextIcon />
     ) : (
-      <StatusIcon category={status.category} color={status.color} />
+      <span className="flex size-4 shrink-0 items-center justify-center">
+        <StatusIcon category={status.category} color={status.color} />
+      </span>
     )}
     <span className="min-w-0 flex-1 truncate">{issue.title}</span>
-    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+    <span
+      className="text-muted-foreground shrink-0 text-xs tabular-nums max-md:hidden"
+      data-slot="command-shortcut"
+    >
       {issue.key}
     </span>
   </CommandItem>
@@ -552,7 +556,10 @@ const PageResult = ({
   >
     <BookOpenIcon />
     <span className="min-w-0 flex-1 truncate">{page.title}</span>
-    <span className="text-muted-foreground max-w-1/3 truncate text-xs max-md:hidden">
+    <span
+      className="text-muted-foreground max-w-1/3 truncate text-xs max-md:hidden"
+      data-slot="command-shortcut"
+    >
       {page.path}
     </span>
   </CommandItem>
@@ -587,7 +594,9 @@ const RecentIcon = ({
   return status === undefined ? (
     <FileTextIcon />
   ) : (
-    <StatusIcon category={status.category} color={status.color} />
+    <span className="flex size-4 shrink-0 items-center justify-center">
+      <StatusIcon category={status.category} color={status.color} />
+    </span>
   );
 };
 
@@ -676,7 +685,9 @@ const RootList = ({
   };
 
   const panelState = usePanel();
-  const panelShows = panelVisible(panelState) ? panelState.issue : null;
+
+  const panelShows =
+    panelState.open && panelState.available ? panelState.issue : null;
 
   const recent =
     trimmed === ""
@@ -751,7 +762,10 @@ const RootList = ({
                   }
                 />
                 <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                <span className="text-muted-foreground max-w-1/3 shrink-0 truncate text-xs tabular-nums max-md:hidden">
+                <span
+                  className="text-muted-foreground max-w-1/3 shrink-0 truncate text-xs tabular-nums max-md:hidden"
+                  data-slot="command-shortcut"
+                >
                   {item.label}
                 </span>
               </CommandItem>
