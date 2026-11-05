@@ -1,11 +1,7 @@
 import { expect, test } from "bun:test";
 
-import {
-  diagramConfig,
-  diagramsIn,
-  dropGlobalRules,
-  scopeDiagram,
-} from "~/lib/mermaid";
+import { diagramsIn } from "~/lib/markdown-diagrams";
+import { diagramConfig, dropGlobalRules, scopeDiagram } from "~/lib/mermaid";
 
 const payload = "@keyframes enter { from { opacity: 0 } to { opacity: 0 } }";
 
@@ -43,15 +39,17 @@ test("rendered styles lose global at-rules", () => {
   ).toBe('<svg id="m"><style>#m p{margin:0}</style><g></g></svg>');
 });
 
-test("diagram fences match backtick, tilde, longer and CRLF fences", () => {
+test("diagram fences match backtick, tilde, longer, CRLF and nested fences", () => {
   expect(
     diagramsIn(
-      "a\r\n```mermaid\r\ngraph TD\r\nA-->B\r\n```\r\n\n~~~mermaid\nflowchart LR\nX-->Y\n~~~\n\n````mermaid\nsequenceDiagram\n```\ninner\n```\n````\n\n```mermaid\npie\n`````\n\n```ts\nconst x = 1;\n```"
+      "a\r\n```mermaid\r\ngraph TD\r\nA-->B\r\n```\r\n\n~~~mermaid\nflowchart LR\nX-->Y\n~~~\n\n````mermaid\nsequenceDiagram\n```\ninner\n```\n````\n\n```mermaid\npie\n`````\n\n```ts\nconst x = 1;\n```\n\n- item\n\n  ```mermaid\n  graph LR\n    L-->M\n  ```\n\n> ```mermaid\n> classDiagram\n> ```"
     )
   ).toEqual([
     "graph TD\nA-->B",
     "flowchart LR\nX-->Y",
     "sequenceDiagram\n```\ninner\n```",
     "pie",
+    "graph LR\n  L-->M",
+    "classDiagram",
   ]);
 });

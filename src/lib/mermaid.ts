@@ -265,23 +265,13 @@ export const diagramQuery = (code: string, dark: boolean) =>
     staleTime: "static",
   });
 
-const mermaidFence =
-  /^(?<fence>(?<mark>[`~])\k<mark>{2,})[^\S\n]*mermaid[^\S\n]*\n(?<code>[\s\S]*?)\n\k<fence>\k<mark>*[^\S\n]*$/gmu;
-
-export const diagramsIn = (markdown: string) =>
-  [...markdown.replaceAll("\r\n", "\n").matchAll(mermaidFence)].map(
-    (match) => match.groups?.["code"] ?? ""
-  );
-
 const prefetchWait = 300;
 
 export const prefetchDiagrams = async (
   queryClient: QueryClient,
   markdown: string
 ) => {
-  const codes = diagramsIn(markdown).filter((code) => code.trim() !== "");
-
-  if (codes.length === 0) {
+  if (!markdown.includes("mermaid")) {
     return;
   }
 
@@ -292,15 +282,20 @@ export const prefetchDiagrams = async (
     wait.resolve(null);
   }, prefetchWait);
 
-  await Promise.race([
-    Promise.all(
+  const render = async () => {
+    const { diagramsIn } = await import("~/lib/markdown-diagrams");
+
+    const codes = diagramsIn(markdown).filter((code) => code.trim() !== "");
+
+    await Promise.all(
       codes.map(
         async (code) =>
           await queryClient.query(diagramQuery(code, dark)).catch(() => null)
       )
-    ),
-    wait.promise,
-  ]);
+    );
+  };
+
+  await Promise.race([render().catch(() => null), wait.promise]);
 };
 
 export const diagramImage = (svg: string, background: string | null) => {
