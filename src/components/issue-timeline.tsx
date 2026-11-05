@@ -59,6 +59,7 @@ import { notifyError } from "~/lib/notify";
 import { priorities } from "~/lib/priorities";
 import type { Priority } from "~/lib/priorities";
 import { labelsQuery, membersQuery, timelineQuery } from "~/lib/queries";
+import { useRemoteFlash } from "~/lib/remote-flash";
 import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -308,6 +309,7 @@ const CommentItem = ({
   own: boolean;
 }) => {
   const cache = useTimelineCache(issue);
+  const remote = useRemoteFlash(comment.id);
 
   const [editing, setEditing, readEditing] = useStoredText(
     `comment:${comment.id}`
@@ -406,7 +408,7 @@ const CommentItem = ({
   };
 
   return (
-    <li className={cardClass}>
+    <li className={cn(cardClass, remote)}>
       <header className="flex min-h-6 items-center gap-2">
         <UserAvatar
           avatarUrl={comment.author.avatarUrl}

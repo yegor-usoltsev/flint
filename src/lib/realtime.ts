@@ -5,6 +5,7 @@ import { createContext, use, useEffect, useState } from "react";
 import { meQuery } from "~/lib/api";
 import type { RealtimeEvent } from "~/lib/api-types";
 import { subscribeRealtime } from "~/lib/realtime-transport";
+import { flashRemote } from "~/lib/remote-flash";
 import { retryFailedDrafts } from "~/lib/use-draft";
 import { hasPendingIssueWrites } from "~/lib/use-update-issue";
 
@@ -44,6 +45,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
 
   useEffect(() => {
     const pending = new Map<string, QueryKey>();
+    const remote = new Set<string>();
     const stale = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
     let flushing = false;
@@ -75,11 +77,21 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
         });
       }
 
-      for (const queryKey of pending.values()) {
-        void queryClient.invalidateQueries({ queryKey });
-      }
+      const refreshed = [...pending.values()].map(async (queryKey) => {
+        await queryClient.invalidateQueries({ queryKey });
+      });
+
+      const changed = [...remote];
 
       pending.clear();
+      remote.clear();
+
+      const flashChanged = async () => {
+        await Promise.allSettled(refreshed);
+        flashRemote(changed);
+      };
+
+      void flashChanged();
     };
 
     const schedule = () => {
@@ -114,6 +126,16 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
 
               for (const queryKey of eventKeys(slug, event)) {
                 pending.set(JSON.stringify(queryKey), queryKey);
+              }
+
+              const byOther =
+                event.actorId !== undefined && event.actorId !== userId;
+
+              if (
+                byOther &&
+                (event.entity === "issue" || event.entity === "comment")
+              ) {
+                remote.add(event.id);
               }
 
               schedule();

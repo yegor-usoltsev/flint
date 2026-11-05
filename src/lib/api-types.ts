@@ -308,6 +308,7 @@ export type RealtimeEntity =
   | "workspace";
 
 export interface RealtimeEvent {
+  actorId?: string;
   entity: RealtimeEntity;
   id: string;
   issueId?: string;

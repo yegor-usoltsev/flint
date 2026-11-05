@@ -36,6 +36,7 @@ import { useSelected, useSelectionScope } from "~/lib/issue-selection";
 import { useMyIssues } from "~/lib/my-issues";
 import { loadMyIssues, preload } from "~/lib/preload";
 import { labelsQuery, membersQuery, projectsQuery } from "~/lib/queries";
+import { useRemoteFlash } from "~/lib/remote-flash";
 import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
@@ -111,10 +112,11 @@ const IssueRow = ({
 }) => {
   const selected = useSelected(issue.id);
   const current = usePanelShows(issue.key);
+  const remote = useRemoteFlash(issue.id);
 
   return (
     <Link
-      className={rowClass}
+      className={cn(rowClass, remote)}
       data-current={current ? "true" : undefined}
       data-issue={issue.id}
       data-selected={selected ? "true" : undefined}

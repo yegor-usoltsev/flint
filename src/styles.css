@@ -238,6 +238,26 @@
   font-variation-settings: "opsz" 32;
 }
 
+@keyframes remote-flash {
+  from {
+    background-color: var(--row-selected-hover);
+  }
+}
+
+@keyframes remote-flash-again {
+  from {
+    background-color: var(--row-selected-hover);
+  }
+}
+
+@utility remote-flash {
+  animation: remote-flash 1.6s var(--ease-out);
+}
+
+@utility remote-flash-again {
+  animation: remote-flash-again 1.6s var(--ease-out);
+}
+
 @utility border-hairline {
   border-width: 0.5px;
 }

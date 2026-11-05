@@ -509,7 +509,12 @@ export const createIssue = async (
     await recordEvents(tx, actor, id, [{ kind: "created" }]);
   });
 
-  publish(workspaceId, { entity: "issue", id, projectId: project.id });
+  publish(workspaceId, {
+    actorId: actor.userId,
+    entity: "issue",
+    id,
+    projectId: project.id,
+  });
   void refreshEmbedding("issue", id);
 
   return await selectIssue(db, id);
@@ -694,6 +699,7 @@ export const updateIssue = async (
 
   if (changed) {
     publish(issue.workspaceId, {
+      actorId: actor.userId,
       entity: "issue",
       id: issue.id,
       projectId: issue.projectId,

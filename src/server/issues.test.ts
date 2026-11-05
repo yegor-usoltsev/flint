@@ -1061,7 +1061,7 @@ test("the stream delivers workspace events and drops removed members", async () 
   const eng = await getProject({ userId: rootId }, "ENG");
 
   expect(await aliceStream.next()).toBe(
-    `data: ${JSON.stringify({ entity: "issue", id: issue.id, projectId: eng.id })}\n\n`
+    `data: ${JSON.stringify({ actorId: rootId, entity: "issue", id: issue.id, projectId: eng.id })}\n\n`
   );
 
   const pending = bobStream.next();
