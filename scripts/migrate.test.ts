@@ -68,3 +68,73 @@ test("concurrent runs apply each migration once and a rerun applies none", async
 
   expect(await migrate()).toEqual({ applied: 0, code: 0 });
 });
+
+test("0006 keeps name-only invites in legacy_invites", async () => {
+  await reset();
+
+  const dir = path.join(import.meta.dir, "../migrations");
+  const entries = await readdir(dir);
+
+  const before = entries
+    .filter((file) => file.endsWith(".sql") && file < "0006")
+    .toSorted();
+
+  const sql = new SQL(scratch.href);
+
+  try {
+    await sql`
+      create table schema_migrations (
+        name text primary key,
+        applied_at timestamptz not null default now()
+      )
+    `;
+
+    for (const file of before) {
+      // oxlint-disable-next-line no-await-in-loop -- Migrations apply in order.
+      await sql.file(path.join(dir, file));
+      // oxlint-disable-next-line no-await-in-loop -- Migrations apply in order.
+      await sql`insert into schema_migrations (name) values (${file})`;
+    }
+
+    const workspace = crypto.randomUUID();
+    const admin = crypto.randomUUID();
+    const createdAt = new Date("2026-01-02T03:04:05Z");
+
+    await sql`
+      insert into users (id, gitea_id, username)
+      values (${admin}, '1', 'alice')
+    `;
+    await sql`
+      insert into workspaces (id, slug, name, color)
+      values (${workspace}, 'acme', 'Acme', 'blue')
+    `;
+    await sql`
+      insert into invites (id, workspace_id, gitea_username, role, created_by, created_at)
+      values (${crypto.randomUUID()}, ${workspace}, 'Carol', 'admin', ${admin}, ${createdAt})
+    `;
+
+    const run = await migrate();
+
+    expect(run.code).toBe(0);
+
+    expect(await sql`select count(*)::int as count from invites`).toEqual([
+      { count: 0 },
+    ]);
+    expect(
+      await sql`
+        select workspace_id, gitea_username, role, created_by, created_at
+        from legacy_invites
+      `
+    ).toEqual([
+      {
+        created_at: createdAt,
+        created_by: admin,
+        gitea_username: "Carol",
+        role: "admin",
+        workspace_id: workspace,
+      },
+    ]);
+  } finally {
+    await sql.close();
+  }
+});

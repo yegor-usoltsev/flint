@@ -13,9 +13,12 @@ import { Route as membersRoute } from "~/routes/api/v1/workspaces/$slug/members/
 import { Route as projectsRoute } from "~/routes/api/v1/workspaces/$slug/projects";
 import { Route as streamRoute } from "~/routes/api/v1/workspaces/$slug/stream";
 import { Route as workspacesRoute } from "~/routes/api/v1/workspaces/index";
+import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
+import { signIn } from "~/server/users.server";
 
 import {
+  addGiteaUser,
   appRequest,
   callApi,
   callRoute,
@@ -232,11 +235,13 @@ test("admins rename, re-slug, recolor and delete a workspace", async () => {
   expect(await me(alice)).toMatchObject({ body: { workspaces: [] } });
 });
 
-test("adding an unknown username keeps an invite until the first login", async () => {
+test("adding someone who never signed in keeps an invite until the first login", async () => {
   const { alice, root } = await setup();
 
+  addGiteaUser("dave");
+
   expect(await addMember(root, "acme", "@Dave", "admin")).toMatchObject({
-    body: { pending: true, role: "admin", userId: null, username: "Dave" },
+    body: { pending: true, role: "admin", userId: null, username: "dave" },
     status: 201,
   });
   expect(await addMember(root, "acme", "dave")).toMatchObject({ status: 409 });
@@ -520,6 +525,10 @@ test("withdrawing or re-roling an invite during its first login is serialized", 
   const { root } = await setup();
   const names = Array.from({ length: 8 }, (_, index) => `guest${index}`);
 
+  for (const name of names) {
+    addGiteaUser(name);
+  }
+
   await Promise.all(
     names.map(async (name) => await addMember(root, "acme", name, "admin"))
   );
@@ -551,21 +560,136 @@ test("withdrawing or re-roling an invite during its first login is serialized", 
   ]);
 });
 
-test("adding a member matches the username without asking Gitea", async () => {
+const signInAs = async (giteaId: string, username: string) =>
+  await sessionCookieFor(
+    await signIn({ avatarUrl: "", email: "", giteaId, name: "", username })
+  );
+
+test("an invite goes to the Gitea account it was made for, whatever names change", async () => {
   const { root } = await setup();
-  const spy = stubGiteaUsers();
+  const daveId = String(addGiteaUser("dave"));
 
-  await createUser("carol");
+  expect(await addMember(root, "acme", "dave", "admin")).toMatchObject({
+    body: { pending: true, username: "dave" },
+    status: 201,
+  });
+  expect(await me(await signInAs("9001", "Dave"))).toMatchObject({
+    body: { workspaces: [] },
+  });
+  expect(await me(await signInAs(daveId, "david"))).toMatchObject({
+    body: { workspaces: [{ role: "admin", slug: "acme" }] },
+  });
+});
 
-  expect(await addMember(root, "acme", "Carol")).toMatchObject({
-    body: { pending: false, username: "carol" },
+const giteaAnswers = (status: number) =>
+  stubGiteaUsers().mockImplementation(
+    Object.assign(
+      async () =>
+        await Promise.resolve(Response.json({ message: "no" }, { status })),
+      { preconnect: fetch.preconnect }
+    )
+  );
+
+test("adding a member finds the account through Gitea, or among Flint's accounts when Gitea hides it", async () => {
+  const { root } = await setup();
+  const erinId = String(addGiteaUser("erin"));
+
+  await signInAs(erinId, "erin-old");
+  await signInAs("9002", "erin");
+
+  expect(await addMember(root, "acme", "erin")).toMatchObject({
+    body: { pending: false, username: "erin-old" },
     status: 201,
   });
   expect(await addMember(root, "acme", "ghost")).toMatchObject({
-    body: { pending: true, userId: null, username: "ghost" },
+    body: { error: { code: "not_found" } },
+    status: 404,
+  });
+
+  giteaAnswers(403);
+  await signInAs("9003", "frank");
+  await signInAs("9004", "gil");
+  await signInAs("9005", "Gil");
+
+  expect(await addMember(root, "acme", "Frank")).toMatchObject({
+    body: { pending: false, username: "frank" },
     status: 201,
   });
-  expect(spy).not.toHaveBeenCalled();
+  expect(await addMember(root, "acme", "gil")).toMatchObject({
+    body: { error: { code: "conflict" } },
+    status: 409,
+  });
+  expect(await addMember(root, "acme", "hank")).toMatchObject({
+    status: 404,
+  });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [
+      { username: "alice" },
+      { username: "erin-old" },
+      { username: "frank" },
+      { username: "root" },
+    ],
+  });
+});
+
+test("adding a member fails while Gitea is down instead of matching the name", async () => {
+  const { root } = await setup();
+
+  await signInAs("9003", "frank");
+  giteaAnswers(500);
+
+  expect(await addMember(root, "acme", "frank")).toMatchObject({
+    body: { error: { code: "bad_gateway" } },
+    status: 502,
+  });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [{ username: "alice" }, { username: "root" }],
+  });
+});
+
+test("adding a member refuses a name another account still holds in the workspace", async () => {
+  const { root } = await setup();
+
+  await signInAs("9010", "carol");
+  await addMember(root, "acme", "carol");
+  addGiteaUser("carol");
+
+  expect(await addMember(root, "acme", "carol")).toMatchObject({
+    body: { error: { code: "conflict" } },
+    status: 409,
+  });
+
+  const doraId = String(addGiteaUser("dora"));
+
+  await addMember(root, "acme", "dora");
+  await db`update invites set gitea_id = '9011'`;
+
+  const stale = await addMember(root, "acme", "dora");
+
+  expect(stale.status).toBe(409);
+  expect(JSON.stringify(stale.body)).toContain("another Gitea account");
+
+  await signInAs(doraId, "dora");
+
+  expect(await addMember(root, "acme", "dora")).toMatchObject({
+    body: { error: { code: "conflict" } },
+    status: 409,
+  });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [
+      { username: "alice" },
+      { username: "carol" },
+      { username: "root" },
+      { pending: true, username: "dora" },
+    ],
+  });
+  expect(await memberCall(root, "DELETE", "acme", "dora")).toMatchObject({
+    status: 204,
+  });
+  expect(await addMember(root, "acme", "dora")).toMatchObject({
+    body: { pending: false, username: "dora" },
+    status: 201,
+  });
 });
 
 test("an invite needs a name Gitea allows", async () => {
@@ -577,6 +701,8 @@ test("an invite needs a name Gitea allows", async () => {
       status: 400,
     });
   }
+
+  addGiteaUser("x.y_z-1");
 
   expect(await addMember(root, "acme", "x.y_z-1")).toMatchObject({
     status: 201,
@@ -612,6 +738,100 @@ test("a member added to a workspace hears it on a stream of another workspace", 
     `data: ${JSON.stringify({ entity: "member", id: "bob", projectId: null })}\n\n`
   );
   controller.abort();
+});
+
+test("a name two members share changes or removes neither until one signs in again", async () => {
+  const { root } = await setup();
+  const carolId = String(addGiteaUser("carol"));
+  const daveId = String(addGiteaUser("dave"));
+
+  const carol = await signInAs(carolId, "carol");
+
+  await addMember(root, "acme", "carol");
+  await addMember(root, "acme", "dave");
+
+  const dave = await signInAs(daveId, "Carol");
+
+  expect(await me(dave)).toMatchObject({
+    body: { workspaces: [{ role: "member", slug: "acme" }] },
+  });
+
+  for (const [cookie, method, body] of [
+    [root, "PATCH", { role: "admin" }],
+    [root, "DELETE", undefined],
+    [dave, "DELETE", undefined],
+  ] as const) {
+    // oxlint-disable-next-line no-await-in-loop -- Each call is checked in turn.
+    const response = await memberCall(cookie, method, "acme", "carol", body);
+
+    expect(response).toMatchObject({
+      body: { error: { code: "conflict" } },
+      status: 409,
+    });
+    expect(JSON.stringify(response.body)).toContain("@carol");
+  }
+
+  for (const cookie of [carol, dave]) {
+    // oxlint-disable-next-line no-await-in-loop -- Each member is checked in turn.
+    expect(await me(cookie)).toMatchObject({
+      body: { workspaces: [{ role: "member", slug: "acme" }] },
+    });
+  }
+
+  await signInAs(carolId, "carla");
+
+  expect(
+    await memberCall(root, "PATCH", "acme", "carol", { role: "admin" })
+  ).toMatchObject({ body: { role: "admin", username: "Carol" }, status: 200 });
+  expect(await me(dave)).toMatchObject({
+    body: { workspaces: [{ role: "admin", slug: "acme" }] },
+  });
+  expect(await me(carol)).toMatchObject({
+    body: { workspaces: [{ role: "member", slug: "acme" }] },
+  });
+});
+
+test("a member and an invite with one name change or remove neither", async () => {
+  const { root } = await setup();
+  const erinId = String(addGiteaUser("erin"));
+
+  await addMember(root, "acme", "erin");
+  await signInAs("9020", "frank");
+  await addMember(root, "acme", "frank");
+
+  const frank = await signInAs("9020", "erin");
+
+  for (const [method, body] of [
+    ["PATCH", { role: "admin" }],
+    ["DELETE", undefined],
+  ] as const) {
+    // oxlint-disable-next-line no-await-in-loop -- Each call is checked in turn.
+    const response = await memberCall(root, method, "acme", "erin", body);
+
+    expect(response).toMatchObject({
+      body: { error: { code: "conflict" } },
+      status: 409,
+    });
+    expect(JSON.stringify(response.body)).toContain("pending invite");
+  }
+
+  expect(await me(frank)).toMatchObject({
+    body: { workspaces: [{ role: "member", slug: "acme" }] },
+  });
+
+  await signInAs(erinId, "erna");
+
+  expect(await memberCall(root, "DELETE", "acme", "erin")).toMatchObject({
+    status: 204,
+  });
+  expect(await me(frank)).toMatchObject({ body: { workspaces: [] } });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [
+      { username: "alice" },
+      { pending: false, role: "member", username: "erna" },
+      { username: "root" },
+    ],
+  });
 });
 
 test("past STREAMS_PER_USER a new event stream answers 429 and the open ones stay connected", async () => {
