@@ -36,8 +36,9 @@ const Usernames = v.pipe(
   v.transform((value) =>
     value
       .split(",")
-      .map((name) => name.trim().replace(/^@/u, "").toLowerCase())
+      .map((name) => name.trim())
       .filter((name) => name !== "")
+      .map((name) => name.replace(/^@/u, "").toLowerCase())
   ),
   v.array(
     v.pipe(
