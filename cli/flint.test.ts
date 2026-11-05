@@ -61,7 +61,20 @@ const flint = async (...argv: string[]) => {
   return await main(argv);
 };
 
+const terminals = [process.stdin, process.stdout];
+
+const terminalModes = terminals.map((stream) =>
+  Object.getOwnPropertyDescriptor(stream, "isTTY")
+);
+
 beforeEach(() => {
+  for (const stream of terminals) {
+    Object.defineProperty(stream, "isTTY", {
+      configurable: true,
+      value: false,
+    });
+  }
+
   requests = [];
   printed = [];
   spyOn(console, "log").mockImplementation((line: string) => {
@@ -77,6 +90,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const [index, stream] of terminals.entries()) {
+    const mode = terminalModes[index];
+
+    if (mode === undefined) {
+      Reflect.deleteProperty(stream, "isTTY");
+    } else {
+      Object.defineProperty(stream, "isTTY", mode);
+    }
+  }
+
   mock.restore();
   delete process.env["FLINT_TOKEN"];
   delete process.env["FLINT_URL"];

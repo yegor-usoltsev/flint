@@ -99,7 +99,7 @@ const logoRequest = async () => {
 test("every change publishes its event only after its transaction commits", async () => {
   const transactions = trackTransactions();
   const published: { entity: string; open: number }[] = [];
-  const silent: string[] = [];
+  const missing: string[] = [];
 
   const record = (event: { entity: string }) => {
     published.push({ entity: event.entity, open: transactions.open });
@@ -114,13 +114,14 @@ test("every change publishes its event only after its transaction commits", asyn
 
   const change = async <Result>(
     name: string,
+    entity: string,
     action: () => Promise<Result>
   ) => {
     const before = published.length;
     const result = await action();
 
-    if (published.length === before) {
-      silent.push(name);
+    if (!published.slice(before).some((event) => event.entity === entity)) {
+      missing.push(name);
     }
 
     return result;
@@ -133,24 +134,33 @@ test("every change publishes its event only after its transaction commits", asyn
   await createWorkspace(root, { name: "Acme", slug: "acme" });
   await change(
     "rename workspace",
+    "workspace",
     async () => await updateWorkspace(root, "acme", { name: "Acme Corp" })
   );
   await change(
     "set logo",
+    "workspace",
     async () => await setLogo(root, "acme", await logoRequest())
   );
-  await change("remove logo", async () => await removeLogo(root, "acme"));
+  await change(
+    "remove logo",
+    "workspace",
+    async () => await removeLogo(root, "acme")
+  );
   await change(
     "add member",
+    "member",
     async () =>
       await addMember(root, "acme", { role: "member", username: "alice" })
   );
   await change(
     "change role",
+    "member",
     async () => await updateMember(root, "acme", "alice", { role: "admin" })
   );
   await change(
     "create project",
+    "project",
     async () =>
       await createProject(root, "acme", {
         color: "blue",
@@ -160,21 +170,25 @@ test("every change publishes its event only after its transaction commits", asyn
   );
   await change(
     "rename project",
+    "project",
     async () => await updateProject(root, "ENG", { name: "Engineering" })
   );
 
   const label = await change(
     "create label",
+    "label",
     async () => await createLabel(root, "acme", { color: "red", name: "Ops" })
   );
 
   await change(
     "rename label",
+    "label",
     async () => await updateLabel(root, label.id, { name: "Operations" })
   );
 
   const issue = await change(
     "create issue",
+    "issue",
     async () =>
       await createIssue(root, "ENG", {
         assigneeId: null,
@@ -187,24 +201,28 @@ test("every change publishes its event only after its transaction commits", asyn
 
   await change(
     "edit issue",
+    "issue",
     async () => await updateIssue(root, issue.key, { title: "Ship it today" })
   );
 
   const comment = await change(
+    "comment",
     "comment",
     async () => await createComment(root, issue.key, { body: "On it" })
   );
 
   await change(
     "edit comment",
+    "comment",
     async () => await updateComment(root, comment.id, { body: "Done" })
   );
-  await change("delete comment", async () => {
+  await change("delete comment", "comment", async () => {
     await deleteComment(root, comment.id);
   });
 
   const file = await change(
     "upload",
+    "attachment",
     async () =>
       await uploadFile(
         root,
@@ -213,69 +231,70 @@ test("every change publishes its event only after its transaction commits", asyn
       )
   );
 
-  await change("delete upload", async () => {
+  await change("delete upload", "attachment", async () => {
     await deleteAttachment(root, file.id);
   });
-  await change("delete label", async () => {
+  await change("delete label", "label", async () => {
     await deleteLabel(root, label.id);
   });
-  await change("delete issue", async () => await deleteIssue(root, issue.key));
+  await change(
+    "delete issue",
+    "issue",
+    async () => await deleteIssue(root, issue.key)
+  );
   await change(
     "restore issue",
+    "issue",
     async () => await restoreIssue(root, issue.key)
   );
   await deleteIssue(root, issue.key);
-  await change("purge issue", async () => {
+  await change("purge issue", "issue", async () => {
     await purgeIssue(root, issue.key);
   });
 
   const page = await change(
     "create page",
+    "wiki",
     async () => await putPage(root, doc, { body: "first" })
   );
 
   await change(
     "append",
+    "wiki",
     async () => await patchPage(alice, doc, { append: "second" })
   );
   await change(
     "restore revision",
+    "wiki",
     async () => await restoreRevision(root, page.id, "1")
   );
   await change(
     "move page",
+    "wiki",
     async () => await movePage(root, page.id, { path: "guide" })
   );
-  await change("delete page", async () => {
+  await change("delete page", "wiki", async () => {
     await deletePageById(root, page.id);
   });
-  await change("restore page", async () => await restorePage(root, page.id));
+  await change(
+    "restore page",
+    "wiki",
+    async () => await restorePage(root, page.id)
+  );
   await deletePageById(root, page.id);
-  await change("purge page", async () => {
+  await change("purge page", "wiki", async () => {
     await purgePage(root, page.id);
   });
-  await change("delete project", async () => {
+  await change("delete project", "project", async () => {
     await deleteProject(root, "ENG");
   });
-  await change("remove member", async () => {
+  await change("remove member", "member", async () => {
     await removeMember(root, "acme", "alice");
   });
-  await change("delete workspace", async () => {
+  await change("delete workspace", "workspace", async () => {
     await deleteWorkspace(root, "acme");
   });
 
-  expect(silent).toEqual([]);
+  expect(missing).toEqual([]);
   expect(published.filter(({ open }) => open > 0)).toEqual([]);
-  expect(new Set(published.map(({ entity }) => entity))).toEqual(
-    new Set([
-      "attachment",
-      "comment",
-      "issue",
-      "label",
-      "member",
-      "project",
-      "wiki",
-      "workspace",
-    ])
-  );
 });
