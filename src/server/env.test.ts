@@ -9,7 +9,16 @@ test("INSTANCE_ADMINS takes Gitea usernames and refuses anything else, a lone @ 
   expect(loadEnv(" alice, @Bob ,").success).toBeTrue();
   expect(loadEnv("").success).toBeTrue();
 
-  for (const value of ["@", "alice, @", "..", "-x"]) {
+  for (const value of [
+    "@",
+    "alice, @",
+    "..",
+    "-x",
+    ",,,",
+    "alice-",
+    "alice..bob",
+    "\u212Aelvin",
+  ]) {
     expect(loadEnv(value).success).toBeFalse();
   }
 });

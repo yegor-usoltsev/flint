@@ -192,6 +192,8 @@ test("only the first user becomes instance admin, even concurrently", async () =
 });
 
 test("INSTANCE_ADMINS names the instance admins and turns off the first-user bootstrap", async () => {
+  const saved = env.INSTANCE_ADMINS;
+
   env.INSTANCE_ADMINS = ["carol"];
 
   try {
@@ -224,7 +226,7 @@ test("INSTANCE_ADMINS names the instance admins and turns off the first-user boo
     expect(await workspaceRole({ userId: alice }, workspaceId)).toBeNull();
     expect(await workspaceRole({ userId: carol }, workspaceId)).toBe("admin");
   } finally {
-    env.INSTANCE_ADMINS = [];
+    env.INSTANCE_ADMINS = saved;
   }
 });
 
