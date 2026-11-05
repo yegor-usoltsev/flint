@@ -201,19 +201,21 @@ test("an account returning to an empty queue waits behind accounts already waiti
     order.push(name);
   };
 
-  const done = Promise.all([
+  const later: Promise<void>[] = [];
+
+  await Promise.all([
     queue("alice", task("alice 1")),
     queue(
       "bob",
       task("bob", () => {
-        void queue("carol", task("carol"));
-        void queue("alice", task("alice 2"));
+        later.push(
+          queue("carol", task("carol")),
+          queue("alice", task("alice 2"))
+        );
       })
     ),
   ]);
-
-  await done;
-  await Bun.sleep(20);
+  await Promise.all(later);
 
   expect(order).toEqual(["alice 1", "bob", "carol", "alice 2"]);
 });
