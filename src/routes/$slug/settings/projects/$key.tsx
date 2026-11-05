@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeftIcon, LockIcon } from "lucide-react";
+import { LockIcon } from "lucide-react";
 
 import { ConfirmDelete } from "~/components/confirm-delete";
 import { IconPicker } from "~/components/icon-picker";
@@ -8,7 +8,6 @@ import { LoadFailed } from "~/components/load-failed";
 import { ProjectIcon } from "~/components/project-icon";
 import { RouteNotFound } from "~/components/route-not-found";
 import {
-  backLink,
   SettingsInput,
   SettingsPage,
   SettingsRow,
@@ -147,20 +146,18 @@ const ProjectSettingsPage = () => {
 
   return (
     <SettingsPage
-      back={
-        <Link
-          className={backLink}
-          params={{ slug: workspace.slug }}
-          to="/$slug/settings/projects"
-        >
-          <ChevronLeftIcon aria-hidden className="size-4" />
-          Projects
-        </Link>
-      }
-      title={
-        project.data === undefined ? (
-          key.toUpperCase()
-        ) : (
+      parent={{
+        label: "Projects",
+        link: (
+          <Link
+            params={{ slug: workspace.slug }}
+            to="/$slug/settings/projects"
+          />
+        ),
+      }}
+      title={project.data?.name ?? key.toUpperCase()}
+      heading={
+        project.data === undefined ? undefined : (
           <span className="flex items-center gap-3">
             <span className="bg-surface-2 flex size-10 shrink-0 items-center justify-center rounded-lg">
               <ProjectIcon

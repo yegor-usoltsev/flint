@@ -1,9 +1,16 @@
+import { useLocation } from "@tanstack/react-router";
 import { cn } from "cn";
-import { ChevronLeftIcon, SearchIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { SearchIcon } from "lucide-react";
+import type { ReactElement, ReactNode } from "react";
 
 import { SaveState } from "~/components/conflict-dialog";
-import { BackToApp } from "~/components/settings-sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "~/components/ui/breadcrumb";
 import { Button } from "~/components/ui/button";
 import {
   Empty,
@@ -19,90 +26,107 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "~/components/ui/input-group";
-import { SidebarTrigger, useSidebar } from "~/components/ui/sidebar";
+import { Separator } from "~/components/ui/separator";
+import { SidebarTrigger } from "~/components/ui/sidebar";
 import { useAutosaveText } from "~/lib/use-autosave-text";
-import { useWorkspace } from "~/lib/use-workspace";
 
-export const backLink =
-  "text-muted-foreground hover:text-foreground hit-area relative flex w-fit items-center gap-1 font-medium transition-colors";
+export interface SettingsParent {
+  label: string;
+  link: ReactElement;
+}
 
-const useHeaderShown = () => {
-  const { isMobile, state } = useSidebar();
-
-  return isMobile || state !== "expanded";
-};
-
-export const SettingsHeader = ({ back }: { back?: ReactNode }) => {
-  const { slug } = useWorkspace();
-
-  if (!useHeaderShown()) {
-    return null;
-  }
+export const SettingsHeader = ({
+  label,
+  parent,
+}: {
+  label?: string;
+  parent?: SettingsParent;
+}) => {
+  const account = useLocation({
+    select: (location) =>
+      /\/settings\/account(?:\/|$)/u.test(location.pathname),
+  });
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
       <SidebarTrigger className="-ml-1" />
-      {back ?? (
-        <BackToApp className={backLink} slug={slug}>
-          <ChevronLeftIcon aria-hidden className="size-4" />
-          Settings
-        </BackToApp>
-      )}
+      <Separator
+        className="mr-1 data-vertical:h-4 data-vertical:self-center"
+        orientation="vertical"
+      />
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList className="flex-nowrap">
+          <BreadcrumbItem className="max-md:hidden">
+            {account ? "Account" : "Workspace"}
+          </BreadcrumbItem>
+          {parent === undefined ? null : (
+            <>
+              <BreadcrumbSeparator className="max-md:hidden" />
+              <BreadcrumbItem className="min-w-6 shrink-[100]">
+                <BreadcrumbLink
+                  className="hit-area relative min-w-0"
+                  render={parent.link}
+                >
+                  <span className="block truncate">{parent.label}</span>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
+          {label === undefined ? null : (
+            <>
+              <BreadcrumbSeparator
+                className={cn(parent === undefined && "max-md:hidden")}
+              />
+              <BreadcrumbItem className="min-w-12">
+                <span className="text-foreground truncate font-medium">
+                  {label}
+                </span>
+              </BreadcrumbItem>
+            </>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
     </header>
   );
 };
 
 export const SettingsPage = ({
   actions,
-  back: backLinkNode,
   children,
   description,
+  heading,
+  parent,
   title,
 }: {
   actions?: ReactNode;
-  back?: ReactNode;
   children: ReactNode;
   description?: ReactNode;
-  title: ReactNode;
-}) => {
-  const back = useHeaderShown() ? undefined : backLinkNode;
-
-  return (
-    <>
-      <SettingsHeader back={backLinkNode} />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div
-          className={cn(
-            "mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pb-16",
-            back === undefined ? "pt-8 md:pt-16" : "pt-1 md:pt-6"
-          )}
-        >
-          <div className="flex flex-col gap-3">
-            {back === undefined ? null : (
-              <div className="flex h-7 items-center px-0.5">{back}</div>
+  heading?: ReactNode;
+  parent?: SettingsParent;
+  title: string;
+}) => (
+  <>
+    <SettingsHeader label={title} parent={parent} />
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-1 px-0.5">
+            <h1 className="text-2xl font-medium">{heading ?? title}</h1>
+            {description === undefined ? null : (
+              <p className="text-muted-foreground text-pretty">{description}</p>
             )}
-            <div className="flex flex-wrap items-start gap-4">
-              <div className="flex min-w-0 flex-1 flex-col gap-1 px-0.5">
-                <h1 className="text-2xl font-medium">{title}</h1>
-                {description === undefined ? null : (
-                  <p className="text-muted-foreground text-pretty">
-                    {description}
-                  </p>
-                )}
-              </div>
-              {actions === undefined ? null : (
-                <div className="flex h-8 shrink-0 items-center gap-2">
-                  {actions}
-                </div>
-              )}
-            </div>
           </div>
-          {children}
+          {actions === undefined ? null : (
+            <div className="flex h-8 shrink-0 items-center gap-2">
+              {actions}
+            </div>
+          )}
         </div>
+        {children}
       </div>
-    </>
-  );
-};
+    </div>
+  </>
+);
 
 export const SettingsSection = ({
   action,
