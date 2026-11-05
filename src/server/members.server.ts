@@ -12,6 +12,7 @@ import {
 import { ApiError } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
+import { env } from "~/server/env.server";
 import { disconnect, publish, publishToUser } from "~/server/realtime.server";
 import { lockUsers } from "~/server/users.server";
 
@@ -31,6 +32,24 @@ export const UpdateMemberSchema = v.object({ role: RoleSchema });
 
 const memberChanged = (workspaceId: string, username: string) => {
   publish(workspaceId, { entity: "member", id: username, projectId: null });
+};
+
+const GiteaUserSchema = v.object({ id: v.number(), login: v.string() });
+
+const findGiteaUser = async (username: string) => {
+  const response = await fetch(
+    new URL(`/api/v1/users/${encodeURIComponent(username)}`, env.GITEA_URL),
+    { signal: AbortSignal.timeout(5000) }
+  ).catch(() => null);
+
+  const user = v.safeParse(
+    GiteaUserSchema,
+    response?.ok === true ? await response.json().catch(() => null) : null
+  );
+
+  return user.success
+    ? { giteaId: String(user.output.id), username: user.output.login }
+    : null;
 };
 
 const lastAdmin = () =>
@@ -87,17 +106,32 @@ export const addMember = async (
   { role, username }: v.InferOutput<typeof AddMemberSchema>
 ) => {
   const workspace = await requireWorkspace(actor, slug, "admin");
+  const giteaUser = await findGiteaUser(username);
 
   const member = await db.begin(async (tx): Promise<Member> => {
     await lockUsers(tx);
 
-    const [user] = await tx<Omit<Member, "joinedAt" | "pending" | "role">[]>`
+    const users = await tx<Omit<Member, "joinedAt" | "pending" | "role">[]>`
       select id as "userId", username, display_name as "displayName",
         avatar_url as "avatarUrl"
-      from users where lower(username) = lower(${username})
-      order by updated_at desc
-      limit 1
+      from users
+      where ${
+        giteaUser === null
+          ? tx`lower(username) = lower(${username})`
+          : tx`gitea_id = ${giteaUser.giteaId}`
+      }
+      limit 2
     `;
+
+    if (users.length > 1) {
+      throw new ApiError(
+        409,
+        "conflict",
+        `Several accounts were called @${username}; ask the right one to sign in to Flint again, then add them`
+      );
+    }
+
+    const [user] = users;
 
     if (user !== undefined) {
       const [added] = await tx<{ joinedAt: string }[]>`
@@ -114,30 +148,42 @@ export const addMember = async (
       return { ...user, joinedAt: added.joinedAt, pending: false, role };
     }
 
+    if (giteaUser === null) {
+      throw new ApiError(
+        404,
+        "not_found",
+        `Flint cannot find @${username} in Gitea; ask them to sign in to Flint once, then add them`
+      );
+    }
+
     const [invited] = await tx<{ joinedAt: string }[]>`
       insert into invites (
-        id, workspace_id, gitea_username, role, created_by
+        id, workspace_id, gitea_id, gitea_username, role, created_by
       )
       values (
-        ${Bun.randomUUIDv7()}, ${workspace.id}, ${username}, ${role},
-        ${actor.userId}
+        ${Bun.randomUUIDv7()}, ${workspace.id}, ${giteaUser.giteaId},
+        ${giteaUser.username}, ${role}, ${actor.userId}
       )
       on conflict do nothing
       returning created_at as "joinedAt"
     `;
 
     if (invited === undefined) {
-      throw new ApiError(409, "conflict", `@${username} is already invited`);
+      throw new ApiError(
+        409,
+        "conflict",
+        `@${giteaUser.username} is already invited`
+      );
     }
 
     return {
       avatarUrl: "",
-      displayName: username,
+      displayName: giteaUser.username,
       joinedAt: invited.joinedAt,
       pending: true,
       role,
       userId: null,
-      username,
+      username: giteaUser.username,
     };
   });
 

@@ -32,6 +32,10 @@ By hand, create a confidential OAuth2 application with the redirect URI `https:/
 
 In Gitea's `app.ini`, raise `[ui] FEED_MAX_COMMIT_NUM` (the local stack uses 50), because a push event carries only that many commits and Flint never sees the rest. If Flint's host resolves to a private address, add it to `[security] ALLOWED_HOST_LIST`, or Gitea refuses to deliver webhooks to it.
 
+### Members
+
+Adding a member looks the username up in Gitea's API without credentials and ties the invite to that account, so only it joins, under whatever name it signs in. If Gitea hides the account from anonymous visitors (`[service] REQUIRE_SIGNIN_VIEW`, or a private or limited profile), only someone who has already signed in to Flint can be added.
+
 ### How links work
 
 An issue key such as `ENG-12` in a branch name (`feature/eng-12-fix` counts), commit message, or pull request title or body links that item to the issue, with the pull request's state and CI statuses. Every repository on the instance counts. Flint itself never writes to Gitea or changes an issue's status.

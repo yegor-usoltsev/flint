@@ -151,7 +151,7 @@ const AddMember = ({ slug }: { slug: string }) => {
           <DialogTitle>Add member</DialogTitle>
           <DialogDescription>
             Add people by their Gitea username. Someone who has not signed in to
-            Flint yet joins on their first sign-in.
+            Flint yet joins on their first sign-in with that Gitea account.
           </DialogDescription>
         </DialogHeader>
         <form className="flex flex-col gap-6" onSubmit={submit}>

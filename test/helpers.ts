@@ -26,10 +26,25 @@ const giteaIdOf = (username: string) => {
   return id;
 };
 
-const fakeGiteaUsers = async () =>
-  await Promise.resolve(
-    Response.json({ message: "not found" }, { status: 404 })
+export const addGiteaUser = (username: string) => giteaIdOf(username);
+
+const fakeGiteaUsers = async (input: RequestInfo | URL) => {
+  const url = new URL(input instanceof Request ? input.url : input);
+
+  const name = /^\/api\/v1\/users\/(?<name>[^/]+)$/u.exec(url.pathname)
+    ?.groups?.["name"];
+
+  const login = decodeURIComponent(name ?? "").toLowerCase();
+
+  const id =
+    url.origin === "http://gitea.test" ? giteaIds.get(login) : undefined;
+
+  return await Promise.resolve(
+    id === undefined
+      ? Response.json({ message: "not found" }, { status: 404 })
+      : Response.json({ id, login })
   );
+};
 
 export const stubGiteaUsers = () =>
   spyOn(globalThis, "fetch").mockImplementation(

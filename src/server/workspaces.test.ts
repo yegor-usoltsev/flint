@@ -14,8 +14,10 @@ import { Route as projectsRoute } from "~/routes/api/v1/workspaces/$slug/project
 import { Route as streamRoute } from "~/routes/api/v1/workspaces/$slug/stream";
 import { Route as workspacesRoute } from "~/routes/api/v1/workspaces/index";
 import { env } from "~/server/env.server";
+import { signIn } from "~/server/users.server";
 
 import {
+  addGiteaUser,
   appRequest,
   callApi,
   callRoute,
@@ -232,11 +234,13 @@ test("admins rename, re-slug, recolor and delete a workspace", async () => {
   expect(await me(alice)).toMatchObject({ body: { workspaces: [] } });
 });
 
-test("adding an unknown username keeps an invite until the first login", async () => {
+test("adding someone who never signed in keeps an invite until the first login", async () => {
   const { alice, root } = await setup();
 
+  addGiteaUser("dave");
+
   expect(await addMember(root, "acme", "@Dave", "admin")).toMatchObject({
-    body: { pending: true, role: "admin", userId: null, username: "Dave" },
+    body: { pending: true, role: "admin", userId: null, username: "dave" },
     status: 201,
   });
   expect(await addMember(root, "acme", "dave")).toMatchObject({ status: 409 });
@@ -520,6 +524,10 @@ test("withdrawing or re-roling an invite during its first login is serialized", 
   const { root } = await setup();
   const names = Array.from({ length: 8 }, (_, index) => `guest${index}`);
 
+  for (const name of names) {
+    addGiteaUser(name);
+  }
+
   await Promise.all(
     names.map(async (name) => await addMember(root, "acme", name, "admin"))
   );
@@ -551,21 +559,75 @@ test("withdrawing or re-roling an invite during its first login is serialized", 
   ]);
 });
 
-test("adding a member matches the username without asking Gitea", async () => {
+const signInAs = async (giteaId: string, username: string) =>
+  await sessionCookieFor(
+    await signIn({ avatarUrl: "", email: "", giteaId, name: "", username })
+  );
+
+test("an invite goes to the Gitea account it was made for, whatever names change", async () => {
   const { root } = await setup();
-  const spy = stubGiteaUsers();
+  const daveId = String(addGiteaUser("dave"));
 
-  await createUser("carol");
+  expect(await addMember(root, "acme", "dave", "admin")).toMatchObject({
+    body: { pending: true, username: "dave" },
+    status: 201,
+  });
+  expect(await me(await signInAs("9001", "Dave"))).toMatchObject({
+    body: { workspaces: [] },
+  });
+  expect(await me(await signInAs(daveId, "david"))).toMatchObject({
+    body: { workspaces: [{ role: "admin", slug: "acme" }] },
+  });
+});
 
-  expect(await addMember(root, "acme", "Carol")).toMatchObject({
-    body: { pending: false, username: "carol" },
+test("adding a member finds the account through Gitea, or among Flint's accounts when Gitea hides it", async () => {
+  const { root } = await setup();
+  const erinId = String(addGiteaUser("erin"));
+
+  await signInAs(erinId, "erin-old");
+  await signInAs("9002", "erin");
+
+  expect(await addMember(root, "acme", "erin")).toMatchObject({
+    body: { pending: false, username: "erin-old" },
     status: 201,
   });
   expect(await addMember(root, "acme", "ghost")).toMatchObject({
-    body: { pending: true, userId: null, username: "ghost" },
+    body: { error: { code: "not_found" } },
+    status: 404,
+  });
+
+  stubGiteaUsers().mockImplementation(
+    Object.assign(
+      async () =>
+        await Promise.resolve(
+          Response.json({ message: "sign in" }, { status: 403 })
+        ),
+      { preconnect: fetch.preconnect }
+    )
+  );
+  await signInAs("9003", "frank");
+  await signInAs("9004", "gil");
+  await signInAs("9005", "Gil");
+
+  expect(await addMember(root, "acme", "Frank")).toMatchObject({
+    body: { pending: false, username: "frank" },
     status: 201,
   });
-  expect(spy).not.toHaveBeenCalled();
+  expect(await addMember(root, "acme", "gil")).toMatchObject({
+    body: { error: { code: "conflict" } },
+    status: 409,
+  });
+  expect(await addMember(root, "acme", "hank")).toMatchObject({
+    status: 404,
+  });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [
+      { username: "alice" },
+      { username: "erin-old" },
+      { username: "frank" },
+      { username: "root" },
+    ],
+  });
 });
 
 test("an invite needs a name Gitea allows", async () => {
