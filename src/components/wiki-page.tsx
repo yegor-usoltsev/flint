@@ -190,7 +190,7 @@ const RowLink = ({
   >
     <NodeIcon kind={node.page?.kind} />
     <span className="truncate">{node.title}</span>
-    <span className="text-muted-foreground hidden truncate font-mono text-xs opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
+    <span className="text-muted-foreground hidden w-0 flex-1 truncate font-mono text-xs opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
       {node.path}
     </span>
     <span className="text-muted-foreground ml-auto shrink-0 text-xs">
@@ -638,10 +638,22 @@ const useActiveHeading = (
       intersections.observe(heading);
     }
 
+    let frame = 0;
+
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+
+    // oxlint-disable-next-line github/prefer-observers -- the observer only fires when a heading leaves the band below the line, not when its top crosses the line
+    root?.addEventListener("scroll", schedule);
+
     update();
 
     return () => {
       intersections.disconnect();
+      root?.removeEventListener("scroll", schedule);
+      cancelAnimationFrame(frame);
     };
   }, [elements, scroller]);
 
