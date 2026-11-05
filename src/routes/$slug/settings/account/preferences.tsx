@@ -26,6 +26,7 @@ const Preferences = () => {
             {themeItems.map((item) => (
               <Button
                 aria-pressed={theme === item.value}
+                className="max-sm:flex-1"
                 key={item.value}
                 onClick={() => {
                   setTheme(item.value);

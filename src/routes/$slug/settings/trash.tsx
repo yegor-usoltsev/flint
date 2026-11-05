@@ -152,6 +152,22 @@ const ExpiresIn = ({ deletedAt }: { deletedAt: string }) => {
   );
 };
 
+const ExpiresLine = ({ deletedAt }: { deletedAt: string }) => {
+  const trashDays = useMe().data?.trashDays;
+
+  if (trashDays === undefined) {
+    return null;
+  }
+
+  const days = daysLeft(deletedAt, trashDays);
+
+  return (
+    <span aria-hidden className="text-muted-foreground text-xs md:hidden">
+      Deleted forever {days <= 1 ? "today" : `in ${days} days`}
+    </span>
+  );
+};
+
 const TrashRow = ({
   children,
   deletedAt,
@@ -174,7 +190,10 @@ const TrashRow = ({
   purgeText: string;
 }) => (
   <li className={tableRow}>
-    <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
+    <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 items-center gap-2">{children}</div>
+      <ExpiresLine deletedAt={deletedAt} />
+    </div>
     <DeletedBy user={deletedBy} />
     <ExpiresIn deletedAt={deletedAt} />
     <div className="flex w-28 shrink-0 items-center justify-end gap-1">
