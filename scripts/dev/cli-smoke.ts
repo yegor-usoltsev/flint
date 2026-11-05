@@ -855,7 +855,7 @@ const cliFlows = () => {
 try {
   ok(
     v.looseObject({ username: v.literal("alice") }),
-    ["login", "--url", url],
+    ["login", "--url", url, ...(url.startsWith("http:") ? ["--insecure"] : [])],
     `${token.token}\n`
   );
   ok(AnySchema, ["link", "-w", "acme", "-p", "eng"]);

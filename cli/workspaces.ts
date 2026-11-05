@@ -1,6 +1,5 @@
 import { createWriteStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import path from "node:path";
 import { pipeline } from "node:stream/promises";
 
 import { Option } from "commander";
@@ -693,6 +692,61 @@ const registerTokens = (program: Command) => {
 const attachmentRows = (attachments: Attachment[]) =>
   table(attachments.map((item) => [item.id, item.filename, item.url]));
 
+const loadedNames = new Set([
+  "agents.md",
+  "bunfig.toml",
+  "cargo.toml",
+  "claude.md",
+  "compose.yaml",
+  "compose.yml",
+  "conftest.py",
+  "default.nix",
+  "deno.json",
+  "deno.jsonc",
+  "docker-compose.yaml",
+  "docker-compose.yml",
+  "dockerfile",
+  "flake.nix",
+  "gemfile",
+  "gemini.md",
+  "gnumakefile",
+  "go.mod",
+  "jsconfig.json",
+  "justfile",
+  "makefile",
+  "mise.local.toml",
+  "mise.toml",
+  "package.json",
+  "pnpm-workspace.yaml",
+  "pyproject.toml",
+  "rakefile",
+  "setup.cfg",
+  "setup.py",
+  "shell.nix",
+  "taskfile.yaml",
+  "taskfile.yml",
+  "tsconfig.json",
+]);
+
+const downloadName = (filename: string) => {
+  const name = filename
+    .replace(/^.*[\\/]/u, "")
+    .replaceAll(/\p{Cc}/gu, "")
+    .replace(/^[\s.]+/u, "")
+    .trim();
+
+  const lower = name.toLowerCase();
+
+  if (loadedNames.has(lower) || /\.config\.[cm]?[jt]s$/u.test(lower)) {
+    throw new CliError(
+      `${name} is a file name that tools load from the current directory; pass -o <path>`,
+      1
+    );
+  }
+
+  return name === "" ? "attachment" : name;
+};
+
 const registerAttachments = (program: Command) => {
   const attachment = program
     .command("attachment")
@@ -763,12 +817,12 @@ const registerAttachments = (program: Command) => {
     .argument("<id>", "attachment id")
     .option(
       "-o, --output <path>",
-      "file to write (default: the attachment's name, never overwritten)"
+      "file to write (default: the attachment's name without leading dots, never overwritten)"
     )
     .action(
       action(async (id: string, options: { output?: string }) => {
         const file = await download(await readConfig(), id);
-        const target = options.output ?? path.basename(file.filename);
+        const target = options.output ?? downloadName(file.filename);
 
         try {
           await pipeline(

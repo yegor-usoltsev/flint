@@ -63,6 +63,28 @@ const fieldsOf = (fields: [string, boolean][]) => {
   return body;
 };
 
+const isLoopback = (hostname: string) =>
+  hostname === "localhost" ||
+  hostname.endsWith(".localhost") ||
+  hostname === "[::1]" ||
+  /^127(?:\.\d{1,3}){3}$/u.test(hostname);
+
+const loginOrigin = (value: string, insecure: boolean) => {
+  const url = URL.parse(value);
+
+  if (url === null || !["http:", "https:"].includes(url.protocol)) {
+    throw usageError(`--url needs an http(s) URL, got “${value}”`);
+  }
+
+  if (url.protocol === "http:" && !insecure && !isLoopback(url.hostname)) {
+    throw usageError(
+      `${url.origin} would get the token unencrypted: use https://, or pass --insecure on a network you trust`
+    );
+  }
+
+  return url.origin;
+};
+
 const registerAccount = (program: Command) => {
   program
     .command("login")
@@ -75,28 +97,38 @@ const registerAccount = (program: Command) => {
       "--token <token>",
       "API token, visible to other processes; omit it or pass - to read the token from stdin"
     )
+    .option(
+      "--insecure",
+      "accept an http:// URL on another host than localhost, which sends the token unencrypted"
+    )
     .action(
-      action(async (options: { token?: string; url: string }) => {
-        const url = new URL(options.url).origin;
+      action(
+        async (options: {
+          insecure?: boolean;
+          token?: string;
+          url: string;
+        }) => {
+          const url = loginOrigin(options.url, options.insecure === true);
 
-        const token = (
-          options.token === undefined || options.token === "-"
-            ? await readSecret("API token: ")
-            : options.token
-        ).trim();
+          const token = (
+            options.token === undefined || options.token === "-"
+              ? await readSecret("API token: ")
+              : options.token
+          ).trim();
 
-        if (token === "") {
-          throw usageError("The token must not be empty");
+          if (token === "") {
+            throw usageError("The token must not be empty");
+          }
+
+          const config = { token, url };
+
+          const me = await call(config, "GET /me");
+
+          await writeConfig(config);
+
+          return { result: me, text: () => `Logged in as @${me.username}` };
         }
-
-        const config = { token, url };
-
-        const me = await call(config, "GET /me");
-
-        await writeConfig(config);
-
-        return { result: me, text: () => `Logged in as @${me.username}` };
-      })
+      )
     );
 
   program

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -278,10 +278,10 @@ test("login reads the token from stdin, so it never appears in argv", async () =
 
   try {
     for (const [argv, input, code] of [
-      [["login", "--url", "http://flint.test/x"], " piped\n", 0],
-      [["login", "--url", "http://flint.test", "--token", "-"], "dash", 0],
-      [["login", "--url", "http://flint.test"], "\n", 2],
-      [["login", "--url", "http://flint.test", "--token", " "], "", 2],
+      [["login", "--url", "https://flint.test/x"], " piped\n", 0],
+      [["login", "--url", "https://flint.test", "--token", "-"], "dash", 0],
+      [["login", "--url", "https://flint.test"], "\n", 2],
+      [["login", "--url", "https://flint.test", "--token", " "], "", 2],
     ] as const) {
       Object.defineProperty(process, "stdin", {
         configurable: true,
@@ -297,10 +297,52 @@ test("login reads the token from stdin, so it never appears in argv", async () =
     });
     expect(await Bun.file(config).json()).toEqual({
       token: "dash",
-      url: "http://flint.test",
+      url: "https://flint.test",
     });
   } finally {
     Object.defineProperty(process, "stdin", stdin ?? {});
+    delete process.env["FLINT_CONFIG"];
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
+test("login refuses http:// on another host than localhost unless --insecure", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "flint-login-"));
+  const hosts: string[] = [];
+
+  process.env["FLINT_CONFIG"] = path.join(directory, "config.json");
+  stubApi({
+    "GET /me": (request) => {
+      hosts.push(new URL(request.url).host);
+
+      return Response.json({ username: "alice" });
+    },
+  });
+
+  try {
+    for (const [url, flags, code] of [
+      ["http://flint.test", [], 2],
+      ["ftp://flint.test", ["--insecure"], 2],
+      ["http://flint.test", ["--insecure"], 0],
+      ["http://localhost:4700", [], 0],
+      ["http://flint.localhost", [], 0],
+      ["http://127.0.0.1:4700", [], 0],
+      ["http://[::1]:4700", [], 0],
+    ] as const) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- The cases share the stubbed API and config file.
+      expect(await flint("login", "--url", url, "--token", "t", ...flags)).toBe(
+        code
+      );
+    }
+
+    expect(hosts).toEqual([
+      "flint.test",
+      "localhost:4700",
+      "flint.localhost",
+      "127.0.0.1:4700",
+      "[::1]:4700",
+    ]);
+  } finally {
     delete process.env["FLINT_CONFIG"];
     await rm(directory, { force: true, recursive: true });
   }
@@ -903,6 +945,60 @@ test("a failed wiki append still reports the uploaded attachments", async () => 
       attachments: [attachment("one")],
       error: { code: "not_found" },
     });
+  });
+});
+
+test("attachment download keeps dotfiles and tool configs out of the current directory unless -o names them", async () => {
+  await withFiles(async (directory) => {
+    stubApi(
+      Object.fromEntries(
+        [".npmrc", "..", "bunfig.toml", "vite.config.ts", "Makefile"].map(
+          (name, index) => [
+            `GET /files/f${index}`,
+            () =>
+              new Response("registry=https://evil.test", {
+                headers: {
+                  "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+                },
+              }),
+          ]
+        )
+      )
+    );
+
+    const cwd = process.cwd();
+
+    process.chdir(directory);
+
+    try {
+      expect(await flint("attachment", "download", "f0")).toBe(0);
+      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "npmrc" });
+      expect(await flint("attachment", "download", "f1")).toBe(0);
+      expect(JSON.parse(printed.join(""))).toMatchObject({
+        path: "attachment",
+      });
+
+      for (const id of ["f2", "f3", "f4"]) {
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
+        expect(await flint("attachment", "download", id)).toBe(1);
+        expect(printed.join("")).toContain("pass -o <path>");
+      }
+
+      expect(
+        await flint("attachment", "download", "f2", "-o", "bunfig.toml")
+      ).toBe(0);
+      const files = await readdir(directory);
+
+      expect(files.toSorted()).toEqual([
+        "a.txt",
+        "attachment",
+        "b.txt",
+        "bunfig.toml",
+        "npmrc",
+      ]);
+    } finally {
+      process.chdir(cwd);
+    }
   });
 });
 
