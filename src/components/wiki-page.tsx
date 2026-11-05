@@ -571,46 +571,79 @@ const headingIndent = ["pl-2", "pl-2", "pl-5", "pl-8"];
 
 const headingSelector = ".markdown :is(h1, h2, h3)";
 
+const activeLine = 96;
+
+const sameElements = (current: Element[], next: Element[]) =>
+  current.length === next.length &&
+  current.every((element, index) => element === next[index]);
+
+const useHeadingElements = (body: RefObject<HTMLDivElement | null>) => {
+  const [elements, setElements] = useState<Element[]>([]);
+
+  useEffect(() => {
+    const content = body.current;
+
+    const read = () => {
+      const next = [
+        ...(content?.querySelectorAll(headingSelector) ?? []),
+      ].filter((heading) => heading.textContent.trim() !== "");
+
+      setElements((current) => (sameElements(current, next) ? current : next));
+    };
+
+    const mutations = new MutationObserver(read);
+
+    if (content !== null) {
+      read();
+      mutations.observe(content, { childList: true, subtree: true });
+    }
+
+    return () => {
+      mutations.disconnect();
+    };
+  }, [body]);
+
+  return elements;
+};
+
 const useActiveHeading = (
   scroller: RefObject<HTMLDivElement | null>,
-  body: RefObject<HTMLDivElement | null>,
-  count: number
+  body: RefObject<HTMLDivElement | null>
 ) => {
   const [active, setActive] = useState(0);
+  const elements = useHeadingElements(body);
 
   useEffect(() => {
     const root = scroller.current;
 
-    const found = [
-      ...(body.current?.querySelectorAll(headingSelector) ?? []),
-    ].filter((heading) => heading.textContent.trim() !== "");
+    const update = () => {
+      const line = (root?.getBoundingClientRect().top ?? 0) + activeLine;
 
-    const observer = new IntersectionObserver(
-      () => {
-        const line = (root?.getBoundingClientRect().top ?? 0) + 96;
+      setActive(
+        Math.max(
+          elements.findLastIndex(
+            (heading) => heading.getBoundingClientRect().top <= line
+          ),
+          0
+        )
+      );
+    };
 
-        setActive(
-          Math.max(
-            found.findLastIndex(
-              (heading) => heading.getBoundingClientRect().top <= line
-            ),
-            0
-          )
-        );
-      },
-      { root, rootMargin: "0px 0px -60% 0px" }
-    );
+    const intersections = new IntersectionObserver(update, {
+      root,
+      rootMargin: `-${activeLine}px 0px 0px 0px`,
+    });
 
-    if (count > 1) {
-      for (const heading of found) {
-        observer.observe(heading);
-      }
+    for (const heading of elements) {
+      intersections.observe(heading);
     }
 
+    update();
+
     return () => {
-      observer.disconnect();
+      intersections.disconnect();
     };
-  }, [body, count, scroller]);
+  }, [elements, scroller]);
 
   return active;
 };
@@ -685,7 +718,7 @@ const ContentsRail = ({
   onJump: (index: number) => void;
   scroller: RefObject<HTMLDivElement | null>;
 }) => {
-  const active = useActiveHeading(scroller, body, headings.length);
+  const active = useActiveHeading(scroller, body);
 
   return (
     <aside
