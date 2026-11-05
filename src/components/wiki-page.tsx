@@ -1515,6 +1515,8 @@ const WikiScreen = ({
 
   usePageTitle(pages.data?.find((page) => page.path === path)?.title);
 
+  const sort = useWikiSort();
+
   const titleOf = (target: string) =>
     pages.data?.find((page) => page.path === target)?.title ?? humanize(target);
 
@@ -1525,7 +1527,12 @@ const WikiScreen = ({
     }));
 
   if (split) {
-    const shown = path === "" ? firstPage(buildTree(pages.data ?? [])) : path;
+    const preview =
+      sort === "edited"
+        ? recentPages(pages.data ?? [], "")[0]?.path
+        : firstPage(buildTree(pages.data ?? []));
+
+    const shown = path === "" ? preview : path;
 
     return (
       <WikiShown value={shown ?? null}>
