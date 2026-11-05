@@ -158,9 +158,17 @@ const TokenRows = ({ slug }: { slug: string }) => {
 
 const ApiKeys = () => {
   const { slug } = useWorkspace();
+  const tokens = useQuery(tokensQuery);
 
   return (
-    <SettingsPage actions={<NewKey slug={slug} />} title="API keys">
+    <SettingsPage
+      actions={
+        tokens.data === undefined || tokens.data.length > 0 ? (
+          <NewKey slug={slug} />
+        ) : undefined
+      }
+      title="API keys"
+    >
       <SettingsSection
         description="The flint CLI and your scripts use the API as you with these keys."
         title="Personal API keys"

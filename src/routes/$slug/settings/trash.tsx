@@ -38,7 +38,7 @@ import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const DeletedBy = ({ user }: { user: UserRef | null }) => (
-  <span className="text-muted-foreground flex w-40 shrink-0 items-center gap-2 max-md:hidden">
+  <span className="text-muted-foreground flex w-40 shrink-0 items-center gap-2 @max-2xl/trash:hidden">
     {user === null ? null : (
       <>
         <UserAvatar
@@ -295,7 +295,7 @@ const PageRow = ({
     >
       <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
       <span className="truncate font-medium">{page.title}</span>
-      <span className="text-muted-foreground truncate max-sm:hidden">
+      <span className="text-muted-foreground truncate @max-xl/trash:hidden">
         {page.path}
         {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
       </span>
@@ -329,7 +329,7 @@ const TrashTable = ({
     />
     <div aria-hidden className={tableHead}>
       <span className="flex-1">Name</span>
-      <span className="w-40 shrink-0 max-md:hidden">Deleted by</span>
+      <span className="w-40 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
       <span className={tableDate}>Deleted</span>
       <span className="w-28 shrink-0" />
     </div>
@@ -409,7 +409,7 @@ const Trash = () => {
       title="Trash"
       wide
     >
-      <div className="flex flex-col gap-2">
+      <div className="@container/trash flex flex-col gap-2">
         {trash.isPending ? <Skeleton className="h-20 w-full" /> : null}
         {trash.isError && trash.data === undefined ? (
           <LoadFailed
