@@ -291,6 +291,10 @@
   html {
     @apply font-sans;
     -webkit-tap-highlight-color: transparent;
+
+    @media (min-width: 200rem) and (min-height: 112.5rem) {
+      font-size: 125%;
+    }
   }
   body {
     @apply bg-background text-foreground text-sm font-normal antialiased;
