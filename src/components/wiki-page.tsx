@@ -1516,19 +1516,22 @@ const firstPage = (nodes: WikiNode[]): string | undefined => {
 const useShownPage = (wiki: Wiki, path: string, split: boolean) => {
   const pages = useQuery(wikiPagesQuery(wiki));
   const sort = useWikiSort();
-  const [held, setHeld] = useState<string | undefined>();
+
+  const [kept, setKept] = useState<{ key: string; path: string } | null>(null);
+
+  const held = kept?.key === wiki.key ? kept.path : undefined;
 
   const preview =
     sort === "edited"
       ? recentPages(pages.data ?? [], "")[0]?.path
       : firstPage(buildTree(pages.data ?? []));
 
-  if (path !== "" && held !== undefined) {
-    setHeld(undefined);
+  if (path !== "" && kept !== null) {
+    setKept(null);
   }
 
   if (split && path === "" && held === undefined && preview !== undefined) {
-    setHeld(preview);
+    setKept({ key: wiki.key, path: preview });
   }
 
   if (path !== "") {
