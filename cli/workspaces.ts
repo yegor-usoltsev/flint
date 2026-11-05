@@ -697,7 +697,7 @@ const keepsName = (name: string) =>
   /\.(?:avif|gif|heic|jpe?g|m4a|mov|mp3|mp4|ogg|opus|pdf|png|wav|webm|webp)$/iu.test(
     name
   ) &&
-  !/^(?:aux|con|conin\$|conout\$|nul|prn|(?:com|lpt)[\d¹²³])(?:\.|$)/iu.test(
+  !/^(?:aux|con|conin\$|conout\$|nul|prn|(?:com|lpt)[\d¹²³]) *(?:\.|$)/iu.test(
     name
   );
 

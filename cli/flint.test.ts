@@ -956,6 +956,7 @@ test("attachment download keeps media names and prefixes every other name, so no
       [".\u2028/tmp/flint-elsewhere/.yarnrc", "flint-.yarnrc"],
       ["C:package.json", "flint-C_package.json"],
       ["NUL.png", "flint-NUL.png"],
+      ["COM1 .jpg", "flint-COM1 .jpg"],
       ["Screenshot 1.PNG", "Screenshot 1.PNG"],
       ['a<b>c"d|e?f*g:h.png', "a_b_c_d_e_f_g_h.png"],
       ["compose.override.yaml", "flint-compose.override.yaml"],
