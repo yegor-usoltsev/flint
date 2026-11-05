@@ -386,6 +386,13 @@ export const followFocus = (queryClient: QueryClient) => {
   }, 80);
 };
 
+export const stepFromPanel = (queryClient: QueryClient, step: 1 | -1) => {
+  if (focusPanelRow(queryClient)) {
+    moveFocus(step);
+    followFocus(queryClient);
+  }
+};
+
 export const interceptIssueClick = (event: MouseEvent, key: string) => {
   const modified = event.metaKey || event.ctrlKey || event.shiftKey;
 

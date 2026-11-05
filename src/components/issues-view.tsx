@@ -710,6 +710,21 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
   const board = useRef<HTMLDivElement>(null);
   const more = useMoreRight(board, statuses.at(-1)?.id);
   const layout = useColumnWidth(frame, statuses.length);
+  const shownWidth = useRef(layout.width);
+
+  useLayoutEffect(() => {
+    const element = board.current;
+    const previous = shownWidth.current;
+
+    shownWidth.current = layout.width;
+
+    if (element !== null && previous !== layout.width) {
+      const gap = columnGapRem * rootRem();
+      const first = Math.round(element.scrollLeft / (previous + gap));
+
+      element.scrollLeft = first * (layout.width + gap);
+    }
+  }, [layout.width]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

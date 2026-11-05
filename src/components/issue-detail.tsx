@@ -56,10 +56,9 @@ import type { Issue, IssueSummary, ProjectDetail } from "~/lib/api-types";
 import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
-import { moveFocus, useContextIssue } from "~/lib/issue-focus";
+import { useContextIssue } from "~/lib/issue-focus";
 import {
-  focusPanelRow,
-  followFocus,
+  stepFromPanel,
   useWideEntry,
   usePanel,
   usePanelFits,
@@ -852,9 +851,7 @@ const PanelSteps = () => {
   const queryClient = useQueryClient();
 
   const step = (offset: -1 | 1) => {
-    focusPanelRow(queryClient);
-    moveFocus(offset);
-    followFocus(queryClient);
+    stepFromPanel(queryClient, offset);
   };
 
   return (
