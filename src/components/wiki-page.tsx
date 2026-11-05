@@ -570,12 +570,14 @@ const Contents = ({
 
 const ContentsDisclosure = ({
   headings,
+  hidden,
   onJump,
 }: {
   headings: Heading[];
+  hidden: boolean;
   onJump: (index: number) => void;
 }) => {
-  if (headings.length < 2) {
+  if (hidden || headings.length < 2) {
     return null;
   }
 
@@ -1023,7 +1025,11 @@ const PageEditor = ({
             readOnly={recreate.isPending || copy.isPending}
           />
           {rail ? null : (
-            <ContentsDisclosure headings={headings} onJump={jump} />
+            <ContentsDisclosure
+              headings={headings}
+              hidden={source}
+              onJump={jump}
+            />
           )}
           <div className="[&_.ProseMirror]:min-h-[50vh]" ref={bodyBox}>
             <MarkdownEditor
