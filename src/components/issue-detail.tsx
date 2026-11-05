@@ -916,12 +916,14 @@ const PanelScreen = ({
             }}
           />
         ) : (
-          <IssueBody
-            data={data}
-            placeholder={issue.isPlaceholderData}
-            project={project}
-            toolbar={false}
-          />
+          <div className="max-w-7xl">
+            <IssueBody
+              data={data}
+              placeholder={issue.isPlaceholderData}
+              project={project}
+              toolbar={false}
+            />
+          </div>
         )}
       </div>
     </>
