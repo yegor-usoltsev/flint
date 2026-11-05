@@ -31,7 +31,7 @@ const Preferences = () => {
                   setTheme(item.value);
                 }}
                 size="sm"
-                variant={theme === item.value ? "outline" : "ghost"}
+                variant={theme === item.value ? "default" : "ghost"}
               >
                 {item.short}
               </Button>
