@@ -407,8 +407,16 @@ test("deleting an issue that is already deleted fails with the API's deleted err
   });
 });
 
+const setTty = (value: boolean) => {
+  Object.defineProperty(process.stdout, "isTTY", {
+    configurable: true,
+    value,
+  });
+};
+
 test("text from the server cannot steer the terminal", async () => {
   const title = "Fix \u001B]0;pwned\u0007\u001B[1A\u009B2J\r\nnext";
+  const body = "a\u001B[2Kb\r\nc";
 
   stubApi({
     "DELETE /issues/ENG-2": reply(
@@ -419,25 +427,45 @@ test("text from the server cannot steer the terminal", async () => {
     "GET /projects/ENG": project,
     "GET /workspaces/acme/labels": labels,
     "GET /workspaces/acme/members": reply([]),
+    "GET /workspaces/acme/wiki/guides/old": reply({ body, id: "p1" }),
   });
 
   const { argv } = process;
-
-  process.argv = [...argv, "--human"];
+  const tty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
 
   try {
+    process.argv = [...argv, "--human"];
     expect(await flint("issue", "view", "ENG-1")).toBe(0);
     expect(printed.join("\n")).toContain("Fix \uFFFD]0;pwned\uFFFD");
-    expect(printed.join("\n")).not.toMatch(/[^\P{Cc}\n]/u);
+    expect(printed.join("\n")).not.toMatch(/[^\P{Cc}\n\t]/u);
     expect(await flint("issue", "delete", "ENG-2", "--yes", "--human")).toBe(1);
     expect(printed.join("\n")).toContain("Label “\uFFFD[2Kx” exists");
+
+    process.argv = [...argv, "--json"];
+    expect(await flint("issue", "view", "ENG-1")).toBe(0);
+    expect(printed.join("")).not.toMatch(/\p{Cc}/u);
+    expect(JSON.parse(printed.join(""))).toMatchObject({ title });
+
+    setTty(true);
+    expect(
+      await flint("wiki", "get", "guides/old", "-w", "acme", "--raw")
+    ).toBe(0);
+    expect(printed).toEqual(["a\uFFFD[2Kb\nc"]);
+
+    setTty(false);
+    expect(
+      await flint("wiki", "get", "guides/old", "-w", "acme", "--raw")
+    ).toBe(0);
+    expect(printed).toEqual([body]);
   } finally {
     process.argv = argv;
-  }
 
-  expect(await flint("issue", "view", "ENG-1")).toBe(0);
-  expect(printed.join("")).not.toMatch(/\p{Cc}/u);
-  expect(JSON.parse(printed.join(""))).toMatchObject({ title });
+    if (tty === undefined) {
+      Reflect.deleteProperty(process.stdout, "isTTY");
+    } else {
+      Object.defineProperty(process.stdout, "isTTY", tty);
+    }
+  }
 });
 
 test("usage errors exit 2 before any request", async () => {
