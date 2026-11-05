@@ -8,6 +8,7 @@ import {
   CliError,
   collect,
   integer,
+  jsonText,
   linkFile,
   parseJson,
   readConfig,
@@ -16,6 +17,7 @@ import {
   removeConfig,
   request,
   table,
+  terminalText,
   usageError,
   wantsJson,
   workspaceOf,
@@ -519,12 +521,14 @@ export const main = async (argv: string[]) => {
     }
 
     if (wantsJson(argv)) {
-      console.log(JSON.stringify(failure.body));
+      console.log(jsonText(JSON.stringify(failure.body)));
     } else {
       console.error(
-        failure.exitCode === 2
-          ? `${failure.message}\nRun flint --help for usage.`
-          : failure.message
+        terminalText(
+          failure.exitCode === 2
+            ? `${failure.message}\nRun flint --help for usage.`
+            : failure.message
+        )
       );
     }
 
