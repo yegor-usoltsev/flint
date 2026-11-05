@@ -57,8 +57,10 @@ import type { Issue, IssueSummary, ProjectDetail } from "~/lib/api-types";
 import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
-import { useContextIssue } from "~/lib/issue-focus";
+import { moveFocus, useContextIssue } from "~/lib/issue-focus";
 import {
+  focusPanelRow,
+  followFocus,
   splitQuery,
   usePanel,
   usePanelFits,
@@ -847,6 +849,47 @@ const PanelError = ({
   );
 };
 
+const PanelSteps = () => {
+  const queryClient = useQueryClient();
+
+  const step = (offset: -1 | 1) => {
+    focusPanelRow(queryClient);
+    moveFocus(offset);
+    followFocus(queryClient);
+  };
+
+  return (
+    <>
+      <Hint label="Previous issue">
+        <Button
+          aria-keyshortcuts="K"
+          aria-label="Previous issue"
+          onClick={() => {
+            step(-1);
+          }}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <ChevronUpIcon />
+        </Button>
+      </Hint>
+      <Hint label="Next issue">
+        <Button
+          aria-keyshortcuts="J"
+          aria-label="Next issue"
+          onClick={() => {
+            step(1);
+          }}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <ChevronDownIcon />
+        </Button>
+      </Hint>
+    </>
+  );
+};
+
 const PanelScreen = ({
   issueKey,
   origin,
@@ -876,6 +919,7 @@ const PanelScreen = ({
             <span className="sr-only"> {data.title}</span>
           )}
         </h2>
+        {origin === undefined ? null : <PanelSteps />}
         <Hint label="Open full page">
           <Link
             aria-label="Open full page"
