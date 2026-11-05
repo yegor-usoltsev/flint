@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { toast } from "~/components/ui/toast";
 import { findShownIssue } from "~/lib/issue-focus";
+import { panelIssue, panelShown } from "~/lib/issue-panel";
 import { membersQuery, projectQuery } from "~/lib/queries";
 
 const headerHeight = 44;
@@ -81,24 +82,36 @@ const message = (
 
   const actor = actorName(queryClient, slug, change.actorId);
 
-  if (hidden.length > 1 || issue === null) {
+  if (hidden.length > 1) {
     return `${actor} updated ${hidden.length} issues`;
+  }
+
+  if (issue === null) {
+    return `${actor} updated an issue`;
   }
 
   const status = queryClient
     .getQueryData(projectQuery(issue.key.split("-")[0] ?? "").queryKey)
     ?.statuses.find((item) => item.id === issue.statusId);
 
-  return status !== undefined && change.before !== issue.statusId
+  return status !== undefined &&
+    change.before !== undefined &&
+    change.before !== issue.statusId
     ? `${actor} moved ${issue.key} to ${status.name}`
     : `${actor} updated ${issue.key}`;
 };
 
 const flush = (queryClient: QueryClient, slug: string) => {
+  const open = panelShown() ? panelIssue() : null;
+
   const hidden = [...pending].filter(([id]) => {
     const row = rowOf(id);
 
-    return row !== null && !inView(row);
+    return (
+      row !== null &&
+      !inView(row) &&
+      findShownIssue(queryClient, id)?.key !== open
+    );
   });
 
   pending.clear();
