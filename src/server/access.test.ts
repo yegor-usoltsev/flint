@@ -421,6 +421,8 @@ const send = async (auth: string, endpoint: string, call: Call) => {
 };
 
 const tables = [
+  "api_token_workspaces",
+  "api_tokens",
   "attachments",
   "comments",
   "invites",
@@ -439,7 +441,7 @@ const snapshot = async () =>
   await Promise.all(
     tables.map(async (table) => {
       const [row] = await db<{ rows: unknown }[]>`
-        select coalesce(jsonb_agg(to_jsonb(t) order by t::text), '[]') as rows
+        select coalesce(jsonb_agg(to_jsonb(t) - 'last_used_at' order by t::text), '[]') as rows
         from ${db(table)} t
       `;
 
