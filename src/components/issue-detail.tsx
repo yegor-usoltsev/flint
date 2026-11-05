@@ -912,43 +912,45 @@ const PanelScreen = ({
 
   return (
     <>
-      <header className="flex h-11 shrink-0 items-center gap-1 border-b pr-2 pl-4">
-        <h2 className="text-muted-foreground tracking-key min-w-0 flex-1 truncate font-medium">
-          {issueKey}
-          {data === undefined ? null : (
-            <span className="sr-only"> {data.title}</span>
-          )}
-        </h2>
-        {origin === undefined ? null : <PanelSteps />}
-        <Hint label="Open full page">
-          <Link
-            aria-label="Open full page"
-            className={buttonVariants({ size: "icon-sm", variant: "ghost" })}
-            params={{ issueKey, slug: workspace.slug }}
-            state={{
-              from:
-                origin === undefined
-                  ? undefined
-                  : { ...origin, panel: issueKey },
-              full: true,
-            }}
-            to="/$slug/issue/$issueKey"
-          >
-            <Maximize2Icon />
-          </Link>
-        </Hint>
-        {ready ? (
-          <IssueActions
-            branch={branchName(username, data.key, data.title)}
-            issue={data}
-            onDelete={() => {
-              if (editable) {
-                void deletion.remove([data]);
-              }
-            }}
-            slug={workspace.slug}
-          />
-        ) : null}
+      <header className="flex h-11 shrink-0 items-center border-b pr-2 pl-4">
+        <div className="flex w-full max-w-360 items-center gap-1">
+          <h2 className="text-muted-foreground tracking-key min-w-0 flex-1 truncate font-medium">
+            {issueKey}
+            {data === undefined ? null : (
+              <span className="sr-only"> {data.title}</span>
+            )}
+          </h2>
+          {origin === undefined ? null : <PanelSteps />}
+          <Hint label="Open full page">
+            <Link
+              aria-label="Open full page"
+              className={buttonVariants({ size: "icon-sm", variant: "ghost" })}
+              params={{ issueKey, slug: workspace.slug }}
+              state={{
+                from:
+                  origin === undefined
+                    ? undefined
+                    : { ...origin, panel: issueKey },
+                full: true,
+              }}
+              to="/$slug/issue/$issueKey"
+            >
+              <Maximize2Icon />
+            </Link>
+          </Hint>
+          {ready ? (
+            <IssueActions
+              branch={branchName(username, data.key, data.title)}
+              issue={data}
+              onDelete={() => {
+                if (editable) {
+                  void deletion.remove([data]);
+                }
+              }}
+              slug={workspace.slug}
+            />
+          ) : null}
+        </div>
       </header>
       <div className="pane-text @container min-h-0 flex-1 overflow-y-auto">
         {issue.isError && data === undefined ? (
