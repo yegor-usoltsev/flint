@@ -178,12 +178,14 @@ services:
 
 configs:
   runner.yaml:
-    # Jobs join the compose network, because the runner hands them http://gitea:3000.
+    # Jobs join the compose network, because the runner hands them http://gitea:3000. "-" keeps
+    # the host's Docker socket out of job containers, so a workflow cannot take over the host.
     content: |
       runner:
         labels: ["ubuntu-latest:docker://node:24-alpine"]
       container:
         network: flint
+        docker_host: "-"
 
 networks:
   default:
