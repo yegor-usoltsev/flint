@@ -675,3 +675,48 @@ test("past STREAMS_PER_USER a new event stream answers 429 and the open ones sta
     env.STREAMS_PER_USER = saved;
   }
 });
+
+test("an event stream aborted before it opens frees its slot", async () => {
+  const { bob } = await setup();
+  const saved = env.STREAMS_PER_USER;
+  const controllers: AbortController[] = [];
+
+  env.STREAMS_PER_USER = 1;
+
+  const open = async (aborted: boolean) => {
+    const controller = new AbortController();
+
+    controllers.push(controller);
+
+    if (aborted) {
+      controller.abort();
+    }
+
+    const response = await callRoute(
+      streamRoute,
+      appRequest("/api/v1/workspaces/globex/stream", {
+        headers: { cookie: bob },
+        signal: controller.signal,
+      }),
+      { slug: "globex" }
+    );
+
+    if (!aborted) {
+      await response.body?.cancel();
+    }
+
+    return response.status;
+  };
+
+  try {
+    await open(true);
+
+    expect(await open(false)).toBe(200);
+  } finally {
+    for (const controller of controllers) {
+      controller.abort();
+    }
+
+    env.STREAMS_PER_USER = saved;
+  }
+});

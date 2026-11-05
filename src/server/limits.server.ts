@@ -69,6 +69,7 @@ export const roundRobin = () => {
   const served = new Map<string, number>();
   let turn = 0;
   let running = false;
+  let current: string | null = null;
 
   const nextKey = () => {
     let pick: string | undefined;
@@ -100,8 +101,10 @@ export const roundRobin = () => {
 
       turn += 1;
       served.set(key, turn);
+      current = key;
       // oxlint-disable-next-line no-await-in-loop -- Tasks run one at a time, and the user served longest ago goes next.
       await task?.();
+      current = null;
       key = nextKey();
     }
 
@@ -111,6 +114,7 @@ export const roundRobin = () => {
 
   return async <T>(key: string, task: () => Promise<T>) => {
     const { promise, reject, resolve } = Promise.withResolvers<T>();
+    const arriving = !queues.has(key) && key !== current;
     const queue = queues.get(key) ?? [];
 
     queue.push(async () => {
@@ -121,7 +125,7 @@ export const roundRobin = () => {
       }
     });
     queues.set(key, queue);
-    served.set(key, served.get(key) ?? turn - 0.5);
+    served.set(key, arriving ? turn - 0.5 : (served.get(key) ?? turn - 0.5));
 
     if (!running) {
       void drain();

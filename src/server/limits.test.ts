@@ -190,3 +190,30 @@ test("a health probe slower than the cache window is shared until it settles, an
     mock.restore();
   }
 });
+
+test("an account returning to an empty queue waits behind accounts already waiting", async () => {
+  const queue = roundRobin();
+  const order: string[] = [];
+
+  const task = (name: string, during?: () => void) => async () => {
+    during?.();
+    await Bun.sleep(1);
+    order.push(name);
+  };
+
+  const done = Promise.all([
+    queue("alice", task("alice 1")),
+    queue(
+      "bob",
+      task("bob", () => {
+        void queue("carol", task("carol"));
+        void queue("alice", task("alice 2"));
+      })
+    ),
+  ]);
+
+  await done;
+  await Bun.sleep(20);
+
+  expect(order).toEqual(["alice 1", "bob", "carol", "alice 2"]);
+});

@@ -121,6 +121,10 @@ const openStream = (
 
   signal.addEventListener("abort", listener.stop);
 
+  if (signal.aborted) {
+    listener.stop();
+  }
+
   return new Response(body, {
     headers: {
       "Cache-Control": "no-store",
