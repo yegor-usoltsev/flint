@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { meQuery } from "~/lib/api";
+import type { IssueSummary } from "~/lib/api-types";
 import { prefetchDiagrams } from "~/lib/mermaid";
 import {
   assignedIssuesQuery,
@@ -31,6 +32,21 @@ export const loadProject = async (queryClient: QueryClient, key: string) => {
   await queryClient.query({ ...issuesQuery(project), staleTime: "static" });
 };
 
+const loadTimeline = async (
+  queryClient: QueryClient,
+  issue: Pick<IssueSummary, "id" | "key">
+) => {
+  const { comments } = await queryClient.query({
+    ...timelineQuery(issue),
+    staleTime: "static",
+  });
+
+  await prefetchDiagrams(
+    queryClient,
+    comments.map((comment) => comment.body).join("\n\n")
+  );
+};
+
 export const loadIssue = async (queryClient: QueryClient, key: string) => {
   const project = await queryClient.query({
     ...projectQuery(key.split("-")[0] ?? ""),
@@ -43,9 +59,7 @@ export const loadIssue = async (queryClient: QueryClient, key: string) => {
   });
 
   // Activity loads beside the page instead of holding the navigation.
-  void queryClient
-    .query({ ...timelineQuery(issue), staleTime: "static" })
-    .catch(() => null);
+  void loadTimeline(queryClient, issue).catch(() => null);
 
   await prefetchDiagrams(queryClient, issue.description);
 };

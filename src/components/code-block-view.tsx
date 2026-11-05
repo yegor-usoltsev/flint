@@ -17,7 +17,7 @@ import {
   WorkflowIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 import { MediaViewer } from "~/components/media-viewer";
 import { Button } from "~/components/ui/button";
@@ -264,7 +264,10 @@ const useDiagramViewer = () => {
   );
 
   const open = (svg: string, dark: boolean) => {
-    const image = diagramImage(svg, dark ? null : themeColors.light);
+    const image = diagramImage(
+      svg,
+      dark ? themeColors.dark : themeColors.light
+    );
 
     if (image !== null) {
       setSrc(image);
@@ -286,6 +289,14 @@ const useDiagramViewer = () => {
   return { open, viewer };
 };
 
+const selectOnMouseDown =
+  (onSelect: (() => void) | undefined) => (event: MouseEvent) => {
+    if (onSelect !== undefined && !coarsePointer()) {
+      event.preventDefault();
+      onSelect();
+    }
+  };
+
 const DiagramFrame = ({
   onExpand,
   onSelect,
@@ -301,7 +312,12 @@ const DiagramFrame = ({
 
   if (svg === undefined) {
     return (
-      <div aria-busy className={diagramFrame}>
+      // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- A click on the placeholder selects the block like the rendered diagram; the toolbar reaches it by keyboard.
+      <div
+        aria-busy
+        className={diagramFrame}
+        onMouseDown={selectOnMouseDown(onSelect)}
+      >
         <Skeleton
           className={cn(
             "max-w-full",
@@ -347,12 +363,7 @@ const DiagramFrame = ({
           onExpand();
         }
       }}
-      onMouseDown={(event) => {
-        if (!coarsePointer()) {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
+      onMouseDown={selectOnMouseDown(onSelect)}
     />
   );
 };

@@ -322,12 +322,24 @@ const Slide = ({
         alt={item.name}
         className="max-h-full max-w-full translate-x-(--zoom-x) translate-y-(--zoom-y) scale-(--zoom) object-contain select-none"
         draggable={false}
-        onLoad={(event) => {
-          const image = event.currentTarget;
+        ref={(image) => {
+          media(image);
 
-          onFit(image.offsetWidth / Math.max(image.naturalWidth, 1));
+          const measure = new ResizeObserver(() => {
+            if (image !== null && image.naturalWidth > 0) {
+              onFit(image.offsetWidth / image.naturalWidth);
+            }
+          });
+
+          if (image !== null) {
+            measure.observe(image);
+          }
+
+          return () => {
+            measure.disconnect();
+            media(null);
+          };
         }}
-        ref={media}
         src={item.src}
         style={{
           "--zoom": view.scale,
@@ -534,7 +546,11 @@ export const MediaViewer = ({
                   item={item}
                   media={setMedia}
                   onFit={(value) => {
-                    setFit({ fit: value, src: item.src });
+                    setFit((current) =>
+                      current?.src === item.src && current.fit === value
+                        ? current
+                        : { fit: value, src: item.src }
+                    );
                   }}
                   view={zoom.view}
                 />
