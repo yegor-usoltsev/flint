@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useCreateIssue } from "~/components/create-issue";
 import { IssueContextMenu } from "~/components/issue-menu";
 import type { IssueLookup } from "~/components/issue-parts";
 import { listClass, RowContent, rowClass } from "~/components/issues-view";
@@ -238,6 +239,25 @@ const AssignedIssues = ({ slug }: { slug: string }) => {
   );
 };
 
+const PhoneNewIssue = () => {
+  const createIssue = useCreateIssue();
+
+  return (
+    <Button
+      aria-keyshortcuts="C"
+      aria-label="New issue"
+      className="md:hidden"
+      onClick={() => {
+        createIssue();
+      }}
+      size="icon-round"
+      variant="ghost"
+    >
+      <PlusIcon />
+    </Button>
+  );
+};
+
 const MyIssues = () => {
   const workspace = useWorkspace();
   const meId = useMe().data?.id;
@@ -255,6 +275,7 @@ const MyIssues = () => {
           short: workspace.name,
         },
       ]}
+      actions={<PhoneNewIssue />}
       switcher={<NavSwitcher place={{ kind: "mine" }} />}
       title="My issues"
     >
