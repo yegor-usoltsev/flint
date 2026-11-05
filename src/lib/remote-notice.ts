@@ -1,22 +1,135 @@
 import type { QueryClient } from "@tanstack/react-query";
 
-import { findIssue } from "~/lib/issue-focus";
-import { notifyWithAction } from "~/lib/notify";
+import { toast } from "~/components/ui/toast";
+import { findShownIssue } from "~/lib/issue-focus";
 import { membersQuery, projectQuery } from "~/lib/queries";
 
 const headerHeight = 44;
+const settleMs = 1200;
+
+interface Change {
+  actorId: string;
+  before: string | undefined;
+}
+
+const pending = new Map<string, Change>();
+let timer: ReturnType<typeof setTimeout> | undefined;
+let shown: string | null = null;
 
 const rowOf = (id: string) =>
   document.querySelector<HTMLElement>(`[data-issue="${CSS.escape(id)}"]`);
 
-const offscreen = (row: HTMLElement) => {
-  const { bottom, top } = row.getBoundingClientRect();
+const inside = (rect: DOMRect, bounds: DOMRect) =>
+  rect.top >= bounds.top &&
+  rect.bottom <= bounds.bottom &&
+  rect.left >= bounds.left &&
+  rect.right <= bounds.right;
 
-  return top < headerHeight || bottom > window.innerHeight;
+const clips = (element: Element) => {
+  const { overflowX, overflowY } = getComputedStyle(element);
+
+  return overflowX !== "visible" || overflowY !== "visible";
+};
+
+const inView = (row: HTMLElement) => {
+  const rect = row.getBoundingClientRect();
+
+  const viewport = new DOMRect(
+    0,
+    headerHeight,
+    window.innerWidth,
+    window.innerHeight - headerHeight
+  );
+
+  if (!inside(rect, viewport)) {
+    return false;
+  }
+
+  for (
+    let parent = row.parentElement;
+    parent !== null;
+    parent = parent.parentElement
+  ) {
+    if (clips(parent) && !inside(rect, parent.getBoundingClientRect())) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export const issueStatuses = (queryClient: QueryClient, ids: string[]) =>
-  new Map(ids.map((id) => [id, findIssue(queryClient, id)?.statusId]));
+  new Map(ids.map((id) => [id, findShownIssue(queryClient, id)?.statusId]));
+
+const actorName = (queryClient: QueryClient, slug: string, id: string) =>
+  queryClient
+    .getQueryData(membersQuery(slug).queryKey)
+    ?.find((member) => member.userId === id)?.displayName ?? "A teammate";
+
+const message = (
+  queryClient: QueryClient,
+  slug: string,
+  [id, change]: [string, Change],
+  hidden: [string, Change][]
+) => {
+  const actors = new Set(hidden.map(([, item]) => item.actorId));
+  const issue = findShownIssue(queryClient, id);
+
+  if (actors.size > 1) {
+    return `${hidden.length} issues changed`;
+  }
+
+  const actor = actorName(queryClient, slug, change.actorId);
+
+  if (hidden.length > 1 || issue === null) {
+    return `${actor} updated ${hidden.length} issues`;
+  }
+
+  const status = queryClient
+    .getQueryData(projectQuery(issue.key.split("-")[0] ?? "").queryKey)
+    ?.statuses.find((item) => item.id === issue.statusId);
+
+  return status !== undefined && change.before !== issue.statusId
+    ? `${actor} moved ${issue.key} to ${status.name}`
+    : `${actor} updated ${issue.key}`;
+};
+
+const flush = (queryClient: QueryClient, slug: string) => {
+  const hidden = [...pending].filter(([id]) => {
+    const row = rowOf(id);
+
+    return row !== null && !inView(row);
+  });
+
+  pending.clear();
+
+  const [first] = hidden;
+
+  if (first === undefined) {
+    return;
+  }
+
+  if (shown !== null) {
+    toast.close(shown);
+  }
+
+  const id = toast.add({
+    actionProps: {
+      children: "Show",
+      onClick: () => {
+        toast.close(id);
+
+        const row = rowOf(first[0]);
+
+        row?.scrollIntoView({ behavior: "smooth", block: "center" });
+        row?.focus({ preventScroll: true });
+      },
+    },
+    title: message(queryClient, slug, first, hidden),
+  });
+
+  shown = id;
+};
 
 export const noticeOffscreen = ({
   actors,
@@ -29,52 +142,19 @@ export const noticeOffscreen = ({
   queryClient: QueryClient;
   slug: string;
 }) => {
-  const hidden = [...actors.keys()].flatMap((id) => {
-    const row = rowOf(id);
-    const issue = findIssue(queryClient, id) ?? null;
+  for (const [id, actorId] of actors) {
+    pending.set(id, {
+      actorId,
+      before: pending.get(id)?.before ?? before.get(id),
+    });
+  }
 
-    if (row === null || issue === null) {
-      return [];
-    }
-
-    return offscreen(row) ? [{ id, issue, row }] : [];
-  });
-
-  const [first] = hidden;
-
-  if (first === undefined) {
+  if (pending.size === 0) {
     return;
   }
 
-  const actorId = actors.get(first.id);
-
-  const actor =
-    queryClient
-      .getQueryData(membersQuery(slug).queryKey)
-      ?.find((member) => member.userId === actorId)?.displayName ??
-    "A teammate";
-
-  const status = queryClient
-    .getQueryData(projectQuery(first.issue.key.split("-")[0] ?? "").queryKey)
-    ?.statuses.find((item) => item.id === first.issue.statusId);
-
-  const moved =
-    status !== undefined && before.get(first.id) !== first.issue.statusId;
-
-  let title = `${actor} updated ${first.issue.key}`;
-
-  if (hidden.length > 1) {
-    title = `${actor} updated ${hidden.length} issues`;
-  } else if (moved) {
-    title = `${actor} moved ${first.issue.key} to ${status.name}`;
-  }
-
-  notifyWithAction({
-    action: "Show",
-    onAction: () => {
-      first.row.scrollIntoView({ behavior: "smooth", block: "center" });
-      first.row.focus({ preventScroll: true });
-    },
-    title,
-  });
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    flush(queryClient, slug);
+  }, settleMs);
 };
