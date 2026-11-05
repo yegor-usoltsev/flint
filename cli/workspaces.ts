@@ -731,6 +731,7 @@ const loadedNames = new Set([
 const downloadName = (filename: string) => {
   const name = (filename.split(/[\\/]/u).at(-1) ?? "")
     .replaceAll(/\p{Cc}/gu, "")
+    .replaceAll(":", "_")
     .replace(/^[\s.]+/u, "")
     .trim();
 
