@@ -98,11 +98,11 @@ Deleted issues and pages wait in **Settings › Trash** (\`G\` then \`T\`) for $
 
 ## CLI and coding agents
 
-The \`flint\` CLI does everything the web app does and prints JSON when piped. Create a key under **Settings › API keys**, then:
+The \`flint\` CLI does everything the web app does and prints JSON when piped. Create a key under **Settings › API keys**, then run these and paste the key when \`flint login\` asks for it:
 
 \`\`\`sh
 npm install -g @yusoltsev/flint-cli
-flint login --url ${env.APP_URL} --token <key>
+flint login --url ${env.APP_URL}
 flint issue list -a @me
 \`\`\`
 
@@ -153,7 +153,7 @@ More in ${guideLink}.`,
     description: `The \`flint\` CLI does everything the web app does, for scripts and coding agents.
 
 - [ ] Create an API key under **Settings › API keys**
-- [ ] \`npm install -g @yusoltsev/flint-cli\` and \`flint login --url ${env.APP_URL} --token <key>\`
+- [ ] \`npm install -g @yusoltsev/flint-cli\`, then \`flint login --url ${env.APP_URL}\` and paste the key
 - [ ] \`npx skills add yegor-usoltsev/flint\` to teach your coding agent, which then runs \`flint skill\`
 
 More in ${guideLink}.`,
