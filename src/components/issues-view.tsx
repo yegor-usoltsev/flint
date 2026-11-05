@@ -519,12 +519,27 @@ const ColumnJump = ({
   useEffect(() => {
     const element = board.current;
 
+    const visible = new Set<string>();
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const { intersectionRatio, target } of entries) {
-          if (intersectionRatio >= 0.6 && target instanceof HTMLElement) {
-            setActive(target.dataset["column"] ?? null);
+          const id =
+            target instanceof HTMLElement
+              ? target.dataset["column"]
+              : undefined;
+
+          if (id !== undefined && intersectionRatio >= 0.6) {
+            visible.add(id);
+          } else if (id !== undefined) {
+            visible.delete(id);
           }
+        }
+
+        const first = statuses.find((status) => visible.has(status.id));
+
+        if (first !== undefined) {
+          setActive(first.id);
         }
       },
       { root: element, threshold: 0.6 }

@@ -24,6 +24,7 @@ export type PanelScope = "list" | "wiki";
 
 interface PanelState {
   available: boolean;
+  fits: boolean;
   issue: string | null;
   open: boolean;
   picked: boolean;
@@ -33,6 +34,7 @@ interface PanelState {
 
 let state: PanelState = {
   available: false,
+  fits: false,
   issue: null,
   open: false,
   picked: false,
@@ -67,6 +69,7 @@ const update = (patch: Partial<PanelState>) => {
 
   const sameView =
     next.available === state.available &&
+    next.fits === state.fits &&
     next.issue === state.issue &&
     next.open === state.open;
 
@@ -102,6 +105,7 @@ const snapshot = () => {
 
 const serverState: PanelState = {
   available: false,
+  fits: false,
   issue: null,
   open: false,
   picked: false,
@@ -116,6 +120,13 @@ export const usePanelOpen = () =>
   useSyncExternalStore(
     subscribe,
     () => snapshot().open,
+    () => false
+  );
+
+export const usePanelFits = () =>
+  useSyncExternalStore(
+    subscribe,
+    () => snapshot().fits,
     () => false
   );
 
@@ -165,8 +176,10 @@ export const setPanelWidth = (width: number | null) => {
   update({ width });
 };
 
-export const setPanelAvailable = (available: boolean) => {
-  update({ available });
+export const setPanelSpace = (space: number, enabled: boolean) => {
+  const fits = space >= panelMin + listMin;
+
+  update({ available: enabled && fits, fits });
 };
 
 let workspace: string | null = null;

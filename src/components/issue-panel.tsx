@@ -28,12 +28,11 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import {
   clampWidth,
-  listMin,
   openPanel,
   panelAvailable,
   panelMin,
   panelVisible,
-  setPanelAvailable,
+  setPanelSpace,
   setPanelWidth,
   showFirstRow,
   syncPanelIssue,
@@ -214,7 +213,7 @@ const useAvailableSpace = (
 
     const measure = (width: number) => {
       setSpace(width);
-      setPanelAvailable(enabled && width >= panelMin + listMin);
+      setPanelSpace(width, enabled);
     };
 
     const observer = new ResizeObserver(([entry]) => {
@@ -228,7 +227,7 @@ const useAvailableSpace = (
 
     return () => {
       observer.disconnect();
-      setPanelAvailable(false);
+      setPanelSpace(0, false);
     };
   }, [enabled, host]);
 

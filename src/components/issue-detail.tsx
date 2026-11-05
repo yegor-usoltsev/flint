@@ -57,7 +57,7 @@ import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
 import { useContextIssue } from "~/lib/issue-focus";
-import { usePanel } from "~/lib/issue-panel";
+import { usePanel, usePanelFits } from "~/lib/issue-panel";
 import { orderIssues } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
 import { useMyIssues } from "~/lib/my-issues";
@@ -452,7 +452,7 @@ const IssueActions = ({
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-60">
       {project === undefined ? null : (
-        <div className="max-lg:hidden">
+        <>
           <DropdownMenuGroup>
             <DropdownMenuItem
               render={
@@ -468,7 +468,7 @@ const IssueActions = ({
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-        </div>
+        </>
       )}
       <DropdownMenuGroup>
         <DropdownMenuItem
@@ -743,6 +743,7 @@ const IssueScreen = ({
   const { data } = issue;
   const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
+  const fits = usePanelFits();
 
   const remove = () => {
     if (editable) {
@@ -792,7 +793,7 @@ const IssueScreen = ({
               branch={branchName(username, data.key, data.title)}
               issue={data}
               onDelete={remove}
-              project={project.key}
+              project={fits ? project.key : undefined}
               slug={workspace.slug}
             />
           ) : null}
