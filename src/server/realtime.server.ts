@@ -1,8 +1,9 @@
 import type { RealtimeEvent } from "~/lib/api-types";
 import { notFound, requireWorkspace } from "~/server/access.server";
-import { resolveActor } from "~/server/api.server";
+import { ApiError, resolveActor } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { env } from "~/server/env.server";
+import { perKey } from "~/server/limits.server";
 
 interface Listener {
   close: () => void;
@@ -14,7 +15,7 @@ interface Listener {
 const pingMs = 5000;
 const pingsPerCheck = 6;
 const listeners = new Map<string, Set<Listener>>();
-const userListeners = new Map<string, Listener[]>();
+const streams = perKey(() => env.STREAMS_PER_USER);
 const encoder = new TextEncoder();
 
 export const publish = (workspaceId: string, event: RealtimeEvent) => {
@@ -59,6 +60,14 @@ const openStream = (
   signal: AbortSignal,
   isAllowed: () => Promise<boolean>
 ) => {
+  if (!streams.acquire(userId)) {
+    throw new ApiError(
+      429,
+      "rate_limited",
+      `Up to ${env.STREAMS_PER_USER} live-update streams stay open per account; close a tab to free one`
+    );
+  }
+
   const workspaceListeners = listeners.get(workspaceId) ?? new Set<Listener>();
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
   let ping: ReturnType<typeof setInterval> | undefined;
@@ -78,16 +87,9 @@ const openStream = (
     },
     stop: () => {
       clearInterval(ping);
-      workspaceListeners.delete(listener);
 
-      const opened = (userListeners.get(userId) ?? []).filter(
-        (other) => other !== listener
-      );
-
-      if (opened.length === 0) {
-        userListeners.delete(userId);
-      } else {
-        userListeners.set(userId, opened);
+      if (workspaceListeners.delete(listener)) {
+        streams.release(userId);
       }
     },
     userId,
@@ -113,18 +115,6 @@ const openStream = (
       }, pingMs);
       listeners.set(workspaceId, workspaceListeners);
       workspaceListeners.add(listener);
-
-      const opened = [...(userListeners.get(userId) ?? []), listener];
-
-      userListeners.set(userId, opened);
-
-      for (const oldest of opened.slice(
-        0,
-        Math.max(0, opened.length - env.STREAMS_PER_USER)
-      )) {
-        oldest.close();
-      }
-
       listener.send("retry: 3000\n\nevent: ping\ndata:\n\n");
     },
   });

@@ -2,9 +2,17 @@ import { db } from "~/server/db.server";
 import { log } from "~/server/log.server";
 import { s3 } from "~/server/s3.server";
 
+const timeoutMs = 3000;
+
+const timedOut = async () => {
+  await Bun.sleep(timeoutMs);
+
+  throw new Error(`No answer within ${timeoutMs} ms`);
+};
+
 const probe = async (name: string, check: PromiseLike<unknown>) => {
   try {
-    await check;
+    await Promise.race([check, timedOut()]);
 
     return "ok" as const;
   } catch (error) {
@@ -29,7 +37,12 @@ let latest: { at: number; health: ReturnType<typeof probeAll> } | undefined;
 
 export const checkHealth = async () => {
   if (latest === undefined || Date.now() - latest.at >= cacheMs) {
-    latest = { at: Date.now(), health: probeAll() };
+    const entry = { at: Number.POSITIVE_INFINITY, health: probeAll() };
+
+    latest = entry;
+    void entry.health.finally(() => {
+      entry.at = Date.now();
+    });
   }
 
   return await latest.health;

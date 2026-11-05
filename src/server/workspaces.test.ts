@@ -614,14 +614,18 @@ test("a member added to a workspace hears it on a stream of another workspace", 
   controller.abort();
 });
 
-test("past STREAMS_PER_USER a new event stream closes the user's oldest one", async () => {
+test("past STREAMS_PER_USER a new event stream answers 429 and the open ones stay connected", async () => {
   const { bob } = await setup();
   const saved = env.STREAMS_PER_USER;
-  const controllers = [new AbortController(), new AbortController()];
+  const controllers: AbortController[] = [];
 
   env.STREAMS_PER_USER = 2;
 
-  const open = async (controller: AbortController) => {
+  const open = async () => {
+    const controller = new AbortController();
+
+    controllers.push(controller);
+
     const response = await callRoute(
       streamRoute,
       appRequest("/api/v1/workspaces/globex/stream", {
@@ -635,19 +639,34 @@ test("past STREAMS_PER_USER a new event stream closes the user's oldest one", as
       ?.pipeThrough(new TextDecoderStream())
       .getReader();
 
-    await reader?.read();
+    if (response.status === 200) {
+      await reader?.read();
+    }
 
-    return reader;
+    return { controller, reader, status: response.status };
   };
 
   try {
-    const oldest = await open(new AbortController());
-    const [second, third] = await Promise.all(controllers.map(open));
-    const closed = await oldest?.read();
+    const first = await open();
+    const second = await open();
+    const third = await open();
 
-    expect(closed?.done).toBeTrue();
-    expect(second).toBeDefined();
-    expect(third).toBeDefined();
+    expect(third.status).toBe(429);
+    expect(
+      await Promise.race([
+        first.reader?.read().then(() => "closed"),
+        Bun.sleep(50).then(() => "open"),
+      ])
+    ).toBe("open");
+
+    second.controller.abort();
+    await second.reader?.cancel();
+
+    const reopened = await open();
+    const past = await open();
+
+    expect(reopened.status).toBe(200);
+    expect(past.status).toBe(429);
   } finally {
     for (const controller of controllers) {
       controller.abort();

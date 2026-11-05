@@ -76,7 +76,7 @@ export const roundRobin = () => {
     for (const key of queues.keys()) {
       if (
         pick === undefined ||
-        (served.get(key) ?? -1) < (served.get(pick) ?? -1)
+        (served.get(key) ?? turn) < (served.get(pick) ?? turn)
       ) {
         pick = key;
       }
@@ -121,6 +121,7 @@ export const roundRobin = () => {
       }
     });
     queues.set(key, queue);
+    served.set(key, served.get(key) ?? turn - 0.5);
 
     if (!running) {
       void drain();

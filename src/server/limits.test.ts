@@ -34,6 +34,44 @@ test("the image queue takes turns between users, so one user's backlog does not 
   expect(order).toEqual(["alice 1", "bob 1", "alice 2", "alice 3"]);
 });
 
+test("an account joining the image queue waits behind accounts already waiting", async () => {
+  const queue = roundRobin();
+  const order: string[] = [];
+  const { promise: finished, resolve } = Promise.withResolvers<string[]>();
+
+  const brings = new Map([
+    ["alice 1", "carol"],
+    ["carol", "dave"],
+    ["dave", "erin"],
+  ]);
+
+  const task = (name: string) => async () => {
+    const arriving = brings.get(name);
+
+    if (arriving !== undefined) {
+      void queue(arriving, task(arriving));
+    }
+
+    await Bun.sleep(1);
+    order.push(name);
+
+    if (order.length === 5) {
+      resolve(order);
+    }
+  };
+
+  void queue("alice", task("alice 1"));
+  void queue("alice", task("alice 2"));
+
+  expect(await finished).toEqual([
+    "alice 1",
+    "carol",
+    "alice 2",
+    "dave",
+    "erin",
+  ]);
+});
+
 test("a per-minute allowance refills over the minute, per key", () => {
   let now = 0;
   const realNow = Date.now;
@@ -114,6 +152,39 @@ test("the health check reuses its result for two seconds, so a flood of probes c
     await checkHealth();
 
     expect(list).toHaveBeenCalledTimes(2);
+  } finally {
+    Date.now = realNow;
+    mock.restore();
+  }
+});
+
+test("a health probe slower than the cache window is shared until it settles, and gives up after three seconds", async () => {
+  const realNow = Date.now;
+  let now = realNow() + 60_000;
+
+  const list = spyOn(s3, "list").mockImplementation(
+    async () => await Promise.withResolvers<never>().promise
+  );
+
+  Date.now = () => now;
+
+  try {
+    const first = checkHealth();
+
+    now += 2500;
+
+    const second = checkHealth();
+
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(await Promise.all([first, second])).toEqual([
+      { db: "ok", s3: "error" },
+      { db: "ok", s3: "error" },
+    ]);
+
+    now += 1999;
+    await checkHealth();
+
+    expect(list).toHaveBeenCalledTimes(1);
   } finally {
     Date.now = realNow;
     mock.restore();
