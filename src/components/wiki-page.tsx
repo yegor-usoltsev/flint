@@ -17,7 +17,7 @@ import {
   TypeIcon,
 } from "lucide-react";
 import { createContext, use, useEffect, useRef, useState } from "react";
-import type { ComponentProps, ReactElement } from "react";
+import type { ComponentProps, ReactElement, RefObject } from "react";
 
 import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
@@ -158,6 +158,23 @@ const RowFrame = (props: ComponentProps<"div">) => (
   />
 );
 
+const countPages = (node: WikiNode): number =>
+  node.children.reduce(
+    (total, child) =>
+      total + (child.page?.kind === "page" ? 1 : 0) + countPages(child),
+    0
+  );
+
+const pageCount = (node: WikiNode) => {
+  const count = countPages(node);
+
+  if (count === 1) {
+    return "1 page";
+  }
+
+  return count === 0 ? "No pages" : `${count} pages`;
+};
+
 const RowLink = ({
   node,
   wiki,
@@ -166,20 +183,20 @@ const RowLink = ({
   <Link
     {...props}
     {...wikiTarget(wiki, node.path)}
-    className="hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    className="group/row hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
     data-shown={use(WikiShown) === node.path ? "" : undefined}
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle without an explicit role the button role.
     role="link"
   >
     <NodeIcon kind={node.page?.kind} />
     <span className="truncate">{node.title}</span>
-    <span className="text-muted-foreground hidden truncate font-mono text-xs @xl:inline">
+    <span className="text-muted-foreground hidden truncate font-mono text-xs opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
       {node.path}
     </span>
     <span className="text-muted-foreground ml-auto shrink-0 text-xs">
       {node.page?.kind === "page"
         ? formatRelative(node.page.updatedAt)
-        : "Folder"}
+        : pageCount(node)}
     </span>
   </Link>
 );
@@ -552,11 +569,59 @@ const FolderView = ({
 
 const headingIndent = ["pl-2", "pl-2", "pl-5", "pl-8"];
 
+const headingSelector = ".markdown :is(h1, h2, h3)";
+
+const useActiveHeading = (
+  scroller: RefObject<HTMLDivElement | null>,
+  body: RefObject<HTMLDivElement | null>,
+  count: number
+) => {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    const root = scroller.current;
+
+    const found = [
+      ...(body.current?.querySelectorAll(headingSelector) ?? []),
+    ].filter((heading) => heading.textContent.trim() !== "");
+
+    const observer = new IntersectionObserver(
+      () => {
+        const line = (root?.getBoundingClientRect().top ?? 0) + 96;
+
+        setActive(
+          Math.max(
+            found.findLastIndex(
+              (heading) => heading.getBoundingClientRect().top <= line
+            ),
+            0
+          )
+        );
+      },
+      { root, rootMargin: "0px 0px -60% 0px" }
+    );
+
+    if (count > 1) {
+      for (const heading of found) {
+        observer.observe(heading);
+      }
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [body, count, scroller]);
+
+  return active;
+};
+
 const Contents = ({
+  active,
   headings,
   onJump,
   title = true,
 }: {
+  active?: number;
   headings: Heading[];
   onJump: (index: number) => void;
   title?: boolean;
@@ -571,8 +636,9 @@ const Contents = ({
       {headings.map((heading, index) => (
         <li key={heading.id}>
           <button
+            aria-current={index === active ? "location" : undefined}
             className={cn(
-              "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring w-full rounded-md py-1 pr-2 text-left text-pretty wrap-anywhere outline-none focus-visible:ring-2",
+              "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring aria-[current=location]:text-foreground w-full rounded-md py-1 pr-2 text-left text-pretty wrap-anywhere outline-none focus-visible:ring-2",
               headingIndent[heading.level]
             )}
             onClick={() => {
@@ -586,6 +652,50 @@ const Contents = ({
       ))}
     </ul>
   </nav>
+);
+
+const ContentsRail = ({
+  body,
+  headings,
+  onJump,
+  scroller,
+}: {
+  body: RefObject<HTMLDivElement | null>;
+  headings: Heading[];
+  onJump: (index: number) => void;
+  scroller: RefObject<HTMLDivElement | null>;
+}) => {
+  const active = useActiveHeading(scroller, body, headings.length);
+
+  return (
+    <aside
+      aria-label="Page details"
+      className="sticky top-0 col-start-3 row-start-1 flex max-h-[calc(100svh-2.75rem)] max-w-72 flex-col gap-6 overflow-y-auto py-8 pr-6"
+    >
+      <Contents active={active} headings={headings} onJump={onJump} />
+    </aside>
+  );
+};
+
+const DraftConflict = ({
+  draft,
+  field,
+}: {
+  draft: {
+    conflict: string | null;
+    handleDiscard: () => void;
+    handleKeepMine: () => void;
+    value: string;
+  };
+  field: string;
+}) => (
+  <ConflictDialog
+    field={field}
+    mine={draft.value}
+    onKeepMine={draft.handleKeepMine}
+    onUseTheirs={draft.handleDiscard}
+    saved={draft.conflict}
+  />
 );
 
 const ContentsDisclosure = ({
@@ -841,6 +951,7 @@ const PageEditor = ({
   const actions = useNodeActions(wiki, page, { shortcuts: true });
   const editor = useRef<MarkdownEditorHandle>(null);
   const bodyBox = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
 
   const write =
     (field: "body" | "title") =>
@@ -900,9 +1011,9 @@ const PageEditor = ({
   ]);
 
   const headingElements = () =>
-    [
-      ...(bodyBox.current?.querySelectorAll(".markdown :is(h1, h2, h3)") ?? []),
-    ].filter((element) => element.textContent.trim() !== "");
+    [...(bodyBox.current?.querySelectorAll(headingSelector) ?? [])].filter(
+      (element) => element.textContent.trim() !== ""
+    );
 
   const headings = headingsOf(body.value);
 
@@ -994,7 +1105,10 @@ const PageEditor = ({
       crumbs={crumbs}
       title={title.value.trim() || page.title}
     >
-      <div className="min-w-0 flex-1 overflow-y-auto xl:grid xl:grid-cols-[minmax(10rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(10rem,1fr)] xl:items-start">
+      <div
+        className="min-w-0 flex-1 overflow-y-auto xl:grid xl:grid-cols-[minmax(6rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)] xl:items-start"
+        ref={scroller}
+      >
         <article className="max-w-document mx-auto box-content flex flex-col gap-2 px-4 pt-5 pb-16 md:px-8 md:pt-8 xl:col-start-2 xl:row-start-1 xl:mx-0 xl:px-12">
           {lookupError === null ? null : (
             <LoadFailed
@@ -1033,9 +1147,6 @@ const PageEditor = ({
               pending={recreate.isPending}
             />
           ) : null}
-          <p className="text-muted-foreground truncate font-mono text-xs">
-            {page.path}
-          </p>
           <PageTitle
             autosave={!deleted}
             draft={title}
@@ -1081,28 +1192,16 @@ const PageEditor = ({
           </div>
         </article>
         {rail && headings.length > 1 ? (
-          <aside
-            aria-label="Page details"
-            className="sticky top-0 col-start-3 row-start-1 flex max-h-[calc(100svh-2.75rem)] max-w-72 flex-col gap-6 overflow-y-auto py-8 pr-6"
-          >
-            <Contents headings={headings} onJump={jump} />
-          </aside>
+          <ContentsRail
+            body={bodyBox}
+            headings={headings}
+            onJump={jump}
+            scroller={scroller}
+          />
         ) : null}
       </div>
-      <ConflictDialog
-        field="title"
-        mine={title.value}
-        onKeepMine={title.handleKeepMine}
-        onUseTheirs={title.handleDiscard}
-        saved={title.conflict}
-      />
-      <ConflictDialog
-        field="page"
-        mine={body.value}
-        onKeepMine={body.handleKeepMine}
-        onUseTheirs={body.handleDiscard}
-        saved={body.conflict}
-      />
+      <DraftConflict draft={title} field="title" />
+      <DraftConflict draft={body} field="page" />
     </Page>
   );
 };
