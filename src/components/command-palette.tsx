@@ -112,8 +112,10 @@ import {
   focusPanelRow,
   followFocus,
   panelAvailable,
+  panelVisible,
   peekFocused,
   togglePanel,
+  usePanel,
   usePanelOpen,
 } from "~/lib/issue-panel";
 import {
@@ -556,9 +558,20 @@ const PageResult = ({
   </CommandItem>
 );
 
-const isCurrent = (item: RecentItem, pathname: string, slug: string) =>
-  item.href === pathname ||
-  (item.kind === "page" && pathname === `/${slug}/wiki/${item.label}`);
+const isCurrent = (
+  item: RecentItem,
+  pathname: string,
+  slug: string,
+  panel: string | null
+) => {
+  if (item.href === pathname) {
+    return true;
+  }
+
+  return item.kind === "issue"
+    ? item.label === panel
+    : pathname === `/${slug}/wiki/${item.label}`;
+};
 
 const RecentIcon = ({
   item,
@@ -662,10 +675,15 @@ const RootList = ({
     );
   };
 
+  const panelState = usePanel();
+  const panelShows = panelVisible(panelState) ? panelState.issue : null;
+
   const recent =
     trimmed === ""
       ? visited
-          .filter((item) => !isCurrent(item, pathname, workspace.slug))
+          .filter(
+            (item) => !isCurrent(item, pathname, workspace.slug, panelShows)
+          )
           .slice(0, recentLimit)
       : [];
 
