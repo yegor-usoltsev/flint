@@ -36,20 +36,60 @@ const memberChanged = (workspaceId: string, username: string) => {
 
 const GiteaUserSchema = v.object({ id: v.number(), login: v.string() });
 
+const hiddenStatuses = new Set([401, 403, 404]);
+
 const findGiteaUser = async (username: string) => {
   const response = await fetch(
     new URL(`/api/v1/users/${encodeURIComponent(username)}`, env.GITEA_URL),
     { signal: AbortSignal.timeout(5000) }
   ).catch(() => null);
 
+  if (response !== null && hiddenStatuses.has(response.status)) {
+    return null;
+  }
+
   const user = v.safeParse(
     GiteaUserSchema,
     response?.ok === true ? await response.json().catch(() => null) : null
   );
 
-  return user.success
-    ? { giteaId: String(user.output.id), username: user.output.login }
-    : null;
+  if (!user.success) {
+    throw new ApiError(
+      502,
+      "bad_gateway",
+      "Gitea did not answer; try again later"
+    );
+  }
+
+  return { giteaId: String(user.output.id), username: user.output.login };
+};
+
+const rejectNameClash = async (
+  tx: TransactionSQL,
+  workspaceId: string,
+  account: { giteaId: string; username: string }
+) => {
+  const [clash] = await tx<{ pending: boolean }[]>`
+    select false as pending
+    from workspace_members m join users u on u.id = m.user_id
+    where m.workspace_id = ${workspaceId} and u.gitea_id <> ${account.giteaId}
+      and lower(u.username) = lower(${account.username})
+    union all
+    select true from invites
+    where workspace_id = ${workspaceId} and gitea_id <> ${account.giteaId}
+      and lower(gitea_username) = lower(${account.username})
+    limit 1
+  `;
+
+  if (clash !== undefined) {
+    throw new ApiError(
+      409,
+      "conflict",
+      clash.pending
+        ? `A pending invite for another Gitea account is called @${account.username}; withdraw it first`
+        : `Another member is called @${account.username} in Flint; whoever no longer uses that name in Gitea has to sign in to Flint again first`
+    );
+  }
 };
 
 const lastAdmin = () =>
@@ -111,9 +151,11 @@ export const addMember = async (
   const member = await db.begin(async (tx): Promise<Member> => {
     await lockUsers(tx);
 
-    const users = await tx<Omit<Member, "joinedAt" | "pending" | "role">[]>`
-      select id as "userId", username, display_name as "displayName",
-        avatar_url as "avatarUrl"
+    const users = await tx<
+      (Omit<Member, "joinedAt" | "pending" | "role"> & { giteaId: string })[]
+    >`
+      select id as "userId", gitea_id as "giteaId", username,
+        display_name as "displayName", avatar_url as "avatarUrl"
       from users
       where ${
         giteaUser === null
@@ -131,9 +173,16 @@ export const addMember = async (
       );
     }
 
-    const [user] = users;
+    const [found] = users;
 
-    if (user !== undefined) {
+    if (found !== undefined) {
+      const { giteaId, ...user } = found;
+
+      await rejectNameClash(tx, workspace.id, {
+        giteaId,
+        username: user.username,
+      });
+
       const [added] = await tx<{ joinedAt: string }[]>`
         insert into workspace_members (workspace_id, user_id, role)
         values (${workspace.id}, ${user.userId}, ${role})
@@ -155,6 +204,8 @@ export const addMember = async (
         `Flint cannot find @${username} in Gitea; ask them to sign in to Flint once, then add them`
       );
     }
+
+    await rejectNameClash(tx, workspace.id, giteaUser);
 
     const [invited] = await tx<{ joinedAt: string }[]>`
       insert into invites (

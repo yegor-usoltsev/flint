@@ -14,6 +14,7 @@ import { Route as projectsRoute } from "~/routes/api/v1/workspaces/$slug/project
 import { Route as streamRoute } from "~/routes/api/v1/workspaces/$slug/stream";
 import { Route as workspacesRoute } from "~/routes/api/v1/workspaces/index";
 import { env } from "~/server/env.server";
+import { db } from "~/server/db.server";
 import { signIn } from "~/server/users.server";
 
 import {
@@ -580,6 +581,15 @@ test("an invite goes to the Gitea account it was made for, whatever names change
   });
 });
 
+const giteaAnswers = (status: number) =>
+  stubGiteaUsers().mockImplementation(
+    Object.assign(
+      async () =>
+        await Promise.resolve(Response.json({ message: "no" }, { status })),
+      { preconnect: fetch.preconnect }
+    )
+  );
+
 test("adding a member finds the account through Gitea, or among Flint's accounts when Gitea hides it", async () => {
   const { root } = await setup();
   const erinId = String(addGiteaUser("erin"));
@@ -596,15 +606,7 @@ test("adding a member finds the account through Gitea, or among Flint's accounts
     status: 404,
   });
 
-  stubGiteaUsers().mockImplementation(
-    Object.assign(
-      async () =>
-        await Promise.resolve(
-          Response.json({ message: "sign in" }, { status: 403 })
-        ),
-      { preconnect: fetch.preconnect }
-    )
-  );
+  giteaAnswers(403);
   await signInAs("9003", "frank");
   await signInAs("9004", "gil");
   await signInAs("9005", "Gil");
@@ -627,6 +629,66 @@ test("adding a member finds the account through Gitea, or among Flint's accounts
       { username: "frank" },
       { username: "root" },
     ],
+  });
+});
+
+test("adding a member fails while Gitea is down instead of matching the name", async () => {
+  const { root } = await setup();
+
+  await signInAs("9003", "frank");
+  giteaAnswers(500);
+
+  expect(await addMember(root, "acme", "frank")).toMatchObject({
+    body: { error: { code: "bad_gateway" } },
+    status: 502,
+  });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [{ username: "alice" }, { username: "root" }],
+  });
+});
+
+test("adding a member refuses a name another account still holds in the workspace", async () => {
+  const { root } = await setup();
+
+  await signInAs("9010", "carol");
+  await addMember(root, "acme", "carol");
+  addGiteaUser("carol");
+
+  expect(await addMember(root, "acme", "carol")).toMatchObject({
+    body: { error: { code: "conflict" } },
+    status: 409,
+  });
+
+  const doraId = String(addGiteaUser("dora"));
+
+  await addMember(root, "acme", "dora");
+  await db`update invites set gitea_id = '9011'`;
+
+  const stale = await addMember(root, "acme", "dora");
+
+  expect(stale.status).toBe(409);
+  expect(JSON.stringify(stale.body)).toContain("another Gitea account");
+
+  await signInAs(doraId, "dora");
+
+  expect(await addMember(root, "acme", "dora")).toMatchObject({
+    body: { error: { code: "conflict" } },
+    status: 409,
+  });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [
+      { username: "alice" },
+      { username: "carol" },
+      { username: "root" },
+      { pending: true, username: "dora" },
+    ],
+  });
+  expect(await memberCall(root, "DELETE", "acme", "dora")).toMatchObject({
+    status: 204,
+  });
+  expect(await addMember(root, "acme", "dora")).toMatchObject({
+    body: { pending: false, username: "dora" },
+    status: 201,
   });
 });
 

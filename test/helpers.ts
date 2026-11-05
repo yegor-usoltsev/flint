@@ -4,7 +4,11 @@ import { db } from "~/server/db.server";
 import { createSession } from "~/server/sessions.server";
 import { signIn } from "~/server/users.server";
 
+const giteaIds = new Map<string, number>();
+
 export const resetDatabase = async () => {
+  giteaIds.clear();
+
   const tables = await db<{ tablename: string }[]>`
     select tablename from pg_tables
     where schemaname = 'public' and tablename <> 'schema_migrations'
@@ -14,8 +18,6 @@ export const resetDatabase = async () => {
     `truncate ${tables.map(({ tablename }) => JSON.stringify(tablename)).join(", ")} cascade`
   );
 };
-
-const giteaIds = new Map<string, number>();
 
 export const addGiteaUser = (username: string) => {
   const key = username.toLowerCase();
