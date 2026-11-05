@@ -721,6 +721,7 @@ export const useNodeActions = (
   const commands = groups.flat().map((entry): Command => ({
     group: "Page",
     hotkey: entry.hotkey,
+    icon: <entry.icon />,
     id: `wiki-${entry.id}`,
     label: entry.command,
     run: () => {

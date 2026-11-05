@@ -23,10 +23,7 @@ import {
   CodeXmlIcon,
   CopyIcon,
   DeleteIcon,
-  EyeIcon,
-  FileCodeIcon,
   FileTextIcon,
-  FolderIcon,
   GitBranchIcon,
   KeyboardIcon,
   KeyRoundIcon,
@@ -55,7 +52,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { createContext, use, useCallback, useEffect, useState } from "react";
-import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 import { ProjectIcon } from "~/components/project-icon";
 import { Keys, ShortcutsDialog } from "~/components/shortcuts-dialog";
@@ -159,12 +156,10 @@ const go = (
   label: string,
   keys: string | undefined,
   run: () => void,
-  when?: () => boolean,
-  icon?: ReactElement
+  when?: () => boolean
 ): PaletteCommand => ({
   group: "Navigation",
   hotkey: keys === undefined ? undefined : { keys },
-  icon,
   id,
   label,
   run,
@@ -193,32 +188,38 @@ const groupOrder = [
 
 const commandIcons = new Map(
   Object.entries({
+    "api-keys": <KeyRoundIcon />,
     "assign-me": <UserRoundCheckIcon />,
     assignee: <UserRoundIcon />,
+    board: <SquareKanbanIcon />,
     "back-to-app": <ArrowLeftIcon />,
     "clear-selection": <XIcon />,
     comment: <MessageSquareIcon />,
     "copy-branch": <GitBranchIcon />,
     "copy-id": <CopyIcon />,
     "copy-link": <LinkIcon />,
-    "copy-markdown": <FileCodeIcon />,
-    "copy-path": <FolderIcon />,
     "copy-title": <TypeIcon />,
     "copy-url": <LinkIcon />,
     delete: <Trash2Icon />,
     filter: <ListFilterIcon />,
     "issue-panel": <PanelRightIcon />,
     labels: <TagIcon />,
+    "labels-settings": <TagIcon />,
+    list: <ListIcon />,
+    "my-issues": <CircleDotIcon />,
     open: <Maximize2Icon />,
-    peek: <EyeIcon />,
     priority: <SignalHighIcon />,
+    projects: <BoxIcon />,
     select: <SquareCheckIcon />,
+    settings: <SettingsIcon />,
     "select-all": <ListChecksIcon />,
     shortcuts: <KeyboardIcon />,
     sidebar: <PanelLeftIcon />,
     "sign-out": <LogOutIcon />,
     status: <CircleDashedIcon />,
     "toggle-view": <SquareKanbanIcon />,
+    trash: <Trash2Icon />,
+    wiki: <BookOpenIcon />,
     "wiki-save": <SaveIcon />,
     "wiki-source": <CodeXmlIcon />,
   })
@@ -729,7 +730,7 @@ const RootList = ({
         placeholder="Type a command or search…"
         value={query}
       />
-      <CommandList className="fade-bottom max-h-104">
+      <CommandList className="fade-bottom max-h-104 scroll-pb-8">
         <CommandEmpty>
           {trimmed.length >= 2 && results === null
             ? "Searching…"
@@ -842,7 +843,7 @@ const RootList = ({
             </CommandItem>
           </CommandGroup>
         ) : null}
-        <div aria-hidden className="h-6" />
+        <div aria-hidden className="h-8" />
       </CommandList>
     </Command>
   );
@@ -1087,26 +1088,12 @@ const useLayerCommands = ({
         void deletion.remove(issues);
       }
     ),
-    go(
-      "my-issues",
-      "Go to My issues",
-      "g m",
-      () => {
-        void navigate({ params: { slug }, to: "/$slug/my-issues" });
-      },
-      undefined,
-      <CircleDotIcon />
-    ),
-    go(
-      "projects",
-      "Go to projects",
-      "g p",
-      () => {
-        void navigate({ params: { slug }, to: "/$slug/settings/projects" });
-      },
-      undefined,
-      <BoxIcon />
-    ),
+    go("my-issues", "Go to My issues", "g m", () => {
+      void navigate({ params: { slug }, to: "/$slug/my-issues" });
+    }),
+    go("projects", "Go to projects", "g p", () => {
+      void navigate({ params: { slug }, to: "/$slug/settings/projects" });
+    }),
     go(
       "list",
       "Go to list",
@@ -1114,8 +1101,7 @@ const useLayerCommands = ({
       () => {
         openView("list");
       },
-      hasProject,
-      <ListIcon />
+      hasProject
     ),
     go(
       "board",
@@ -1124,65 +1110,33 @@ const useLayerCommands = ({
       () => {
         openView("board");
       },
-      hasProject,
-      <SquareKanbanIcon />
+      hasProject
     ),
-    go(
-      "wiki",
-      "Go to wiki",
-      "g w",
-      () => {
-        void navigate(wikiTarget(workspace, ""));
-      },
-      undefined,
-      <BookOpenIcon />
-    ),
-    go(
-      "settings",
-      "Go to settings",
-      "g s",
-      () => {
-        void navigate({ params: { slug }, to: "/$slug/settings" });
-      },
-      undefined,
-      <SettingsIcon />
-    ),
-    go(
-      "trash",
-      "Go to trash",
-      "g t",
-      () => {
-        void navigate({ params: { slug }, to: "/$slug/settings/trash" });
-      },
-      undefined,
-      <Trash2Icon />
-    ),
-    go(
-      "labels-settings",
-      "Go to labels",
-      undefined,
-      () => {
-        void navigate({ params: { slug }, to: "/$slug/settings/labels" });
-      },
-      undefined,
-      <TagIcon />
-    ),
-    go(
-      "api-keys",
-      "Go to API keys",
-      undefined,
-      () => {
-        void navigate({
-          params: { slug },
-          to: "/$slug/settings/account/api-keys",
-        });
-      },
-      undefined,
-      <KeyRoundIcon />
-    ),
+    go("wiki", "Go to wiki", "g w", () => {
+      void navigate(wikiTarget(workspace, ""));
+    }),
+    go("settings", "Go to settings", "g s", () => {
+      void navigate({ params: { slug }, to: "/$slug/settings" });
+    }),
+    go("trash", "Go to trash", "g t", () => {
+      void navigate({ params: { slug }, to: "/$slug/settings/trash" });
+    }),
+    go("labels-settings", "Go to labels", undefined, () => {
+      void navigate({ params: { slug }, to: "/$slug/settings/labels" });
+    }),
+    go("api-keys", "Go to API keys", undefined, () => {
+      void navigate({
+        params: { slug },
+        to: "/$slug/settings/account/api-keys",
+      });
+    }),
     ...(projects.data ?? []).map((item): PaletteCommand => ({
       group: "Projects",
-      icon: <ProjectIcon color={item.color} icon={item.icon} />,
+      icon: (
+        <span className="flex size-4 shrink-0 items-center justify-center">
+          <ProjectIcon color={item.color} icon={item.icon} />
+        </span>
+      ),
       id: `project-${item.id}`,
       keywords: item.key,
       label: `Open ${item.name}`,
