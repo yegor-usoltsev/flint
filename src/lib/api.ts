@@ -33,6 +33,14 @@ export class ApiError extends Error {
 export const isNotFound = (error: Error) =>
   error instanceof ApiError && error.status === 404;
 
+const dotSegment = /^(?:\.|%2e){1,2}$/iu;
+
+const leavesEndpoint = (path: string) =>
+  (path.split(/[?#]/u)[0] ?? "")
+    .replaceAll(/[\t\n\r]/gu, "")
+    .split(/[/\\]/u)
+    .some((segment) => dotSegment.test(segment));
+
 export const api = async <Result>(
   path: string,
   {
@@ -41,6 +49,13 @@ export const api = async <Result>(
     method = "GET",
   }: { body?: unknown; expectedUser?: string; method?: string } = {}
 ): Promise<Result> => {
+  if (leavesEndpoint(path)) {
+    throw new ApiError(404, {
+      code: "not_found",
+      message: "No such API endpoint",
+    });
+  }
+
   const json = body !== undefined && !(body instanceof FormData);
   const headers = new Headers();
 
