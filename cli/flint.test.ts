@@ -948,23 +948,28 @@ test("a failed wiki append still reports the uploaded attachments", async () => 
   });
 });
 
-test("attachment download keeps media names and prefixes every other name, so no tool loads the file", async () => {
+test("attachment download keeps media names and wraps every other name in flint-….download, so no tool loads the file", async () => {
   await withFiles(async (directory) => {
     const saved = [
-      [".npmrc", "flint-.npmrc"],
-      ["..", "flint-.."],
-      [".\u2028/tmp/flint-elsewhere/.yarnrc", "flint-.yarnrc"],
-      ["C:package.json", "flint-C_package.json"],
-      ["NUL.png", "flint-NUL.png"],
-      ["COM1 .jpg", "flint-COM1 .jpg"],
+      [".npmrc", "flint-.npmrc.download"],
+      ["..", "flint-...download"],
+      [".\u2028/tmp/flint-elsewhere/.yarnrc", "flint-.yarnrc.download"],
+      ["C:package.json", "flint-C_package.json.download"],
+      ["NUL.png", "flint-NUL.png.download"],
+      ["COM1 .jpg", "flint-COM1 .jpg.download"],
       ["Screenshot 1.PNG", "Screenshot 1.PNG"],
       ['a<b>c"d|e?f*g:h.png', "a_b_c_d_e_f_g_h.png"],
-      ["compose.override.yaml", "flint-compose.override.yaml"],
-      ["noxfile.py", "flint-noxfile.py"],
-      ["package.json", "flint-package.json"],
-      ["settings.gradle", "flint-settings.gradle"],
-      ["tox.ini", "flint-tox.ini"],
-      ["\u200C.png", "flint-.png"],
+      ["compose.override.yaml", "flint-compose.override.yaml.download"],
+      ["noxfile.py", "flint-noxfile.py.download"],
+      ["package.json", "flint-package.json.download"],
+      ["settings.gradle", "flint-settings.gradle.download"],
+      ["tox.ini", "flint-tox.ini.download"],
+      ["\u200C.png", "flint-.png.download"],
+      ["report.test.ts", "flint-report.test.ts.download"],
+      [
+        "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé.txt",
+        "flint-éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé.download",
+      ],
     ] as const;
 
     stubApi(

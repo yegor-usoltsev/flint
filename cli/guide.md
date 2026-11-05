@@ -47,7 +47,7 @@ Fixed: the editor keeps the draft now.
 EOF
 ```
 
-`--inline` appends files as the editor does: images other than SVG inline, video and audio as players, the rest as links. Elsewhere, put a file's url on a line of its own as `![alt](url)`, `<video src="url" controls></video>`, `<audio src="url" controls></audio>` or `[name](url)`. If an upload fails midway, a top-level `attachments` lists the files already uploaded, so retry only the rest. Files are capped at 25 MB by default (`too_large`), and static JPEG, PNG and WebP images are scaled down to 2560 px. `flint attachment download <id>` saves an image, video, audio file or PDF under its name and any other file as `flint-<name>`, so a download never lands as a dotfile or a name that tools load, such as `package.json`. It never overwrites a file; `-o <path>` writes exactly the path it names.
+`--inline` appends files as the editor does: images other than SVG inline, video and audio as players, the rest as links. Elsewhere, put a file's url on a line of its own as `![alt](url)`, `<video src="url" controls></video>`, `<audio src="url" controls></audio>` or `[name](url)`. If an upload fails midway, a top-level `attachments` lists the files already uploaded, so retry only the rest. Files are capped at 25 MB by default (`too_large`), and static JPEG, PNG and WebP images are scaled down to 2560 px. `flint attachment download <id>` saves an image, video, audio file or PDF under its name and any other file as `flint-<name>.download`, so a download never lands as a dotfile or a name that tools load or run, such as `package.json` or `x.test.ts`. It never overwrites a file; `-o <path>` writes exactly the path it names.
 
 ## Wiki
 

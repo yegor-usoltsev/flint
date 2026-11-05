@@ -706,7 +706,22 @@ const downloadName = (filename: string) => {
     .replaceAll(/[\p{Cc}\p{Cf}]/gu, "")
     .replaceAll(/[<>:"|?*]/gu, "_");
 
-  return keepsName(name) ? name : `flint-${name}`;
+  if (keepsName(name)) {
+    return name;
+  }
+
+  const encoder = new TextEncoder();
+
+  const characters = Array.from(
+    new Intl.Segmenter().segment(name),
+    ({ segment }) => segment
+  );
+
+  while (encoder.encode(`flint-${characters.join("")}.download`).length > 255) {
+    characters.pop();
+  }
+
+  return `flint-${characters.join("")}.download`;
 };
 
 const registerAttachments = (program: Command) => {
