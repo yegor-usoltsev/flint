@@ -297,14 +297,19 @@ export const RowContent = ({
       {issue.key}
     </span>
     <IssueStatus issue={issue} lookup={lookup} />
-    <span className="order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate @min-[80rem]/list:max-w-160">
+    <span
+      className={cn(
+        "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate @min-[80rem]/list:max-w-160",
+        (!assignee || issue.assigneeId === null) && "max-md:w-full"
+      )}
+    >
       {issue.title}
     </span>
-    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden @max-[80rem]/list:empty:hidden @min-[80rem]/list:w-80 @min-[80rem]/list:max-w-none @min-[80rem]/list:shrink-0 @max-3xl/list:[&>:nth-child(n+2)]:hidden">
+    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden @max-[80rem]/list:empty:hidden @min-[80rem]/list:w-80 @min-[80rem]/list:max-w-none @min-[80rem]/list:shrink-0 @max-4xl/list:[&>:nth-child(n+2)]:hidden">
       <IssueLabels issue={issue} lookup={lookup} />
     </span>
     {issue.labelIds.length > 1 ? (
-      <span className="text-muted-foreground shrink-0 text-xs tabular-nums @3xl/list:hidden">
+      <span className="text-muted-foreground shrink-0 text-xs tabular-nums @4xl/list:hidden">
         +{issue.labelIds.length - 1}
       </span>
     ) : null}
