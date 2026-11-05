@@ -51,7 +51,6 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
-import { useMediaQuery } from "~/hooks/use-media-query";
 import { isNotFound, useMe, useUsername } from "~/lib/api";
 import type { Issue, IssueSummary, ProjectDetail } from "~/lib/api-types";
 import { branchName } from "~/lib/branch";
@@ -61,7 +60,7 @@ import { moveFocus, useContextIssue } from "~/lib/issue-focus";
 import {
   focusPanelRow,
   followFocus,
-  splitQuery,
+  useWideEntry,
   usePanel,
   usePanelFits,
   usePanelOpen,
@@ -1067,7 +1066,8 @@ export const IssueDetail = ({ issueKey }: { issueKey: string }) => {
   const key = issueKey.toUpperCase();
   const project = useQuery(projectQuery(key.split("-")[0] ?? ""));
   const full = useLocation({ select: (location) => location.state.full });
-  const wide = useMediaQuery(splitQuery);
+  const entry = useLocation({ select: (location) => location.state.__TSR_key });
+  const wide = useWideEntry(entry);
   const panelOpen = usePanelOpen();
 
   if (project.isError && project.data === undefined) {

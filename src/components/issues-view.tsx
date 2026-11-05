@@ -469,7 +469,7 @@ const BoardColumn = ({
       data-column={status.id}
       ref={ref}
     >
-      <header className="flex h-[50px] shrink-0 items-center gap-2 px-3 max-md:hidden">
+      <header className="flex h-[50px] shrink-0 items-center gap-2 px-3">
         <StatusIcon category={status.category} color={status.color} />
         <h2 className="truncate font-medium" id={`column-${status.id}`}>
           {status.name}

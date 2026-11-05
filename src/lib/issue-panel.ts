@@ -19,6 +19,7 @@ const defaultShare = 0.48;
 const boardShare = 0.32;
 const splitByDefault = 1800;
 export const splitQuery = `(min-width: ${splitByDefault}px)`;
+
 const openKey = "flint:issue-panel";
 const widthKey = "flint:issue-panel-width";
 
@@ -129,6 +130,28 @@ export const usePanelFits = () =>
   useSyncExternalStore(
     subscribe,
     () => snapshot().fits,
+    () => false
+  );
+
+const wideEntries = new Map<string, boolean>();
+
+export const useWideEntry = (entry: string | undefined) =>
+  useSyncExternalStore(
+    subscribe,
+    () => {
+      const key = entry ?? "";
+      const known = wideEntries.get(key);
+
+      if (known !== undefined) {
+        return known;
+      }
+
+      const wide = matchMedia(splitQuery).matches;
+
+      wideEntries.set(key, wide);
+
+      return wide;
+    },
     () => false
   );
 

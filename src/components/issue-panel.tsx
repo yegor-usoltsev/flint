@@ -342,7 +342,7 @@ const useLinkedIssue = ({
       void navigate({
         params: { issueKey: issue, slug },
         replace: true,
-        state: { from: origin },
+        state: { from: origin, full: true },
         to: "/$slug/issue/$issueKey",
       });
     }
