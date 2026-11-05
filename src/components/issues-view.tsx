@@ -19,6 +19,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
+  ChevronLeftIcon,
   ChevronRightIcon,
   KanbanIcon,
   ListIcon,
@@ -26,7 +27,7 @@ import {
   PlusIcon,
   SlidersHorizontalIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
 import { useCreateIssue } from "~/components/create-issue";
@@ -457,7 +458,7 @@ const BoardColumn = ({
     <section
       aria-labelledby={`column-${status.id}`}
       className={cn(
-        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:max-w-100 md:grow md:basis-72",
+        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:w-(--column) md:max-w-none",
         isDropTarget && "bg-row-selected"
       )}
       data-column={status.id}
@@ -644,52 +645,113 @@ const useMoreRight = (
   return more;
 };
 
+const columnGap = 8;
+const columnMin = 264;
+const columnMax = 400;
+const buttonStrip = 48;
+
+const useColumnWidth = (
+  board: RefObject<HTMLDivElement | null>,
+  count: number
+) => {
+  const [layout, setLayout] = useState({ fits: true, width: 288 });
+
+  useLayoutEffect(() => {
+    const element = board.current;
+
+    const measure = () => {
+      const inner = (element?.clientWidth ?? 0) - columnGap * 2;
+      const all = (inner - columnGap * (count - 1)) / count;
+
+      if (all >= columnMin) {
+        setLayout({ fits: true, width: Math.min(all, columnMax) });
+
+        return;
+      }
+
+      const room = inner - buttonStrip;
+
+      const shown = Math.max(
+        1,
+        Math.floor((room + columnGap) / (columnMin + columnGap))
+      );
+
+      setLayout({
+        fits: false,
+        width: (room - columnGap * (shown - 1)) / shown,
+      });
+    };
+
+    const observer = new ResizeObserver(measure);
+
+    if (element !== null) {
+      measure();
+      observer.observe(element);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [board, count]);
+
+  return layout;
+};
+
 const Board = ({ columns, statuses, ...props }: ViewProps) => {
+  const frame = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
   const more = useMoreRight(board, statuses.at(-1)?.id);
+  const layout = useColumnWidth(frame, statuses.length);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ColumnJump
         board={board}
         columns={columns}
         statuses={statuses}
         total={props.total}
       />
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 snap-x snap-mandatory gap-2 overflow-x-auto p-2 md:snap-none",
-          more && "fade-right"
-        )}
-        data-board
-        ref={board}
-      >
-        {statuses.map((status) => (
-          <BoardColumn
-            ids={columns[status.id] ?? []}
-            key={status.id}
-            status={status}
-            {...props}
-          />
-        ))}
-      </div>
-      {more ? (
-        <div className="absolute top-1/2 right-3 -translate-y-1/2 max-md:hidden">
-          <Button
-            aria-label="Show more columns"
-            onClick={() => {
-              board.current?.scrollBy({
-                behavior: "smooth",
-                left: (board.current.clientWidth * 2) / 3,
-              });
-            }}
-            size="icon-round"
-            variant="outline"
-          >
-            <ChevronRightIcon />
-          </Button>
+      <div className="flex min-h-0 flex-1" ref={frame}>
+        <div
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto p-2 md:snap-none",
+            more && "max-md:fade-right"
+          )}
+          data-board
+          ref={board}
+          style={{ "--column": `${layout.width}px` }}
+        >
+          {statuses.map((status) => (
+            <BoardColumn
+              ids={columns[status.id] ?? []}
+              key={status.id}
+              status={status}
+              {...props}
+            />
+          ))}
         </div>
-      ) : null}
+        {layout.fits ? null : (
+          <div className="flex w-12 shrink-0 items-center justify-center max-md:hidden">
+            <Button
+              aria-label={more ? "Show more columns" : "Show first columns"}
+              onClick={() => {
+                const element = board.current;
+
+                element?.scrollTo({
+                  behavior: "smooth",
+                  left: more
+                    ? element.scrollLeft + element.clientWidth - columnGap
+                    : 0,
+                });
+              }}
+              size="icon-round"
+              variant="outline"
+            >
+              {more ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
