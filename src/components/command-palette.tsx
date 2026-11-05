@@ -700,7 +700,7 @@ const RootList = ({
         placeholder="Type a command or search…"
         value={query}
       />
-      <CommandList className="max-h-104">
+      <CommandList className="fade-bottom max-h-104">
         <CommandEmpty>
           {trimmed.length >= 2 && results === null
             ? "Searching…"
@@ -810,6 +810,7 @@ const RootList = ({
             </CommandItem>
           </CommandGroup>
         ) : null}
+        <div aria-hidden className="h-6" />
       </CommandList>
     </Command>
   );
