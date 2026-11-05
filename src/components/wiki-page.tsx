@@ -16,7 +16,7 @@ import {
   TriangleAlertIcon,
   TypeIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { createContext, use, useEffect, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
 
 import { AttachButton } from "~/components/attach-button";
@@ -72,6 +72,7 @@ import { copyText } from "~/lib/copy";
 import { newId } from "~/lib/ids";
 import { formatRelative } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
+import { PagePane, twoPaneQuery } from "~/lib/page-pane";
 import { usePageTitle } from "~/lib/site";
 import { discardDraft, useDraft, useHasDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
@@ -148,6 +149,8 @@ const NodeMenu = ({
   );
 };
 
+const WikiShown = createContext<string | null>(null);
+
 const RowFrame = (props: ComponentProps<"div">) => (
   <div
     {...props}
@@ -163,13 +166,14 @@ const RowLink = ({
   <Link
     {...props}
     {...wikiTarget(wiki, node.path)}
-    className="hover:bg-row-focus focus-visible:bg-row-focus flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    className="hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    data-shown={use(WikiShown) === node.path ? "" : undefined}
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle without an explicit role the button role.
     role="link"
   >
     <NodeIcon kind={node.page?.kind} />
     <span className="truncate">{node.title}</span>
-    <span className="text-muted-foreground hidden truncate font-mono text-xs sm:inline">
+    <span className="text-muted-foreground hidden truncate font-mono text-xs @xl:inline">
       {node.path}
     </span>
     <span className="text-muted-foreground ml-auto shrink-0 text-xs">
@@ -376,11 +380,19 @@ const useCreate = (wiki: Wiki, parent: string) => {
   };
 };
 
+const latestPages = (pages: WikiPageSummary[], shown: boolean) => {
+  const all = recentPages(pages, "");
+
+  return shown && all.length > 15 ? all.slice(0, 8) : [];
+};
+
 const NodeList = ({
+  compact = false,
   create,
   folder,
   wiki,
 }: {
+  compact?: boolean;
   create: () => void;
   folder: string;
   wiki: Wiki;
@@ -425,8 +437,7 @@ const NodeList = ({
   }
 
   if (nodes.length > 0) {
-    const all = recentPages(pages.data ?? [], "");
-    const latest = folder === "" && all.length > 15 ? all.slice(0, 8) : [];
+    const latest = latestPages(pages.data ?? [], folder === "" && !compact);
 
     const tree = (
       <WikiDragDrop tree={pagesTree} wiki={wiki}>
@@ -490,12 +501,20 @@ const NodeList = ({
   );
 };
 
-const WikiIndex = ({ crumbs, wiki }: { crumbs: Crumb[]; wiki: Wiki }) => {
+const WikiIndex = ({
+  compact = false,
+  crumbs,
+  wiki,
+}: {
+  compact?: boolean;
+  crumbs: Crumb[];
+  wiki: Wiki;
+}) => {
   const { buttons, create } = useCreate(wiki, "");
 
   return (
-    <Page actions={buttons} crumbs={crumbs} title="Wiki">
-      <NodeList create={create} folder="" wiki={wiki} />
+    <Page actions={buttons} className="@container" crumbs={crumbs} title="Wiki">
+      <NodeList compact={compact} create={create} folder="" wiki={wiki} />
     </Page>
   );
 };
@@ -522,6 +541,7 @@ const FolderView = ({
           <PageMenu actions={actions} />
         </>
       }
+      className="@container"
       crumbs={crumbs}
       title={folder.title}
     >
@@ -1306,6 +1326,19 @@ const WikiPageScreen = ({
   );
 };
 
+const firstPage = (nodes: WikiNode[]): string | undefined => {
+  for (const node of nodes) {
+    const found =
+      node.page?.kind === "page" ? node.path : firstPage(node.children);
+
+    if (found !== undefined) {
+      return found;
+    }
+  }
+
+  return undefined;
+};
+
 const WikiScreen = ({
   crumbs,
   path: rawPath,
@@ -1316,26 +1349,57 @@ const WikiScreen = ({
   wiki: Wiki;
 }) => {
   const pages = useQuery(wikiPagesQuery(wiki));
+  const split = useMediaQuery(twoPaneQuery);
   const path = rawPath.toLowerCase().split("/").filter(Boolean).join("/");
 
   usePageTitle(pages.data?.find((page) => page.path === path)?.title);
 
+  const titleOf = (target: string) =>
+    pages.data?.find((page) => page.path === target)?.title ?? humanize(target);
+
+  const pathCrumbs = (target: string) =>
+    ancestors(target).map((ancestor) => ({
+      label: titleOf(ancestor),
+      link: <Link {...wikiTarget(wiki, ancestor)} />,
+    }));
+
+  if (split) {
+    const shown = path === "" ? firstPage(buildTree(pages.data ?? [])) : path;
+
+    return (
+      <WikiShown value={shown ?? null}>
+        <div className="flex min-h-0 flex-1">
+          <div className="flex w-xl shrink-0 flex-col border-r">
+            <PagePane value="list">
+              <WikiIndex compact crumbs={crumbs} wiki={wiki} />
+            </PagePane>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            {shown === undefined ? null : (
+              <PagePane value="detail">
+                <WikiPageScreen
+                  crumbs={pathCrumbs(shown)}
+                  path={shown}
+                  wiki={wiki}
+                />
+              </PagePane>
+            )}
+          </div>
+        </div>
+      </WikiShown>
+    );
+  }
+
   if (path === "") {
     return <WikiIndex crumbs={crumbs} wiki={wiki} />;
   }
-
-  const titleOf = (target: string) =>
-    pages.data?.find((page) => page.path === target)?.title ?? humanize(target);
 
   return (
     <WikiPageScreen
       crumbs={[
         ...crumbs.map(({ label, link }) => ({ label, link })),
         { label: "Wiki", link: <Link {...wikiTarget(wiki, "")} /> },
-        ...ancestors(path).map((target) => ({
-          label: titleOf(target),
-          link: <Link {...wikiTarget(wiki, target)} />,
-        })),
+        ...pathCrumbs(path),
       ]}
       path={path}
       wiki={wiki}

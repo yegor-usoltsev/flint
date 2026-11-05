@@ -76,9 +76,11 @@ import { UserAvatar } from "~/components/user-avatar";
 import { WikiTree } from "~/components/wiki-tree";
 import { WorkspaceDialog } from "~/components/workspace-dialog";
 import { WorkspaceLogo } from "~/components/workspace-logo";
+import { useMediaQuery } from "~/hooks/use-media-query";
 import { signOut } from "~/lib/api";
 import type { Me, Project, Workspace } from "~/lib/api-types";
 import { copyText } from "~/lib/copy";
+import { twoPaneQuery } from "~/lib/page-pane";
 import { projectsQuery } from "~/lib/queries";
 import { settingsGroups } from "~/lib/settings-groups";
 import { isTheme, setTheme, themeItems, useTheme } from "~/lib/theme";
@@ -477,6 +479,7 @@ export const AppSidebar = ({
   const createIssue = useCreateIssue();
   const openPalette = useOpenPalette();
   const wikiPath = useWikiPath(`/${slug}/wiki`);
+  const split = useMediaQuery(twoPaneQuery);
 
   useEffect(
     () =>
@@ -552,7 +555,7 @@ export const AppSidebar = ({
                   <BookOpenIcon />
                   <span>Wiki</span>
                 </SidebarMenuButton>
-                {wikiPath === null ? null : (
+                {wikiPath === null || split ? null : (
                   <WikiTree
                     current={wikiPath}
                     wiki={workspaceWiki(workspace)}
