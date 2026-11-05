@@ -621,7 +621,7 @@ const IssueBody = ({
           {ready ? (
             <>
               <IssueDevelopment issue={data} />
-              <IssueAttachments editable={editable} issue={data} />
+              <IssueAttachments compact editable={editable} issue={data} />
             </>
           ) : null}
         </aside>
