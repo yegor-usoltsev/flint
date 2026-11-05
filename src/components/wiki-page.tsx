@@ -183,7 +183,7 @@ const RowLink = ({
   <Link
     {...props}
     {...wikiTarget(wiki, node.path)}
-    className="group/row hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    className="group/row hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus data-shown:shadow-focus-bar flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
     data-shown={use(WikiShown) === node.path ? "" : undefined}
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle without an explicit role the button role.
     role="link"

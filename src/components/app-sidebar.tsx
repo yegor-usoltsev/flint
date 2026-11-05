@@ -546,7 +546,7 @@ export const AppSidebar = ({
                 <SidebarMenuButton
                   render={
                     <Link
-                      activeOptions={{ exact: true }}
+                      activeOptions={{ exact: !split }}
                       params={{ _splat: "", slug }}
                       to="/$slug/wiki/$"
                     />
