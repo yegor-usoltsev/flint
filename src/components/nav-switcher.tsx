@@ -70,7 +70,7 @@ const WikiPages = ({ path }: { path: string }) => {
                 style={{ "--depth": `${Math.min(depth, 3) * 1.25}rem` }}
               />
             )}
-            {node.page?.kind === "folder" ? <FolderIcon /> : <FileTextIcon />}
+            {node.page?.kind === "page" ? <FileTextIcon /> : <FolderIcon />}
             <span className="truncate">{node.title}</span>
             <Here shown={node.path === path} />
           </DropdownMenuItem>
