@@ -252,10 +252,18 @@
 
 @utility remote-flash {
   animation: remote-flash 1.6s var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    background-color: var(--row-selected-hover);
+  }
 }
 
 @utility remote-flash-again {
   animation: remote-flash-again 1.6s var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    background-color: var(--row-selected-hover);
+  }
 }
 
 @utility border-hairline {
