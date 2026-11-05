@@ -9,6 +9,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through 
 - Browser URLs come from `PUBLIC_HOST` in `.env`; the app and Gitea listen on `PUBLIC_HOST_BIND`, so `localhost` may not answer.
 - `bun run lint` (tsc and Ultracite; `lint:fix` fixes) runs in the prek pre-commit hook over the whole working tree, so each parallel writer needs its own worktree.
 - `bun test` needs the compose Postgres and gives each checkout its own test database. Call `resetDatabase` in `beforeEach`, test a route with `callRoute(Route, request)` from `test/helpers.ts`, and stub Gitea by spying on `fetch`.
+- A new endpoint needs an entry in the outsider matrix of `src/server/access.test.ts`, which `tsc` enforces, so every route keeps answering 404 outside the caller's workspaces.
 - `bun run cli:smoke` drives every CLI command group against the running app after `bun run demo` (it signs in as alice and uses `acme/ENG`).
 - `.devcontainer/` runs the compose `app` profile and `bun run demo` in GitHub Codespaces on private ports 4700 and 4701; the demo probes `DEMO_HEALTH_URL` there, because a private port's public URL needs GitHub sign-in.
 
