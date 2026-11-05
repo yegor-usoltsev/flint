@@ -257,14 +257,16 @@ const General = () => {
           description="Without a logo the initial shows on this color"
           label="Color"
         >
-          <ColorSwatches
-            disabled={!isAdmin}
-            label="Workspace color"
-            onChange={(color) => {
-              update.mutate({ color });
-            }}
-            value={workspace.color}
-          />
+          <div className="max-sm:w-full">
+            <ColorSwatches
+              disabled={!isAdmin}
+              label="Workspace color"
+              onChange={(color) => {
+                update.mutate({ color });
+              }}
+              value={workspace.color}
+            />
+          </div>
         </SettingsRow>
       </SettingsSection>
       {isAdmin ? (

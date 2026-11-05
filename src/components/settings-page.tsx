@@ -29,6 +29,7 @@ import {
 import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { useAutosaveText } from "~/lib/use-autosave-text";
+import { useWorkspace } from "~/lib/use-workspace";
 
 export interface SettingsParent {
   label: string;
@@ -42,6 +43,8 @@ export const SettingsHeader = ({
   label?: string;
   parent?: SettingsParent;
 }) => {
+  const workspace = useWorkspace();
+
   const account = useLocation({
     select: (location) =>
       /\/settings\/account(?:\/|$)/u.test(location.pathname),
@@ -57,7 +60,7 @@ export const SettingsHeader = ({
       <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList className="flex-nowrap">
           <BreadcrumbItem className="max-md:hidden">
-            {account ? "Account" : "Workspace"}
+            {account ? "Account" : workspace.name}
           </BreadcrumbItem>
           {parent === undefined ? null : (
             <>

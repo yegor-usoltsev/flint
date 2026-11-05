@@ -85,6 +85,9 @@ const RevokeToken = ({ token }: { token: ApiToken }) => {
   );
 };
 
+const inlineCode =
+  "bg-surface-2 border-hairline rounded px-1 py-px font-mono text-xs";
+
 const NewKey = ({ slug }: { slug: string }) => (
   <Link
     className={buttonVariants()}
@@ -122,8 +125,9 @@ const TokenRows = () => {
         <EmptyHeader>
           <EmptyTitle>No API keys yet</EmptyTitle>
           <EmptyDescription>
-            Sign in the flint CLI with <code>flint login</code>, or set a key as{" "}
-            <code>FLINT_TOKEN</code> in your scripts.
+            Sign in the flint CLI with{" "}
+            <code className={inlineCode}>flint login</code>, or set a key as{" "}
+            <code className={inlineCode}>FLINT_TOKEN</code> in your scripts.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
