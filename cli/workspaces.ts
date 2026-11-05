@@ -794,7 +794,7 @@ const registerAttachments = (program: Command) => {
     .argument("<id>", "attachment id")
     .option(
       "-o, --output <path>",
-      "file to write (default: the attachment's name, with a flint- prefix unless it is an image, video, audio or PDF; never overwritten)"
+      "file to write (default: the attachment's name, saved as flint-<name>.download unless it is an image, video, audio or PDF; never overwritten)"
     )
     .action(
       action(async (id: string, options: { output?: string }) => {
