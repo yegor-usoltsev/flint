@@ -71,6 +71,7 @@ import { copyText } from "~/lib/copy";
 import { newId } from "~/lib/ids";
 import { formatRelative } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
+import { useRememberRecent } from "~/lib/recent";
 import { usePageTitle } from "~/lib/site";
 import { discardDraft, useDraft, useHasDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
@@ -721,6 +722,20 @@ const CopyLinkButton = ({ id }: { id: string }) => (
   </Hint>
 );
 
+const useRememberPage = (wiki: Wiki, page: WikiPage, deleted: boolean) => {
+  useRememberRecent(
+    wiki.slug,
+    deleted
+      ? undefined
+      : {
+          href: `/doc/${page.id}`,
+          kind: "page",
+          label: page.path,
+          title: page.title,
+        }
+  );
+};
+
 const PageEditor = ({
   crumbs,
   deleted,
@@ -747,6 +762,8 @@ const PageEditor = ({
   const actions = useNodeActions(wiki, page, { shortcuts: true });
   const editor = useRef<MarkdownEditorHandle>(null);
   const bodyBox = useRef<HTMLDivElement>(null);
+
+  useRememberPage(wiki, page, deleted);
 
   const write =
     (field: "body" | "title") =>

@@ -65,6 +65,8 @@ import {
   issuesQuery,
   projectQuery,
 } from "~/lib/queries";
+import { useRememberRecent } from "~/lib/recent";
+import type { RecentItem } from "~/lib/recent";
 import { usePageTitle } from "~/lib/site";
 import { useIssueDraft } from "~/lib/use-draft";
 import { useHotkey } from "~/lib/use-hotkey";
@@ -690,6 +692,14 @@ const IssueBody = ({
   );
 };
 
+const recentIssue = (slug: string, issue: Issue): RecentItem => ({
+  href: `/${slug}/issue/${issue.key}`,
+  kind: "issue",
+  label: issue.key,
+  statusId: issue.statusId,
+  title: issue.title,
+});
+
 const IssueScreen = ({
   issueKey,
   project,
@@ -740,6 +750,10 @@ const IssueScreen = ({
   });
   useHotkey("escape", back);
   useContextIssue(data, editable);
+  useRememberRecent(
+    workspace.slug,
+    editable ? recentIssue(workspace.slug, data) : undefined
+  );
   usePageTitle(data && `${data.key} ${data.title}`);
   useHotkey("backspace", remove, { mod: true });
 
