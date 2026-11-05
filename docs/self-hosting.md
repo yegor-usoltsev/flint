@@ -36,6 +36,8 @@ In Gitea's `app.ini`, raise `[ui] FEED_MAX_COMMIT_NUM` (the local stack uses 50)
 
 Adding a member looks the username up in Gitea's API without credentials and ties the invite to that account, so only it joins, under whatever name it signs in. If Gitea hides the account from anonymous visitors (`[service] REQUIRE_SIGNIN_VIEW`, or a private or limited profile), only someone who has already signed in to Flint can be added.
 
+Upgrading to migration `0006_invites_by_gitea_id.sql` moves pending invites, which held only a username, into `legacy_invites`; list them with `select w.slug, l.gitea_username, l.role, l.created_at from legacy_invites l join workspaces w on w.id = l.workspace_id;`. Re-inviting each name in Settings › Members ties the invite to that Gitea account.
+
 ### How links work
 
 An issue key such as `ENG-12` in a branch name (`feature/eng-12-fix` counts), commit message, or pull request title or body links that item to the issue, with the pull request's state and CI statuses. Every repository on the instance counts. Flint itself never writes to Gitea or changes an issue's status.
