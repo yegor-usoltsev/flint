@@ -17,6 +17,7 @@ const listMax = 1440;
 const panelMaxShare = 0.65;
 const defaultShare = 0.42;
 const splitByDefault = 1800;
+export const splitQuery = `(min-width: ${splitByDefault}px)`;
 const openKey = "flint:issue-panel";
 const widthKey = "flint:issue-panel-width";
 

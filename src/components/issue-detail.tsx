@@ -51,13 +51,19 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
+import { useMediaQuery } from "~/hooks/use-media-query";
 import { isNotFound, useMe, useUsername } from "~/lib/api";
 import type { Issue, IssueSummary, ProjectDetail } from "~/lib/api-types";
 import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
 import { useContextIssue } from "~/lib/issue-focus";
-import { usePanel, usePanelFits } from "~/lib/issue-panel";
+import {
+  splitQuery,
+  usePanel,
+  usePanelFits,
+  usePanelOpen,
+} from "~/lib/issue-panel";
 import { orderIssues } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
 import { useMyIssues } from "~/lib/my-issues";
@@ -728,13 +734,14 @@ const IssueScreen = ({
   const { origin } = neighbors;
   const back = useBack(origin);
   const username = useUsername();
+  const full = useLocation({ select: (location) => location.state.full });
 
   const go = (key: string | undefined) => {
     if (key !== undefined) {
       void navigate({
         params: { issueKey: key, slug: workspace.slug },
         replace: true,
-        state: { from: origin, walk: neighbors.keys },
+        state: { from: origin, full, walk: neighbors.keys },
         to: "/$slug/issue/$issueKey",
       });
     }
@@ -879,6 +886,7 @@ const PanelScreen = ({
                 origin === undefined
                   ? undefined
                   : { ...origin, panel: issueKey },
+              full: true,
             }}
             to="/$slug/issue/$issueKey"
           >
@@ -976,11 +984,45 @@ export const IssuePanelContent = ({
   );
 };
 
+const SplitIssue = ({
+  issueKey,
+  project,
+}: {
+  issueKey: string;
+  project: ProjectDetail;
+}) => {
+  const { slug } = useWorkspace();
+  const origin = useOrigin(project);
+
+  if (origin.view === "mine") {
+    return (
+      <Navigate
+        params={{ slug }}
+        replace
+        search={{ issue: issueKey }}
+        to="/$slug/my-issues"
+      />
+    );
+  }
+
+  return (
+    <Navigate
+      params={{ key: origin.projectKey, slug }}
+      replace
+      search={{ ...origin.search, issue: issueKey }}
+      to="/$slug/project/$key"
+    />
+  );
+};
+
 export const IssueDetail = ({ issueKey }: { issueKey: string }) => {
   const workspace = useWorkspace();
   const workspaces = useMe().data?.workspaces;
   const key = issueKey.toUpperCase();
   const project = useQuery(projectQuery(key.split("-")[0] ?? ""));
+  const full = useLocation({ select: (location) => location.state.full });
+  const wide = useMediaQuery(splitQuery);
+  const panelOpen = usePanelOpen();
 
   if (project.isError && project.data === undefined) {
     return (
@@ -1017,6 +1059,10 @@ export const IssueDetail = ({ issueKey }: { issueKey: string }) => {
         to="/$slug/issue/$issueKey"
       />
     );
+  }
+
+  if (wide && panelOpen && full !== true) {
+    return <SplitIssue issueKey={key} project={project.data} />;
   }
 
   return (
