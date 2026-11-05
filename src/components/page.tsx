@@ -115,7 +115,10 @@ export const Page = ({
             />
           </>
         )}
-        <Breadcrumb className="@container min-w-0 flex-1">
+        <Breadcrumb
+          aria-label={pane === "detail" ? "Page breadcrumb" : undefined}
+          className="@container min-w-0 flex-1"
+        >
           <BreadcrumbList className="flex-nowrap">
             {crumbs.map((crumb, index) => {
               const hidden = cn(
