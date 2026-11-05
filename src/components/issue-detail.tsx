@@ -490,55 +490,20 @@ const IssueActions = ({
   </DropdownMenu>
 );
 
-const Toolbar = ({
-  branch,
-  issue,
-  slug,
-}: {
-  branch: string;
-  issue: Issue;
-  slug: string;
-}) => (
-  <div className="hidden @min-[820px]:sticky @min-[820px]:top-0 @min-[820px]:z-10 @min-[820px]:block @min-[820px]:h-0">
-    <div className="flex justify-end gap-1.5 px-3 pt-2 @min-[820px]:pt-1.5">
-      {[
-        {
-          icon: LinkIcon,
-          label: "Copy issue URL",
-          run: async () => {
-            await copyText(issueUrl(slug, issue.key), "issue link");
-          },
-        },
-        {
-          icon: CopyIcon,
-          label: "Copy issue ID",
-          run: async () => {
-            await copyText(issue.key, "issue ID");
-          },
-        },
-        {
-          icon: GitBranchIcon,
-          label: "Copy git branch name",
-          run: async () => {
-            await copyText(branch, "git branch name");
-          },
-        },
-      ].map(({ icon: Icon, label, run }) => (
-        <Hint key={label} label={label}>
-          <Button
-            aria-label={label}
-            onClick={() => {
-              void run();
-            }}
-            size="icon-round"
-            variant="outline"
-          >
-            <Icon />
-          </Button>
-        </Hint>
-      ))}
-    </div>
-  </div>
+const CopyLink = ({ issueKey, slug }: { issueKey: string; slug: string }) => (
+  <Hint label="Copy issue URL">
+    <Button
+      aria-label="Copy issue URL"
+      className="max-md:hidden"
+      onClick={() => {
+        void copyText(issueUrl(slug, issueKey), "issue link");
+      }}
+      size="icon-sm"
+      variant="ghost"
+    >
+      <LinkIcon />
+    </Button>
+  </Hint>
 );
 
 const useWide = () => {
@@ -579,17 +544,13 @@ const IssueBody = ({
   data,
   placeholder,
   project,
-  toolbar,
 }: {
   data: Issue | undefined;
   placeholder: boolean;
   project: ProjectDetail;
-  toolbar: boolean;
 }) => {
-  const workspace = useWorkspace();
   const updateIssue = useUpdateIssue();
   const deletion = useDeleteIssue();
-  const username = useUsername();
   const description = useRef<MarkdownEditorHandle>(null);
   const { measure, wide } = useWide();
   const ready = data !== undefined && !placeholder;
@@ -610,83 +571,66 @@ const IssueBody = ({
     );
 
   return (
-    <>
-      {ready && toolbar ? (
-        <Toolbar
-          branch={branchName(username, data.key, data.title)}
-          issue={data}
-          slug={workspace.slug}
-        />
-      ) : null}
-      <div className="issue-layout pb-16" ref={measure}>
-        <article
-          className={cn(
-            "flex min-w-0 flex-col gap-4 px-3.5 pt-2.5 md:pt-5.75 @min-[820px]:col-start-2",
-            toolbar && "@min-[820px]:pt-14.75"
-          )}
-        >
-          {ready && data.deletedAt !== null ? (
-            <DeletedBanner
-              onRestore={() => {
-                void deletion.restore([data]);
-              }}
-            />
-          ) : null}
-          {ready ? (
-            <Title
-              editable={editable}
-              issue={data}
-              key={`title-${data.id}`}
-              onDone={() => {
-                description.current?.focus();
-              }}
-            />
-          ) : (
-            <h2 className="text-title">
-              {data?.title ?? <Skeleton className="h-8 w-2/3" />}
-            </h2>
-          )}
-          {wide ? null : (
-            <div className="flex flex-wrap gap-1.5">{properties("pills")}</div>
-          )}
-          {ready ? (
-            <Description
-              sections={!wide}
-              editable={editable}
-              editor={description}
-              issue={data}
-              key={`description-${data.id}`}
-            />
-          ) : (
-            <div aria-busy className="flex flex-col gap-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-          )}
-          {ready ? (
-            <IssueTimeline editable={editable} issue={data} project={project} />
-          ) : null}
-        </article>
-        {wide ? (
-          <aside
-            aria-label="Issue details"
-            className={cn(
-              "sticky top-0 col-start-3 flex flex-col gap-8 self-start px-1",
-              toolbar ? "pt-18.75" : "pt-5.75"
-            )}
-          >
-            {properties("rail")}
-            {ready ? (
-              <>
-                <IssueDevelopment issue={data} />
-                <IssueAttachments editable={editable} issue={data} />
-              </>
-            ) : null}
-          </aside>
+    <div className="issue-layout pb-16" ref={measure}>
+      <article className="flex min-w-0 flex-col gap-4 px-3.5 pt-2.5 md:pt-5.75 @min-[820px]:col-start-2">
+        {ready && data.deletedAt !== null ? (
+          <DeletedBanner
+            onRestore={() => {
+              void deletion.restore([data]);
+            }}
+          />
         ) : null}
-      </div>
-    </>
+        {ready ? (
+          <Title
+            editable={editable}
+            issue={data}
+            key={`title-${data.id}`}
+            onDone={() => {
+              description.current?.focus();
+            }}
+          />
+        ) : (
+          <h2 className="text-title">
+            {data?.title ?? <Skeleton className="h-8 w-2/3" />}
+          </h2>
+        )}
+        {wide ? null : (
+          <div className="flex flex-wrap gap-1.5">{properties("pills")}</div>
+        )}
+        {ready ? (
+          <Description
+            sections={!wide}
+            editable={editable}
+            editor={description}
+            issue={data}
+            key={`description-${data.id}`}
+          />
+        ) : (
+          <div aria-busy className="flex flex-col gap-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        )}
+        {ready ? (
+          <IssueTimeline editable={editable} issue={data} project={project} />
+        ) : null}
+      </article>
+      {wide ? (
+        <aside
+          aria-label="Issue details"
+          className="sticky top-0 col-start-3 flex flex-col gap-8 self-start px-1 pt-5.75"
+        >
+          {properties("rail")}
+          {ready ? (
+            <>
+              <IssueDevelopment issue={data} />
+              <IssueAttachments editable={editable} issue={data} />
+            </>
+          ) : null}
+        </aside>
+      ) : null}
+    </div>
   );
 };
 
@@ -759,6 +703,7 @@ const IssueScreen = ({
     <Page
       actions={
         <>
+          <CopyLink issueKey={issueKey} slug={workspace.slug} />
           <Neighbors
             count={neighbors.count}
             index={neighbors.index}
@@ -782,7 +727,6 @@ const IssueScreen = ({
         data={data}
         placeholder={issue.isPlaceholderData}
         project={project}
-        toolbar
       />
     </Page>
   );
@@ -886,7 +830,6 @@ const PanelScreen = ({
             data={data}
             placeholder={issue.isPlaceholderData}
             project={project}
-            toolbar={false}
           />
         )}
       </div>

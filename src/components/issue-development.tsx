@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import {
   ChevronRightIcon,
+  CircleHelpIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
 } from "lucide-react";
@@ -8,6 +9,7 @@ import { useId, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 
 import { CiIcon, PullRequestIcon } from "~/components/issue-parts";
+import { Button } from "~/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -203,17 +205,30 @@ export const IssueDevelopment = ({
   return (
     <section aria-labelledby={heading} className="flex flex-col">
       <h2
-        className="text-muted-foreground flex h-7 items-center font-medium"
+        className="text-muted-foreground flex h-7 items-center gap-1.5 font-medium"
         id={heading}
       >
         Development
+        {issue.links.length === 0 ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={`Mention ${issue.key} in a branch name, commit message or pull request to link it here`}
+                  size="icon-xs"
+                  variant="ghost"
+                />
+              }
+            >
+              <CircleHelpIcon aria-hidden />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-60">
+              Mention {issue.key} in a branch name, commit message or pull
+              request to link it here.
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
       </h2>
-      {issue.links.length === 0 ? (
-        <p className="text-muted-foreground text-xs">
-          Mention {issue.key} in a branch name, commit message or pull request
-          to link it here.
-        </p>
-      ) : null}
       {pulls.length > 0 ? (
         <Group title="Pull requests">
           {pulls.map((link) => (

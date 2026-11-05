@@ -967,7 +967,6 @@ const PageEditor = ({
               body={body.value}
               compact
               editable={!deleted}
-              hint="Paste or drop files into the page, or attach them here."
               id={page.id}
               path={`/wiki/${page.id}/attachments`}
             />
