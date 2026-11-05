@@ -950,7 +950,7 @@ const PanelScreen = ({
           />
         ) : null}
       </header>
-      <div className="@container min-h-0 flex-1 overflow-y-auto">
+      <div className="pane-text @container min-h-0 flex-1 overflow-y-auto">
         {issue.isError && data === undefined ? (
           <PanelError
             error={issue.error}

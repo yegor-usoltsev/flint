@@ -232,11 +232,21 @@
 }
 
 @utility text-title {
-  font-size: 1.5rem;
-  line-height: 2rem;
+  font-size: var(--title-size, 1.5rem);
+  line-height: var(--title-leading, 2rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 32;
+}
+
+@utility pane-text {
+  --title-size: 1.25rem;
+  --title-leading: 1.75rem;
+
+  & .text-prose {
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+  }
 }
 
 @utility border-hairline {
