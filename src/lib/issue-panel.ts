@@ -183,17 +183,25 @@ export const setPanelSpace = (space: number, enabled: boolean) => {
 };
 
 let workspace: string | null = null;
+let page: string | null = null;
 
 export const syncPanelIssue = (
   issue: string | null,
   slug: string,
-  scope: PanelScope
+  scope: PanelScope,
+  path: string
 ) => {
+  const moved = path !== page;
+
+  page = path;
+
   if (slug !== workspace || scope !== snapshot().scope) {
     workspace = slug;
     update({ issue, picked: false, scope });
   } else if (issue !== null && issue !== snapshot().issue) {
     update({ issue, picked: false });
+  } else if (issue === null && moved && snapshot().picked) {
+    update({ issue: null, picked: false });
   }
 };
 

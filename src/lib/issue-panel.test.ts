@@ -28,24 +28,24 @@ test("on very wide screens the panel takes what the capped list leaves", () => {
 });
 
 test("a link replaces the panel issue, page changes keep it and a new scope clears it", () => {
-  syncPanelIssue("ENG-1", "acme", "list");
+  syncPanelIssue("ENG-1", "acme", "list", "/acme/project/ENG");
   expect(panelIssue()).toBe("ENG-1");
 
-  syncPanelIssue(null, "acme", "list");
+  syncPanelIssue(null, "acme", "list", "/acme/project/DES");
   expect(panelIssue()).toBe("ENG-1");
 
-  syncPanelIssue("ENG-2", "acme", "list");
+  syncPanelIssue("ENG-2", "acme", "list", "/acme/project/DES");
   expect(panelIssue()).toBe("ENG-2");
 
-  syncPanelIssue(null, "acme", "wiki");
+  syncPanelIssue(null, "acme", "wiki", "/acme/wiki");
   expect(panelIssue()).toBeNull();
 
-  syncPanelIssue("ENG-3", "acme", "wiki");
-  syncPanelIssue(null, "other", "wiki");
+  syncPanelIssue("ENG-3", "acme", "wiki", "/acme/wiki");
+  syncPanelIssue(null, "other", "wiki", "/other/wiki");
   expect(panelIssue()).toBeNull();
 });
 
-test("an automatic preview stays out of the URL until the user opens it", () => {
+const withBrowser = (run: (location: { href: string }) => void) => {
   const location = { href: "http://flint.test/acme/my-issues" };
   const items = new Map<string, string>();
 
@@ -69,13 +69,30 @@ test("an automatic preview stays out of the URL until the user opens it", () => 
   });
 
   try {
-    const queryClient = new QueryClient();
+    run(location);
+  } finally {
+    for (const name of ["document", "History", "localStorage", "window"]) {
+      Reflect.deleteProperty(globalThis, name);
+    }
+  }
+};
 
-    queryClient.setQueryData(
-      ["issues", "p"],
-      [{ deletedAt: null, id: "1", key: "ENG-1" }]
-    );
-    syncPanelIssue(null, "acme", "list");
+const firstRowClient = () => {
+  const queryClient = new QueryClient();
+
+  queryClient.setQueryData(
+    ["issues", "p"],
+    [{ deletedAt: null, id: "1", key: "ENG-1" }]
+  );
+
+  return queryClient;
+};
+
+test("an automatic preview stays out of the URL until the user opens it", () => {
+  withBrowser((location) => {
+    const queryClient = firstRowClient();
+
+    syncPanelIssue(null, "acme", "list", "/acme/my-issues");
     setPanelSpace(2000, true);
 
     expect(showFirstRow(queryClient)).toBe(true);
@@ -84,9 +101,22 @@ test("an automatic preview stays out of the URL until the user opens it", () => 
 
     openPanel("ENG-1");
     expect(new URL(location.href).searchParams.get("issue")).toBe("ENG-1");
-  } finally {
-    for (const name of ["document", "History", "localStorage", "window"]) {
-      Reflect.deleteProperty(globalThis, name);
-    }
-  }
+  });
+});
+
+test("another list drops an automatic preview but keeps an opened issue", () => {
+  withBrowser(() => {
+    const queryClient = firstRowClient();
+
+    syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
+    setPanelSpace(2000, true);
+    expect(showFirstRow(queryClient)).toBe(true);
+
+    syncPanelIssue(null, "acme", "list", "/acme/project/DES");
+    expect(panelIssue()).toBeNull();
+
+    openPanel("ENG-1");
+    syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
+    expect(panelIssue()).toBe("ENG-1");
+  });
 });

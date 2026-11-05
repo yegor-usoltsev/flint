@@ -4,6 +4,7 @@ import {
   useMatch,
   useNavigate,
   useParams,
+  useRouterState,
   useSearch,
 } from "@tanstack/react-router";
 import { cn } from "cn";
@@ -360,6 +361,10 @@ export const IssuePanelHost = ({
   const queryClient = useQueryClient();
   const href = useLocation({ select: (location) => location.href });
 
+  const path = useRouterState({
+    select: (router) => router.resolvedLocation?.pathname ?? "",
+  });
+
   const scope = useLocation({
     select: (location) =>
       /^\/[^/]+\/wiki(?:\/|$)/u.test(location.pathname) ? "wiki" : "list",
@@ -383,8 +388,8 @@ export const IssuePanelHost = ({
   const width = clampWidth(state.width, space, origin?.view !== "board");
 
   useEffect(() => {
-    syncPanelIssue(issue, slug, scope);
-  }, [issue, scope, slug]);
+    syncPanelIssue(issue, slug, scope, path);
+  }, [issue, path, scope, slug]);
 
   const waiting = state.open && state.available && state.issue === null;
 
