@@ -692,79 +692,21 @@ const registerTokens = (program: Command) => {
 const attachmentRows = (attachments: Attachment[]) =>
   table(attachments.map((item) => [item.id, item.filename, item.url]));
 
-const loadedNames = new Set([
-  "agents.md",
-  "bunfig.toml",
-  "cargo.toml",
-  "claude.md",
-  "compose.yaml",
-  "compose.yml",
-  "conftest.py",
-  "default.nix",
-  "deno.json",
-  "deno.jsonc",
-  "docker-compose.yaml",
-  "docker-compose.yml",
-  "dockerfile",
-  "flake.nix",
-  "gemfile",
-  "gemini.md",
-  "gnumakefile",
-  "go.mod",
-  "jsconfig.json",
-  "justfile",
-  "makefile",
-  "mise.local.toml",
-  "mise.toml",
-  "package.json",
-  "pnpm-workspace.yaml",
-  "pyproject.toml",
-  "rakefile",
-  "setup.cfg",
-  "setup.py",
-  "shell.nix",
-  "taskfile.yaml",
-  "taskfile.yml",
-  "tsconfig.json",
-]);
-
-const withoutEndDots = (text: string) => {
-  let end = text.length;
-
-  while (end > 0 && /[\s.]/u.test(text.charAt(end - 1))) {
-    end -= 1;
-  }
-
-  return text.slice(0, end);
-};
-
-const downloadName = (filename: string) => {
-  const name = withoutEndDots(
-    (filename.normalize("NFKC").split(/[\\/]/u).at(-1) ?? "")
-      .replaceAll(/[\p{Cc}\p{Cf}]/gu, "")
-      .normalize("NFKC")
-      .replaceAll(":", "_")
-      .replace(/^[\s.]+/u, "")
+const keepsName = (name: string) =>
+  !name.startsWith(".") &&
+  /\.(?:avif|gif|heic|jpe?g|m4a|mov|mp3|mp4|ogg|opus|pdf|png|wav|webm|webp)$/iu.test(
+    name
+  ) &&
+  !/^(?:aux|con|conin\$|conout\$|nul|prn|(?:com|lpt)[\d¹²³])(?:\.|$)/iu.test(
+    name
   );
 
-  const lower = name.toUpperCase().toLowerCase();
+const downloadName = (filename: string) => {
+  const name = (filename.split(/[\\/]/u).at(-1) ?? "")
+    .replaceAll(/[\p{Cc}\p{Cf}]/gu, "")
+    .replaceAll(/[<>:"|?*]/gu, "_");
 
-  if (loadedNames.has(lower) || /\.config\.[cm]?[jt]s$/u.test(lower)) {
-    throw new CliError(
-      `${name} is a file name that tools load from the current directory; pass -o <path>`,
-      1
-    );
-  }
-
-  if (
-    /^(?:aux|con|conin\$|conout\$|nul|prn|(?:com|lpt)[\d¹²³])(?:\.|$)/u.test(
-      lower
-    )
-  ) {
-    return `_${name}`;
-  }
-
-  return name === "" ? "attachment" : name;
+  return keepsName(name) ? name : `flint-${name}`;
 };
 
 const registerAttachments = (program: Command) => {
@@ -837,7 +779,7 @@ const registerAttachments = (program: Command) => {
     .argument("<id>", "attachment id")
     .option(
       "-o, --output <path>",
-      "file to write (default: the attachment's name without leading dots, never overwritten)"
+      "file to write (default: the attachment's name, with a flint- prefix unless it is an image, video, audio or PDF; never overwritten)"
     )
     .action(
       action(async (id: string, options: { output?: string }) => {

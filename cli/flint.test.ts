@@ -948,26 +948,27 @@ test("a failed wiki append still reports the uploaded attachments", async () => 
   });
 });
 
-test("attachment download keeps dotfiles and tool configs out of the current directory unless -o names them", async () => {
+test("attachment download keeps media names and prefixes every other name, so no tool loads the file", async () => {
   await withFiles(async (directory) => {
+    const saved = [
+      [".npmrc", "flint-.npmrc"],
+      ["..", "flint-.."],
+      [".\u2028/tmp/flint-elsewhere/.yarnrc", "flint-.yarnrc"],
+      ["C:package.json", "flint-C_package.json"],
+      ["NUL.png", "flint-NUL.png"],
+      ["Screenshot 1.PNG", "Screenshot 1.PNG"],
+      ['a<b>c"d|e?f*g:h.png', "a_b_c_d_e_f_g_h.png"],
+      ["compose.override.yaml", "flint-compose.override.yaml"],
+      ["noxfile.py", "flint-noxfile.py"],
+      ["package.json", "flint-package.json"],
+      ["settings.gradle", "flint-settings.gradle"],
+      ["tox.ini", "flint-tox.ini"],
+      ["\u200C.png", "flint-.png"],
+    ] as const;
+
     stubApi(
       Object.fromEntries(
-        [
-          ".npmrc",
-          "..",
-          "bunfig.toml",
-          "vite.config.ts",
-          "Makefile",
-          ".\u2028/tmp/flint-elsewhere/.yarnrc",
-          "C:package.json",
-          "package.json. ",
-          "NUL.txt",
-          "package\u200C.json",
-          "ma\u212Aefile",
-          "\uFF50\uFF41\uFF43\uFF4B\uFF41\uFF47\uFF45\uFF0E\uFF4A\uFF53\uFF4F\uFF4E",
-          "\u200C.envrc",
-          "makef\u0131le",
-        ].map((name, index) => [
+        saved.map(([name], index) => [
           `GET /files/f${index}`,
           () =>
             new Response("registry=https://evil.test", {
@@ -984,54 +985,33 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
     process.chdir(directory);
 
     try {
-      expect(await flint("attachment", "download", "f0")).toBe(0);
-      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "npmrc" });
-      expect(await flint("attachment", "download", "f1")).toBe(0);
-      expect(JSON.parse(printed.join(""))).toMatchObject({
-        path: "attachment",
-      });
-      expect(await flint("attachment", "download", "f5")).toBe(0);
-      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "yarnrc" });
-      expect(await flint("attachment", "download", "f6")).toBe(0);
-      expect(JSON.parse(printed.join(""))).toMatchObject({
-        path: "C_package.json",
-      });
-      expect(await flint("attachment", "download", "f7")).toBe(1);
-      expect(printed.join("")).toContain("pass -o <path>");
-      expect(await flint("attachment", "download", "f8")).toBe(0);
-      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "_NUL.txt" });
-
-      for (const id of ["f9", "f10", "f11", "f13"]) {
+      for (const [index, [, target]] of saved.entries()) {
         // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
-        expect(await flint("attachment", "download", id)).toBe(1);
-        expect(printed.join("")).toContain("pass -o <path>");
-      }
-
-      expect(await flint("attachment", "download", "f12")).toBe(0);
-      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "envrc" });
-
-      for (const id of ["f2", "f3", "f4"]) {
-        // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
-        expect(await flint("attachment", "download", id)).toBe(1);
-        expect(printed.join("")).toContain("pass -o <path>");
+        expect(await flint("attachment", "download", `f${index}`)).toBe(0);
+        expect(JSON.parse(printed.join(""))).toMatchObject({
+          path: target,
+        });
       }
 
       expect(
-        await flint("attachment", "download", "f2", "-o", "bunfig.toml")
+        await flint(
+          "attachment",
+          "download",
+          `f${saved.findIndex(([name]) => name === "package.json")}`,
+          "-o",
+          "package.json"
+        )
       ).toBe(0);
       const files = await readdir(directory);
 
-      expect(files.toSorted()).toEqual([
-        "C_package.json",
-        "_NUL.txt",
-        "a.txt",
-        "attachment",
-        "b.txt",
-        "bunfig.toml",
-        "envrc",
-        "npmrc",
-        "yarnrc",
-      ]);
+      expect(files.toSorted()).toEqual(
+        [
+          "a.txt",
+          "b.txt",
+          "package.json",
+          ...saved.map(([, target]) => target),
+        ].toSorted()
+      );
     } finally {
       process.chdir(cwd);
     }
@@ -1057,7 +1037,7 @@ test("attachment download saves the file under its name and never overwrites it"
       "GET /files/f1": () =>
         new Response("hello", {
           headers: {
-            "content-disposition": `attachment; filename="_.txt"; filename*=UTF-8''${encodeURIComponent("../Заметка.txt")}`,
+            "content-disposition": `attachment; filename="_.txt"; filename*=UTF-8''${encodeURIComponent("../Скриншот.png")}`,
           },
         }),
     });
@@ -1068,12 +1048,12 @@ test("attachment download saves the file under its name and never overwrites it"
 
     try {
       expect(await flint("attachment", "download", "f1")).toBe(0);
-      expect(await Bun.file(path.join(directory, "Заметка.txt")).text()).toBe(
+      expect(await Bun.file(path.join(directory, "Скриншот.png")).text()).toBe(
         "hello"
       );
       expect(await flint("attachment", "download", "f1")).toBe(1);
       expect(JSON.parse(printed.join(""))).toMatchObject({
-        error: { message: "Заметка.txt exists; pass -o <path>" },
+        error: { message: "Скриншот.png exists; pass -o <path>" },
       });
       expect(await flint("attachment", "download", "f1", "-o", "a.txt")).toBe(
         0
