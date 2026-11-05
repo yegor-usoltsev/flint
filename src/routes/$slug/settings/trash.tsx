@@ -154,15 +154,24 @@ const ExpiresIn = ({
 }) => (
   <Hint label={`Deleted ${formatDate(deletedAt)}`}>
     <span className={tableDate}>
-      <span className="sr-only">Deleted forever </span>
+      <span className="sr-only">
+        Deleted {formatDate(deletedAt)}, removed for good{" "}
+      </span>
       {expiresText(daysLeft(purgeAt))}
     </span>
   </Hint>
 );
 
-const ExpiresLine = ({ purgeAt }: { purgeAt: string }) => (
+const ExpiresLine = ({
+  deletedAt,
+  purgeAt,
+}: {
+  deletedAt: string;
+  purgeAt: string;
+}) => (
   <span className="text-muted-foreground text-xs md:hidden">
-    Deleted forever {expiresText(daysLeft(purgeAt))}
+    Deleted {formatDate(deletedAt)}, removed for good{" "}
+    {expiresText(daysLeft(purgeAt))}
   </span>
 );
 
@@ -192,7 +201,7 @@ const TrashRow = ({
   <li className={tableRow}>
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="flex min-w-0 items-center gap-2">{children}</div>
-      <ExpiresLine purgeAt={purgeAt} />
+      <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
     </div>
     <DeletedBy user={deletedBy} />
     <ExpiresIn deletedAt={deletedAt} purgeAt={purgeAt} />

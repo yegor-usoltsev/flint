@@ -58,8 +58,10 @@ export const SettingsHeader = ({
       />
       <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList className="flex-nowrap">
-          <BreadcrumbItem className="max-md:hidden">
-            {account ? "Account" : workspace.name}
+          <BreadcrumbItem className="min-w-12 max-md:hidden">
+            <span className="truncate">
+              {account ? "Account" : workspace.name}
+            </span>
           </BreadcrumbItem>
           {parent === undefined ? null : (
             <>
