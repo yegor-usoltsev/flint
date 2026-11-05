@@ -23,7 +23,7 @@ export const AddMemberSchema = v.object({
     v.string(),
     v.trim(),
     v.transform((name) => name.replace(/^@/u, "")),
-    v.regex(/^[\w.-]{1,40}$/u, "Enter a Gitea username")
+    v.regex(/^[\da-zA-Z][\w.-]{0,39}$/u, "Enter a Gitea username")
   ),
 });
 

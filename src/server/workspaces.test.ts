@@ -567,6 +567,21 @@ test("adding a member matches the username without asking Gitea", async () => {
   expect(spy).not.toHaveBeenCalled();
 });
 
+test("an invite needs a name Gitea allows", async () => {
+  const { root } = await setup();
+
+  for (const username of ["..", ".", "-x", "_x", ".hidden", "\u212Aelvin"]) {
+    // oxlint-disable-next-line no-await-in-loop -- Each name is checked on its own.
+    expect(await addMember(root, "acme", username)).toMatchObject({
+      status: 400,
+    });
+  }
+
+  expect(await addMember(root, "acme", "x.y_z-1")).toMatchObject({
+    status: 201,
+  });
+});
+
 test("a member added to a workspace hears it on a stream of another workspace", async () => {
   const { bob, root } = await setup();
   const controller = new AbortController();

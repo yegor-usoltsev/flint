@@ -29,6 +29,30 @@ test("typed queries reach the URL", () => {
   ).toBe("/projects/ENG/issues?label=bug&label=ui&status=todo");
 });
 
+test("dot segments never reach a request path", () => {
+  for (const username of [".", ".."]) {
+    expect(() =>
+      endpointPath("DELETE /workspaces/:slug/members/:username", {
+        slug: "acme",
+        username,
+      })
+    ).toThrow("cannot be part of a request path");
+  }
+
+  expect(() =>
+    endpointPath("GET /workspaces/:slug/wiki/*", {
+      _splat: "docs/../../../me/tokens",
+      slug: "acme",
+    })
+  ).toThrow("cannot be part of a request path");
+  expect(
+    endpointPath("DELETE /workspaces/:slug/members/:username", {
+      slug: "acme",
+      username: "a..b",
+    }).path
+  ).toBe("/workspaces/acme/members/a..b");
+});
+
 const sentBodies = async (send: (form: FormData) => Promise<Workspace>) => {
   const spy = spyOn(globalThis, "fetch").mockResolvedValue(
     Response.json({ slug: "acme" })
