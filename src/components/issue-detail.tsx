@@ -775,7 +775,15 @@ const IssueScreen = ({
         </>
       }
       className="@container"
-      crumbs={[originCrumb(origin, project, workspace.slug)]}
+      crumbs={[
+        {
+          label: workspace.name,
+          link: (
+            <Link params={{ slug: workspace.slug }} to="/$slug/my-issues" />
+          ),
+        },
+        originCrumb(origin, project, workspace.slug),
+      ]}
       title={data === undefined ? issueKey : `${issueKey} ${data.title}`}
     >
       <IssueBody
