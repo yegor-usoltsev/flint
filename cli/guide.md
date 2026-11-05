@@ -66,7 +66,7 @@ flint wiki append notes/agent-log -d "- 2026-10-23: migrated the cache"
 2. Write with that base: `flint issue update ENG-12 -F new.md --if-version 7` or `flint wiki put guides/deploy -F new.md --id <id> --base-revision 4`.
 3. On `error.code` `conflict`, `error.current` holds the current object. Apply your change to its `description` or `body` and retry with its `version` or `revision`, so the other edit survives.
 
-Status, priority, assignee, comments, `wiki append`, `wiki attach --inline`, `--add-label` and `--remove-label` need no base, because the server applies them atomically; `-l` replaces all labels. `issue check` and `issue attach --inline` send the version themselves. After a `conflict`, rerun `attach` as is, but view the issue before rerunning `check`, because item numbers may have shifted.
+Status, priority, assignee, comments, `wiki append`, `--add-label` and `--remove-label` need no base, because the server applies them atomically; `-l` replaces all labels. `issue check` and `attach --inline` send the version or revision themselves. If `attach --inline` still ends in `conflict`, its files are already uploaded and listed in `attachments`: add their urls by editing the description or with `wiki append` instead of rerunning it, which uploads them again. View the issue before rerunning `check`, because item numbers may have shifted.
 
 ## More
 
