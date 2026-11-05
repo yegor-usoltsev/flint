@@ -407,6 +407,39 @@ test("deleting an issue that is already deleted fails with the API's deleted err
   });
 });
 
+test("text from the server cannot steer the terminal", async () => {
+  const title = "Fix \u001B]0;pwned\u0007\u001B[1A\u009B2J\r\nnext";
+
+  stubApi({
+    "DELETE /issues/ENG-2": reply(
+      { error: { code: "conflict", message: "Label “\u001B[2Kx” exists" } },
+      409
+    ),
+    "GET /issues/ENG-1": reply({ ...issue("ENG-1"), title }),
+    "GET /projects/ENG": project,
+    "GET /workspaces/acme/labels": labels,
+    "GET /workspaces/acme/members": reply([]),
+  });
+
+  const { argv } = process;
+
+  process.argv = [...argv, "--human"];
+
+  try {
+    expect(await flint("issue", "view", "ENG-1")).toBe(0);
+    expect(printed.join("\n")).toContain("Fix \uFFFD]0;pwned\uFFFD");
+    expect(printed.join("\n")).not.toMatch(/[^\P{Cc}\n]/u);
+    expect(await flint("issue", "delete", "ENG-2", "--yes", "--human")).toBe(1);
+    expect(printed.join("\n")).toContain("Label “\uFFFD[2Kx” exists");
+  } finally {
+    process.argv = argv;
+  }
+
+  expect(await flint("issue", "view", "ENG-1")).toBe(0);
+  expect(printed.join("")).not.toMatch(/\p{Cc}/u);
+  expect(JSON.parse(printed.join(""))).toMatchObject({ title });
+});
+
 test("usage errors exit 2 before any request", async () => {
   stubApi({});
 

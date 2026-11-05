@@ -43,14 +43,26 @@ export const wantsJson = (argv = process.argv) =>
   argv.includes("--json") ||
   (!argv.includes("--human") && !process.stdout.isTTY);
 
+export const terminalText = (text: string) =>
+  text.replaceAll("\r\n", "\n").replaceAll(/[^\P{Cc}\n\t]/gu, "\uFFFD");
+
+export const jsonText = (json: string) =>
+  json.replaceAll(
+    /[\u007F-\u009F]/gu,
+    (character) =>
+      `\\u${(character.codePointAt(0) ?? 0).toString(16).padStart(4, "0")}`
+  );
+
 export const print = async ({ raw, result, text }: Output) => {
   if (raw !== undefined) {
-    console.log(raw);
+    console.log(process.stdout.isTTY ? terminalText(raw) : raw);
   } else if (wantsJson()) {
-    console.log(JSON.stringify(result));
+    console.log(jsonText(JSON.stringify(result)));
   } else {
     console.log(
-      text === undefined ? JSON.stringify(result, null, 2) : await text()
+      terminalText(
+        text === undefined ? JSON.stringify(result, null, 2) : await text()
+      )
     );
   }
 };
