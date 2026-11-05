@@ -55,23 +55,20 @@ const useProjectUpdate = (project: ProjectDetail) => {
   });
 };
 
-const ProjectHeading = ({ project }: { project: ProjectDetail }) => {
+const ProjectIconPicker = ({ project }: { project: ProjectDetail }) => {
   const workspace = useWorkspace();
   const update = useProjectUpdate(project);
 
   return (
-    <span className="flex items-center gap-3">
-      <IconPicker
-        color={project.color}
-        disabled={workspace.role !== "admin"}
-        icon={project.icon}
-        label="Project icon"
-        onChange={(change) => {
-          update.mutate(change);
-        }}
-      />
-      <span className="truncate">{project.name}</span>
-    </span>
+    <IconPicker
+      color={project.color}
+      disabled={workspace.role !== "admin"}
+      icon={project.icon}
+      label="Project icon"
+      onChange={(change) => {
+        update.mutate(change);
+      }}
+    />
   );
 };
 
@@ -178,9 +175,9 @@ const ProjectSettingsPage = () => {
           Open project
         </Link>
       }
-      heading={
+      leading={
         project.data === undefined ? undefined : (
-          <ProjectHeading project={project.data} />
+          <ProjectIconPicker project={project.data} />
         )
       }
       title={project.data?.name ?? key.toUpperCase()}

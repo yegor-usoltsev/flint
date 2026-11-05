@@ -97,14 +97,14 @@ export const SettingsPage = ({
   actions,
   children,
   description,
-  heading,
+  leading,
   parent,
   title,
 }: {
   actions?: ReactNode;
   children: ReactNode;
   description?: ReactNode;
-  heading?: ReactNode;
+  leading?: ReactNode;
   parent?: SettingsParent;
   title: string;
 }) => (
@@ -114,8 +114,9 @@ export const SettingsPage = ({
       <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
         <div className="flex flex-col gap-1 px-0.5">
           <div className="flex items-start gap-4">
-            <h1 className="min-w-0 flex-1 text-2xl font-semibold">
-              {heading ?? title}
+            {leading}
+            <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">
+              {title}
             </h1>
             {actions === undefined ? null : (
               <div className="flex h-8 shrink-0 items-center gap-2">

@@ -129,13 +129,11 @@ const dayMs = 86_400_000;
 
 const startOfDay = (time: number) => new Date(time).setHours(0, 0, 0, 0);
 
-const daysLeft = (deletedAt: string, trashDays: number, now = Date.now()) =>
+const daysLeft = (purgeAt: string, now = Date.now()) =>
   Math.max(
     0,
     Math.round(
-      (startOfDay(new Date(deletedAt).getTime() + trashDays * dayMs) -
-        startOfDay(now)) /
-        dayMs
+      (startOfDay(new Date(purgeAt).getTime()) - startOfDay(now)) / dayMs
     )
   );
 
@@ -147,40 +145,26 @@ const expiresText = (days: number) => {
   return days === 1 ? "tomorrow" : `in ${days} days`;
 };
 
-const ExpiresIn = ({ deletedAt }: { deletedAt: string }) => {
-  const trashDays = useMe().data?.trashDays;
-
-  if (trashDays === undefined) {
-    return <span className={tableDate} />;
-  }
-
-  const days = daysLeft(deletedAt, trashDays);
-
-  return (
-    <Hint label={`Deleted ${formatDate(deletedAt)}`}>
-      <span className={tableDate}>
-        <span className="sr-only">Deleted forever </span>
-        {expiresText(days)}
-      </span>
-    </Hint>
-  );
-};
-
-const ExpiresLine = ({ deletedAt }: { deletedAt: string }) => {
-  const trashDays = useMe().data?.trashDays;
-
-  if (trashDays === undefined) {
-    return null;
-  }
-
-  const days = daysLeft(deletedAt, trashDays);
-
-  return (
-    <span className="text-muted-foreground text-xs md:hidden">
-      Deleted forever {expiresText(days)}
+const ExpiresIn = ({
+  deletedAt,
+  purgeAt,
+}: {
+  deletedAt: string;
+  purgeAt: string;
+}) => (
+  <Hint label={`Deleted ${formatDate(deletedAt)}`}>
+    <span className={tableDate}>
+      <span className="sr-only">Deleted forever </span>
+      {expiresText(daysLeft(purgeAt))}
     </span>
-  );
-};
+  </Hint>
+);
+
+const ExpiresLine = ({ purgeAt }: { purgeAt: string }) => (
+  <span className="text-muted-foreground text-xs md:hidden">
+    Deleted forever {expiresText(daysLeft(purgeAt))}
+  </span>
+);
 
 const TrashRow = ({
   children,
@@ -191,6 +175,7 @@ const TrashRow = ({
   onPurge,
   onRestore,
   pending,
+  purgeAt,
   purgeText,
 }: {
   children: ReactNode;
@@ -201,15 +186,16 @@ const TrashRow = ({
   onPurge: () => void;
   onRestore: () => void;
   pending: boolean;
+  purgeAt: string;
   purgeText: string;
 }) => (
   <li className={tableRow}>
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="flex min-w-0 items-center gap-2">{children}</div>
-      <ExpiresLine deletedAt={deletedAt} />
+      <ExpiresLine purgeAt={purgeAt} />
     </div>
     <DeletedBy user={deletedBy} />
-    <ExpiresIn deletedAt={deletedAt} />
+    <ExpiresIn deletedAt={deletedAt} purgeAt={purgeAt} />
     <div className="flex w-28 shrink-0 items-center justify-end gap-1">
       <Button
         disabled={pending}
@@ -266,6 +252,7 @@ const IssueRow = ({
   return (
     <TrashRow
       deletedAt={issue.deletedAt}
+      purgeAt={issue.purgeAt}
       deletedBy={issue.deletedBy}
       isAdmin={isAdmin}
       name={issue.key}
@@ -348,6 +335,7 @@ const PageRow = ({
   return (
     <TrashRow
       deletedAt={page.deletedAt}
+      purgeAt={page.purgeAt}
       deletedBy={page.deletedBy}
       isAdmin={isAdmin}
       name={page.title}
