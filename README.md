@@ -37,7 +37,7 @@ Open <http://localhost:4700>, choose **Continue with Gitea** and sign in as `ali
 
 `bun run demo` creates the workspace Acme Corp with projects, issues, wiki pages and a Getting started project that tours the features, plus a Gitea repository whose pull request shows up on ENG-5 with its CI check. Without it, Flint asks you to create a workspace; tick **Include demo data** there for a short Getting started project and wiki guide.
 
-To open Flint from another device, set `PUBLIC_HOST` (the host name the browser uses) and `PUBLIC_HOST_BIND` (the address to publish on) in `.env`, then rerun `docker compose up -d` and restart `bun run dev`. `docker compose down -v` deletes all data.
+To open Flint from another device, set `PUBLIC_HOST` (the host name the browser uses) and `PUBLIC_HOST_BIND` (the address to publish on) in `.env`, then rerun `docker compose up -d` and restart `bun run dev`. Anyone who reaches that address can then sign in to Gitea as `alice`, a site admin, with the password `password`, so publish only on a network you trust. `docker compose down -v` deletes all data.
 
 ## Self-hosting
 
