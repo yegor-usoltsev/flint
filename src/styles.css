@@ -248,9 +248,9 @@
 
   @container (width >= 820px) {
     grid-template-columns:
-      1fr minmax(0, 805px) minmax(0, clamp(280px, 26.087cqw + 66.087px, 400px))
-      1fr;
-    column-gap: clamp(16px, 8.696cqw - 55.304px, 56px);
+      1fr minmax(0, 50.3125rem)
+      minmax(0, clamp(17.5rem, 26.087cqw + 4.1304rem, 25rem)) 1fr;
+    column-gap: clamp(1rem, 8.696cqw - 3.4565rem, 3.5rem);
   }
 }
 
