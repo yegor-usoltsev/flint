@@ -147,11 +147,7 @@ export const AttachmentList = ({
             {attachments.length}
           </span>
         ) : null}
-        {editable ? (
-          <span className="ml-auto">
-            <AttachButton onFiles={upload} />
-          </span>
-        ) : null}
+        {editable ? <AttachButton onFiles={upload} /> : null}
       </header>
       {failed ? (
         <p className="text-destructive flex items-center gap-2 text-xs">

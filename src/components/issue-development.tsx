@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import {
   ChevronRightIcon,
-  CircleHelpIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
 } from "lucide-react";
@@ -9,7 +8,6 @@ import { useId, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 
 import { CiIcon, PullRequestIcon } from "~/components/issue-parts";
-import { Button } from "~/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -183,13 +181,7 @@ const Group = ({ children, title }: { children: ReactNode; title: string }) => (
   </div>
 );
 
-export const IssueDevelopment = ({
-  compact = false,
-  issue,
-}: {
-  compact?: boolean;
-  issue: Issue;
-}) => {
+export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
   const heading = useId();
   const [allCommits, setAllCommits] = useState(false);
   const pulls = issue.links.filter((link) => link.kind === "pull_request");
@@ -198,36 +190,17 @@ export const IssueDevelopment = ({
   const hidden = commits.length - shownCommits;
   const manyRepos = new Set(issue.links.map((link) => link.repo)).size > 1;
 
-  if (compact && issue.links.length === 0) {
+  if (issue.links.length === 0) {
     return null;
   }
 
   return (
     <section aria-labelledby={heading} className="flex flex-col">
       <h2
-        className="text-muted-foreground flex h-7 items-center gap-1.5 font-medium"
+        className="text-muted-foreground flex h-7 items-center font-medium"
         id={heading}
       >
         Development
-        {issue.links.length === 0 ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  aria-label={`Mention ${issue.key} in a branch name, commit message or pull request to link it here`}
-                  size="icon-xs"
-                  variant="ghost"
-                />
-              }
-            >
-              <CircleHelpIcon aria-hidden />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-60">
-              Mention {issue.key} in a branch name, commit message or pull
-              request to link it here.
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
       </h2>
       {pulls.length > 0 ? (
         <Group title="Pull requests">

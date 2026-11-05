@@ -6,7 +6,6 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { cn } from "cn";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -299,10 +298,7 @@ const Description = ({
     <section aria-label="Description" className="flex flex-col gap-2">
       <MarkdownEditor
         checkable={editable}
-        className={cn(
-          "text-prose",
-          description.value === "" ? "min-h-24" : "focus-within:min-h-24"
-        )}
+        className="text-prose focus-within:min-h-24"
         draft={description.draft}
         editable={editable}
         label="Description"
@@ -340,7 +336,7 @@ const Description = ({
       />
       {sections ? (
         <>
-          <IssueDevelopment compact issue={issue} />
+          <IssueDevelopment issue={issue} />
           <IssueAttachments compact editable={editable} issue={issue} />
         </>
       ) : null}
