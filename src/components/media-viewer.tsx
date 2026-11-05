@@ -322,6 +322,11 @@ const Slide = ({
         alt={item.name}
         className="max-h-full max-w-full translate-x-(--zoom-x) translate-y-(--zoom-y) scale-(--zoom) object-contain select-none"
         draggable={false}
+        onLoad={(event) => {
+          const image = event.currentTarget;
+
+          onFit(image.offsetWidth / image.naturalWidth);
+        }}
         ref={(image) => {
           media(image);
 
