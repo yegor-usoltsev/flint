@@ -6,6 +6,7 @@ import { Route as loginRoute } from "~/routes/api/auth/login";
 import { Route as logoutRoute } from "~/routes/api/auth/logout";
 import { Route as meRoute } from "~/routes/api/v1/me";
 import { db } from "~/server/db.server";
+import { env } from "~/server/env.server";
 
 import {
   appRequest,
@@ -97,7 +98,7 @@ test("login redirects to Gitea with PKCE and a one-time state", async () => {
   );
   expect(location.searchParams.get("code_challenge_method")).toBe("S256");
   expect(response.headers.getSetCookie()[0]).toContain("HttpOnly");
-  expect(response.headers.getSetCookie()[0]).toContain("Path=/api/auth");
+  expect(response.headers.getSetCookie()[0]).toContain("Path=/");
 });
 
 test("callback returns to a same-origin returnTo and ignores others", async () => {
@@ -263,4 +264,61 @@ test("logout ends the session and rejects cross-site requests", async () => {
   expect(response.status).toBe(204);
   expect(response.headers.getSetCookie()[0]).toContain("Max-Age=0");
   expect(await getMe(cookie)).toHaveProperty("status", 401);
+});
+
+test("over https the session lives in a __Host- cookie, and an unprefixed one counts only for a session from before", async () => {
+  const appUrl = env.APP_URL;
+
+  env.APP_URL = "https://flint.test";
+
+  try {
+    const { response } = await login();
+    const started = await callRoute(loginRoute, appRequest("/api/auth/login"));
+    const [attempt = ""] = started.headers.getSetCookie();
+
+    expect(attempt).toStartWith("__Host-flint_oauth=");
+    expect(attempt).toContain("Path=/;");
+    expect(attempt).toContain("Secure");
+
+    const cookies = response.headers.getSetCookie();
+
+    const session = cookies.find((cookie) =>
+      cookie.startsWith("__Host-flint_session=")
+    );
+
+    expect(session).toContain("Secure");
+    expect(
+      cookies.some(
+        (cookie) =>
+          cookie.startsWith("flint_session=;") && cookie.includes("Max-Age=0")
+      )
+    ).toBeTrue();
+
+    const token = session?.split(";")[0]?.split("=")[1] ?? "";
+    const legacy = await sessionCookieFor(await createUser("bob"));
+    const legacyToken = legacy.split("=")[1] ?? "";
+
+    await db`
+      update sessions set legacy_cookie = true
+      where token_hash <> ${createHash("sha256").update(token).digest("hex")}
+    `;
+
+    expect(await getMe(`__Host-flint_session=${token}`)).toHaveProperty(
+      "status",
+      200
+    );
+    expect(await getMe(`flint_session=${token}`)).toHaveProperty("status", 401);
+
+    const legacyMe = await getMe(`flint_session=${legacyToken}`);
+
+    expect(await legacyMe.json()).toMatchObject({ username: "bob" });
+
+    const both = await getMe(
+      `flint_session=${legacyToken}; __Host-flint_session=${token}`
+    );
+
+    expect(await both.json()).toMatchObject({ username: "alice" });
+  } finally {
+    env.APP_URL = appUrl;
+  }
 });
