@@ -134,7 +134,12 @@ const flush = (queryClient: QueryClient, slug: string) => {
 
         const row = rowOf(first[0]);
 
-        row?.scrollIntoView({ behavior: "smooth", block: "center" });
+        row?.scrollIntoView({
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
+          block: "center",
+        });
         row?.focus({ preventScroll: true });
       },
     },
@@ -155,15 +160,15 @@ export const noticeOffscreen = ({
   queryClient: QueryClient;
   slug: string;
 }) => {
+  if (actors.size === 0) {
+    return;
+  }
+
   for (const [id, actorId] of actors) {
     pending.set(id, {
       actorId,
       before: pending.get(id)?.before ?? before.get(id),
     });
-  }
-
-  if (pending.size === 0) {
-    return;
   }
 
   clearTimeout(timer);
