@@ -347,15 +347,45 @@ const Slide = ({
   return <FileCard item={item} />;
 };
 
+const ZoomLevel = ({
+  fit,
+  onFill,
+  onReset,
+  scale,
+}: {
+  fit: number;
+  onFill: (scale: number) => void;
+  onReset: () => void;
+  scale: number;
+}) => {
+  const percent = Math.round(fit * scale * 100);
+  const actual = percent === 100;
+
+  return (
+    <button
+      aria-label={actual ? "Fit to screen" : "Zoom to 100%"}
+      className="focus-visible:ring-ring rounded-md px-1.5 py-1 outline-none hover:text-white focus-visible:ring-2"
+      onClick={() => {
+        if (actual) {
+          onReset();
+        } else {
+          onFill(1 / fit);
+        }
+      }}
+      type="button"
+    >
+      {percent}%
+    </button>
+  );
+};
+
 export const MediaViewer = ({
   index,
   items,
-  natural = false,
   onIndex,
 }: {
   index: number | null;
   items: ViewerItem[];
-  natural?: boolean;
   onIndex: (index: number | null) => void;
 }) => {
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
@@ -418,9 +448,18 @@ export const MediaViewer = ({
                   {item.name}
                 </DialogPrimitive.Title>
                 <span className="flex-1 text-white/70 tabular-nums">
-                  {zoomable && fit?.src === item.src
-                    ? `${Math.round(fit.fit * zoom.view.scale * 100)}%`
-                    : null}
+                  {zoomable && fit?.src === item.src ? (
+                    <ZoomLevel
+                      fit={fit.fit}
+                      onFill={(next) => {
+                        zoom.fill(next);
+                      }}
+                      onReset={() => {
+                        zoom.keys("0");
+                      }}
+                      scale={zoom.view.scale}
+                    />
+                  ) : null}
                   {count > 1 ? (
                     <span className="ml-3">
                       {(index ?? 0) + 1} / {count}
@@ -473,10 +512,6 @@ export const MediaViewer = ({
                   media={setMedia}
                   onFit={(value) => {
                     setFit({ fit: value, src: item.src });
-
-                    if (natural && value < 1) {
-                      zoom.fill(1 / value);
-                    }
                   }}
                   view={zoom.view}
                 />

@@ -11,14 +11,14 @@ let renders = 0;
 
 const palettes = {
   dark: {
-    lineColor: "#6b6f7a",
+    lineColor: "#8d919c",
     primaryBorderColor: "#4a4d57",
     primaryColor: "#1c1d21",
     primaryTextColor: "#e4e5e9",
   },
   light: {
-    lineColor: "#9a9da6",
-    primaryBorderColor: "#d8dae0",
+    lineColor: "#6f737d",
+    primaryBorderColor: "#c3c6ce",
     primaryColor: "#f6f6f8",
     primaryTextColor: "#1c1d21",
   },
