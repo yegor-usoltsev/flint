@@ -11,22 +11,48 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import {
+  ArrowLeftIcon,
   BookOpenIcon,
   BoxIcon,
+  BuildingIcon,
   CheckIcon,
+  CircleDashedIcon,
   CircleDotIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  CodeXmlIcon,
+  CopyIcon,
   DeleteIcon,
+  EyeIcon,
+  FileCodeIcon,
   FileTextIcon,
+  FolderIcon,
+  GitBranchIcon,
+  KeyboardIcon,
   KeyRoundIcon,
+  LinkIcon,
+  ListChecksIcon,
+  ListFilterIcon,
   ListIcon,
+  LogOutIcon,
+  Maximize2Icon,
+  MessageSquareIcon,
+  PanelLeftIcon,
+  PanelRightIcon,
   PlusIcon,
   RotateCwIcon,
+  SaveIcon,
   SettingsIcon,
+  SignalHighIcon,
+  SquareCheckIcon,
   SquareKanbanIcon,
+  SunMoonIcon,
   TagIcon,
   Trash2Icon,
+  TypeIcon,
+  UserRoundCheckIcon,
+  UserRoundIcon,
+  XIcon,
 } from "lucide-react";
 import { createContext, use, useCallback, useEffect, useState } from "react";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
@@ -163,6 +189,59 @@ const groupOrder = [
   "Theme",
   "Account",
 ];
+
+const commandIcons = new Map(
+  Object.entries({
+    "assign-me": <UserRoundCheckIcon />,
+    assignee: <UserRoundIcon />,
+    "back-to-app": <ArrowLeftIcon />,
+    "clear-selection": <XIcon />,
+    comment: <MessageSquareIcon />,
+    "copy-branch": <GitBranchIcon />,
+    "copy-id": <CopyIcon />,
+    "copy-link": <LinkIcon />,
+    "copy-markdown": <FileCodeIcon />,
+    "copy-path": <FolderIcon />,
+    "copy-title": <TypeIcon />,
+    "copy-url": <LinkIcon />,
+    delete: <Trash2Icon />,
+    filter: <ListFilterIcon />,
+    "issue-panel": <PanelRightIcon />,
+    labels: <TagIcon />,
+    open: <Maximize2Icon />,
+    peek: <EyeIcon />,
+    priority: <SignalHighIcon />,
+    select: <SquareCheckIcon />,
+    "select-all": <ListChecksIcon />,
+    shortcuts: <KeyboardIcon />,
+    sidebar: <PanelLeftIcon />,
+    "sign-out": <LogOutIcon />,
+    status: <CircleDashedIcon />,
+    "toggle-view": <SquareKanbanIcon />,
+    "wiki-save": <SaveIcon />,
+    "wiki-source": <CodeXmlIcon />,
+  })
+);
+
+const prefixIcons = new Map(
+  Object.entries({
+    theme: <SunMoonIcon />,
+    workspace: <BuildingIcon />,
+  })
+);
+
+const CommandIcon = ({ command }: { command: PaletteCommand }) => {
+  const [prefix = ""] = command.id.split("-");
+
+  const icon =
+    command.icon ?? commandIcons.get(command.id) ?? prefixIcons.get(prefix);
+
+  if (icon !== undefined) {
+    return icon;
+  }
+
+  return <span aria-hidden className="size-4 shrink-0" />;
+};
 
 const OpenPalette = createContext<(() => void) | null>(null);
 
@@ -669,9 +748,7 @@ const RootList = ({
                 onSelect={run(command.run)}
                 value={command.id}
               >
-                {command.icon ?? (
-                  <span aria-hidden className="size-4 shrink-0" />
-                )}
+                <CommandIcon command={command} />
                 <span className="min-w-0 flex-1 truncate">{command.label}</span>
                 {command.hotkey === undefined ? null : (
                   <span
