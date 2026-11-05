@@ -254,7 +254,7 @@
   animation: remote-flash 1.6s var(--ease-out);
 
   @media (prefers-reduced-motion: reduce) {
-    background-color: var(--row-selected-hover);
+    background-color: var(--row-selected-hover) !important;
   }
 }
 
@@ -262,7 +262,7 @@
   animation: remote-flash-again 1.6s var(--ease-out);
 
   @media (prefers-reduced-motion: reduce) {
-    background-color: var(--row-selected-hover);
+    background-color: var(--row-selected-hover) !important;
   }
 }
 
