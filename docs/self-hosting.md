@@ -6,11 +6,13 @@ Flint runs as one container per database, next to PostgreSQL 18 with pgvector (s
 docker run -d --name flint -p 3000:3000 --env-file flint.env yusoltsev/flint:latest
 ```
 
-The image is also on `ghcr.io/yegor-usoltsev/flint`. Each start applies pending migrations (the first creates the `vector` extension), and `/api/health` answers 200 when PostgreSQL and the bucket are reachable, 503 otherwise.
+The image is also on `ghcr.io/yegor-usoltsev/flint`. Each start applies pending migrations (the first creates the `vector` extension), and `/api/health` answers 200 when PostgreSQL and the bucket are reachable, 503 otherwise. It checks them at most once every two seconds, so frequent probes do not run up bucket requests.
 
 Put a reverse proxy in front that terminates TLS and serves HTTP/2, because browsers without SharedWorker open an event stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings. Have the proxy send `Strict-Transport-Security: max-age=31536000`, so browsers stop trying plain HTTP after the first visit; add `includeSubDomains` only when every subdomain serves HTTPS.
 
 With an `https` `APP_URL`, the session and sign-in cookies carry the `__Host-` prefix, so a page on a sibling subdomain, such as Gitea's, cannot plant its own session in Flint. A sign-in from before this change keeps working from its old cookie until it expires.
+
+Each account gets about `SEARCH_EMBEDDINGS_PER_MINUTE` query embeddings a minute, after which search falls back to full text until the allowance refills. It can run `UPLOADS_PER_USER` uploads at once, with images resized in turns between accounts, and hold `STREAMS_PER_USER` event streams open, after which new ones answer 429 and retry until one closes. JSON request bodies stop at 4 MB. Flint counts all of this in memory per container, so limit anonymous traffic at the reverse proxy.
 
 ## Gitea
 
@@ -62,6 +64,9 @@ APP_URL=https://flint.example.com bun run gitea:external-tracker acme alice/webs
 | `EMBEDDING_MODEL` | `perplexity/pplx-embed-v1-0.6b` | Must return 1024 dimensions |
 | `EMBEDDING_TIMEOUT_MS` | `30000` | Embeddings request timeout while indexing |
 | `SEARCH_EMBEDDING_TIMEOUT_MS` | `1500` | How long search waits for semantic results before returning full-text ones |
+| `SEARCH_EMBEDDINGS_PER_MINUTE` | `300` | Query embeddings per account and minute; the search box asks for one per typed character |
+| `UPLOADS_PER_USER` | `8` | Uploads an account can run at once; more answer 429 |
+| `STREAMS_PER_USER` | `20` | Live-update streams an account can hold open; more answer 429 |
 | `PORT` | `3000` | Listening port |
 
 Cron schedules use the container's time zone, UTC unless `TZ` is set. After setting `EMBEDDING_API_KEY` or changing the model, embed existing content once with `docker exec flint bun dist/embeddings-backfill.js`. Semantic ranking is exact, so its cost grows with a workspace's content.

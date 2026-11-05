@@ -13,6 +13,7 @@ import { Route as membersRoute } from "~/routes/api/v1/workspaces/$slug/members/
 import { Route as projectsRoute } from "~/routes/api/v1/workspaces/$slug/projects";
 import { Route as streamRoute } from "~/routes/api/v1/workspaces/$slug/stream";
 import { Route as workspacesRoute } from "~/routes/api/v1/workspaces/index";
+import { env } from "~/server/env.server";
 
 import {
   appRequest,
@@ -611,4 +612,111 @@ test("a member added to a workspace hears it on a stream of another workspace", 
     `data: ${JSON.stringify({ entity: "member", id: "bob", projectId: null })}\n\n`
   );
   controller.abort();
+});
+
+test("past STREAMS_PER_USER a new event stream answers 429 and the open ones stay connected", async () => {
+  const { bob } = await setup();
+  const saved = env.STREAMS_PER_USER;
+  const controllers: AbortController[] = [];
+
+  env.STREAMS_PER_USER = 2;
+
+  const open = async () => {
+    const controller = new AbortController();
+
+    controllers.push(controller);
+
+    const response = await callRoute(
+      streamRoute,
+      appRequest("/api/v1/workspaces/globex/stream", {
+        headers: { cookie: bob },
+        signal: controller.signal,
+      }),
+      { slug: "globex" }
+    );
+
+    const reader = response.body
+      ?.pipeThrough(new TextDecoderStream())
+      .getReader();
+
+    if (response.status === 200) {
+      await reader?.read();
+    }
+
+    return { controller, reader, status: response.status };
+  };
+
+  try {
+    const first = await open();
+    const second = await open();
+    const third = await open();
+
+    expect(third.status).toBe(429);
+    expect(
+      await Promise.race([
+        first.reader?.read().then(() => "closed"),
+        Bun.sleep(50).then(() => "open"),
+      ])
+    ).toBe("open");
+
+    second.controller.abort();
+    await second.reader?.cancel();
+
+    const reopened = await open();
+    const past = await open();
+
+    expect(reopened.status).toBe(200);
+    expect(past.status).toBe(429);
+  } finally {
+    for (const controller of controllers) {
+      controller.abort();
+    }
+
+    env.STREAMS_PER_USER = saved;
+  }
+});
+
+test("an event stream aborted before it opens frees its slot", async () => {
+  const { bob } = await setup();
+  const saved = env.STREAMS_PER_USER;
+  const controllers: AbortController[] = [];
+
+  env.STREAMS_PER_USER = 1;
+
+  const open = async (aborted: boolean) => {
+    const controller = new AbortController();
+
+    controllers.push(controller);
+
+    if (aborted) {
+      controller.abort();
+    }
+
+    const response = await callRoute(
+      streamRoute,
+      appRequest("/api/v1/workspaces/globex/stream", {
+        headers: { cookie: bob },
+        signal: controller.signal,
+      }),
+      { slug: "globex" }
+    );
+
+    if (!aborted) {
+      await response.body?.cancel();
+    }
+
+    return response.status;
+  };
+
+  try {
+    await open(true);
+
+    expect(await open(false)).toBe(200);
+  } finally {
+    for (const controller of controllers) {
+      controller.abort();
+    }
+
+    env.STREAMS_PER_USER = saved;
+  }
 });

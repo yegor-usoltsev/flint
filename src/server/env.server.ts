@@ -59,10 +59,13 @@ const EnvSchema = v.object({
   S3_REGION: v.optional(Required, "auto"),
   S3_SECRET_ACCESS_KEY: Required,
   SEARCH_EMBEDDING_TIMEOUT_MS: positive("1500"),
+  SEARCH_EMBEDDINGS_PER_MINUTE: positive("300"),
   SESSION_LIFETIME_DAYS: positive("30"),
   STORAGE_SWEEP_CRON: v.optional(Cron, "1 0 * * 0"),
+  STREAMS_PER_USER: positive("20"),
   TRASH_PURGE_CRON: v.optional(Cron, "0 0 * * *"),
   TRASH_RETENTION_DAYS: positive("30"),
+  UPLOADS_PER_USER: positive("8"),
 });
 
 export const env = v.parse(EnvSchema, process.env);

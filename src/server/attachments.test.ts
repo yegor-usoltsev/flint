@@ -790,3 +790,66 @@ test("files uploaded while writing a new issue join it when it is created", asyn
   expect(await issueOf(other.id)).toBeNull();
   expect(await issueOf(linked.id)).not.toBe(issue.id);
 });
+
+test("UPLOADS_PER_USER caps one user's uploads in flight without slowing another user", async () => {
+  const { alice } = await setup();
+
+  const [root] = await db<
+    { id: string }[]
+  >`select id from users where username = 'root'`;
+
+  const rootAuth = await sessionCookieFor(root?.id ?? "");
+  const saved = env.UPLOADS_PER_USER;
+  const file = new File([text], "a.txt", { type: "text/plain" });
+  const { body, headers } = await multipart(file);
+  const bytes = new Uint8Array(body);
+  const gate = Promise.withResolvers<undefined>();
+  const reading = Promise.withResolvers<undefined>();
+  let pulls = 0;
+
+  env.UPLOADS_PER_USER = 1;
+
+  try {
+    const stream = new ReadableStream<Uint8Array>({
+      pull: async (controller) => {
+        pulls += 1;
+
+        if (pulls === 1) {
+          controller.enqueue(bytes.slice(0, 10));
+
+          return;
+        }
+
+        reading.resolve(undefined);
+        await gate.promise;
+        controller.enqueue(bytes.slice(10));
+        controller.close();
+      },
+    });
+
+    const first = callRoute(
+      issueAttachmentsRoute,
+      appRequest("/api/v1/issues/ENG-1/attachments", {
+        body: stream,
+        headers: { ...headers, cookie: alice, "sec-fetch-site": "same-origin" },
+        method: "POST",
+      }),
+      { issueKey: "ENG-1" }
+    );
+
+    await reading.promise;
+
+    expect(await upload(alice, file)).toMatchObject({
+      body: { error: { code: "rate_limited" } },
+      status: 429,
+    });
+    expect(await upload(rootAuth, file)).toMatchObject({ status: 201 });
+
+    gate.resolve(undefined);
+
+    expect(await first).toHaveProperty("status", 201);
+    expect(await upload(alice, file)).toMatchObject({ status: 201 });
+  } finally {
+    env.UPLOADS_PER_USER = saved;
+  }
+});
