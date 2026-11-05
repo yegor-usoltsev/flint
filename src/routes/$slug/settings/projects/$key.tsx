@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, LockIcon } from "lucide-react";
 
 import { ConfirmDelete } from "~/components/confirm-delete";
 import { IconPicker } from "~/components/icon-picker";
@@ -107,7 +107,8 @@ const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
           description="Issue keys, Git references and /issue links use it, so it never changes"
           label="Key"
         >
-          <span className="text-muted-foreground tracking-key">
+          <span className="text-muted-foreground tracking-key bg-muted inline-flex h-7 items-center gap-1.5 rounded-md px-2 font-mono text-xs">
+            <LockIcon aria-hidden className="size-3" />
             {project.key}
           </span>
         </SettingsRow>

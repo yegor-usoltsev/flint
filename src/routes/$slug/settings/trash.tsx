@@ -4,6 +4,7 @@ import { FileTextIcon, FolderIcon, TrashIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { Hint } from "~/components/issue-parts";
 import { LoadFailed } from "~/components/load-failed";
 import {
   SettingsFilter,
@@ -119,6 +120,33 @@ const useTrashAction = (
   });
 };
 
+const dayMs = 86_400_000;
+
+const daysLeft = (deletedAt: string, trashDays: number, now = Date.now()) =>
+  Math.max(
+    0,
+    Math.ceil((new Date(deletedAt).getTime() + trashDays * dayMs - now) / dayMs)
+  );
+
+const ExpiresIn = ({ deletedAt }: { deletedAt: string }) => {
+  const trashDays = useMe().data?.trashDays;
+
+  if (trashDays === undefined) {
+    return <span className={tableDate} />;
+  }
+
+  const days = daysLeft(deletedAt, trashDays);
+
+  return (
+    <Hint label={`Deleted ${formatDate(deletedAt)}`}>
+      <span className={tableDate}>
+        <span className="sr-only">Deleted forever </span>
+        {days <= 1 ? "today" : `in ${days} days`}
+      </span>
+    </Hint>
+  );
+};
+
 const TrashRow = ({
   children,
   deletedAt,
@@ -143,10 +171,7 @@ const TrashRow = ({
   <li className={tableRow}>
     <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
     <DeletedBy user={deletedBy} />
-    <span className={tableDate}>
-      <span className="sr-only">Deleted </span>
-      {formatDate(deletedAt)}
-    </span>
+    <ExpiresIn deletedAt={deletedAt} />
     <div className="flex w-28 shrink-0 items-center justify-end gap-1">
       <Button
         disabled={pending}
@@ -330,7 +355,7 @@ const TrashTable = ({
     <div aria-hidden className={tableHead}>
       <span className="flex-1">Name</span>
       <span className="w-40 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
-      <span className={tableDate}>Deleted</span>
+      <span className={tableDate}>Deleted forever</span>
       <span className="w-28 shrink-0" />
     </div>
     {issues.length === 0 && pages.length === 0 ? (
