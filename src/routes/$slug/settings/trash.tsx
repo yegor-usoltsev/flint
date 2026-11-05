@@ -319,10 +319,12 @@ const PageRow = ({
       purgeText={`The ${page.kind}${inside(page.descendants)} are deleted for everyone with their history and attachments. This cannot be undone.`}
     >
       <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
-      <span className="truncate font-medium">{page.title}</span>
-      <span className="text-muted-foreground truncate @max-xl/trash:hidden">
-        {page.path}
-        {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
+      <span className="flex min-w-0 flex-col py-1.5">
+        <span className="truncate font-medium">{page.title}</span>
+        <span className="text-muted-foreground truncate text-xs">
+          {page.path}
+          {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
+        </span>
       </span>
     </TrashRow>
   );
