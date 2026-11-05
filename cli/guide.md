@@ -4,7 +4,7 @@
 
 ## Setup
 
-1. Run `flint whoami`. On `not_logged_in`, ask the user to create an API token under Settings → API keys, ideally limited to the workspaces the task needs, and to run `flint login --url <url>` in their own terminal. Never put a token in a command you run, since other processes can read command lines. `FLINT_URL` and `FLINT_TOKEN` override the stored login.
+1. Run `flint whoami`. On `not_logged_in`, ask the user to create an API token under Settings → API keys, ideally limited to the workspaces the task needs, and to run `flint login --url <url>` in their own terminal. Login refuses `http://` except on localhost, because the token would travel unencrypted; `--insecure` allows it on a trusted network. Never put a token in a command you run, since other processes can read command lines. `FLINT_URL` and `FLINT_TOKEN` override the stored login.
 2. Once the user picks a repository's project, run `flint link -w <workspace> -p <KEY>` there. The `.flint.json` it writes saves `-w` and `-p` on later commands.
 
 ## Output and errors
@@ -47,7 +47,7 @@ Fixed: the editor keeps the draft now.
 EOF
 ```
 
-`--inline` appends files as the editor does: images other than SVG inline, video and audio as players, the rest as links. Elsewhere, put a file's url on a line of its own as `![alt](url)`, `<video src="url" controls></video>`, `<audio src="url" controls></audio>` or `[name](url)`. If an upload fails midway, a top-level `attachments` lists the files already uploaded, so retry only the rest. Files are capped at 25 MB by default (`too_large`), and static JPEG, PNG and WebP images are scaled down to 2560 px.
+`--inline` appends files as the editor does: images other than SVG inline, video and audio as players, the rest as links. Elsewhere, put a file's url on a line of its own as `![alt](url)`, `<video src="url" controls></video>`, `<audio src="url" controls></audio>` or `[name](url)`. If an upload fails midway, a top-level `attachments` lists the files already uploaded, so retry only the rest. Files are capped at 25 MB by default (`too_large`), and static JPEG, PNG and WebP images are scaled down to 2560 px. `flint attachment download <id>` saves an image, video, audio file or PDF under its name and any other file as `flint-<name>.download`, so a download never lands as a dotfile or a name that tools load or run, such as `package.json` or `x.test.ts`. It never overwrites a file; `-o <path>` writes exactly the path it names.
 
 ## Wiki
 
