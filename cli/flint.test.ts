@@ -952,17 +952,22 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
   await withFiles(async (directory) => {
     stubApi(
       Object.fromEntries(
-        [".npmrc", "..", "bunfig.toml", "vite.config.ts", "Makefile"].map(
-          (name, index) => [
-            `GET /files/f${index}`,
-            () =>
-              new Response("registry=https://evil.test", {
-                headers: {
-                  "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
-                },
-              }),
-          ]
-        )
+        [
+          ".npmrc",
+          "..",
+          "bunfig.toml",
+          "vite.config.ts",
+          "Makefile",
+          ".\u2028/tmp/flint-elsewhere/.yarnrc",
+        ].map((name, index) => [
+          `GET /files/f${index}`,
+          () =>
+            new Response("registry=https://evil.test", {
+              headers: {
+                "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+              },
+            }),
+        ])
       )
     );
 
@@ -977,6 +982,8 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
       expect(JSON.parse(printed.join(""))).toMatchObject({
         path: "attachment",
       });
+      expect(await flint("attachment", "download", "f5")).toBe(0);
+      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "yarnrc" });
 
       for (const id of ["f2", "f3", "f4"]) {
         // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
@@ -995,6 +1002,7 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
         "b.txt",
         "bunfig.toml",
         "npmrc",
+        "yarnrc",
       ]);
     } finally {
       process.chdir(cwd);
