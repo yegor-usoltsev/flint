@@ -3,6 +3,7 @@ import * as v from "valibot";
 
 import { ApiError } from "~/lib/api";
 import type { Attachment } from "~/lib/api-types";
+import { createLimit } from "~/lib/limit";
 
 const ErrorBodySchema = v.object({
   error: v.object({ code: v.string(), message: v.string() }),
@@ -19,7 +20,7 @@ const failure = (request: XMLHttpRequest) => {
   );
 };
 
-export const uploadFile = async (
+const send = async (
   path: string,
   file: File,
   onProgress?: (fraction: number) => void
@@ -57,6 +58,14 @@ export const uploadFile = async (
 
     request.send(form);
   });
+
+const uploads = createLimit(4);
+
+export const uploadFile = async (
+  path: string,
+  file: File,
+  onProgress?: (fraction: number) => void
+) => await uploads(async () => await send(path, file, onProgress));
 
 const sizeFormat = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 

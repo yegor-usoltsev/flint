@@ -20,6 +20,7 @@ import {
   normalizedTypes,
 } from "~/server/images.server";
 import { findIssue, selectIssue } from "~/server/issues.server";
+import { perKey, roundRobin, tooManyRequests } from "~/server/limits.server";
 import { findProject } from "~/server/projects.server";
 import { publish } from "~/server/realtime.server";
 import { deleteObjects, s3 } from "~/server/s3.server";
@@ -171,15 +172,8 @@ const cleanContentType = (type: string) => {
     : "application/octet-stream";
 };
 
-let imageQueue: Promise<unknown> = Promise.resolve();
-
-const serially = async <T>(task: () => Promise<T>) => {
-  const result = imageQueue.then(task);
-
-  imageQueue = result.catch(() => null);
-
-  return await result;
-};
+const images = roundRobin();
+const uploading = perKey(() => env.UPLOADS_PER_USER);
 
 const withExtension = (filename: string, extensions: readonly string[]) => {
   const extension = /\.[^.]*$/u.exec(filename)?.[0] ?? "";
@@ -189,11 +183,17 @@ const withExtension = (filename: string, extensions: readonly string[]) => {
     : `${filename.slice(0, filename.length - extension.length)}${extensions[0]}`;
 };
 
-const normalize = async (file: File, contentType: string, maxSide: number) => {
+const normalize = async (
+  userId: string,
+  file: File,
+  contentType: string,
+  maxSide: number
+) => {
   const filename = cleanFilename(file.name);
 
   const image = normalizedTypes.has(contentType)
-    ? await serially(
+    ? await images(
+        userId,
         async () => await normalizeImage(await file.bytes(), maxSide)
       )
     : null;
@@ -250,7 +250,7 @@ export const listAttachments = async (
   `;
 };
 
-export const uploadAttachment = async (
+const storeAttachment = async (
   actor: Actor,
   attachmentTarget: AttachmentTarget,
   request: Request
@@ -283,6 +283,7 @@ export const uploadAttachment = async (
   }
 
   const { body, contentType, filename, normalized, size } = await normalize(
+    actor.userId,
     file,
     claimedType,
     logo ? imageSides.logo : imageSides.attachment
@@ -327,6 +328,24 @@ export const uploadAttachment = async (
   }
 
   return attachment;
+};
+
+export const uploadAttachment = async (
+  actor: Actor,
+  attachmentTarget: AttachmentTarget,
+  request: Request
+) => {
+  if (!uploading.acquire(actor.userId)) {
+    throw tooManyRequests(
+      `Up to ${env.UPLOADS_PER_USER} uploads run at once; wait for one to finish`
+    );
+  }
+
+  try {
+    return await storeAttachment(actor, attachmentTarget, request);
+  } finally {
+    uploading.release(actor.userId);
+  }
 };
 
 export const uploadFile = async (

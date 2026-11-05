@@ -13,6 +13,7 @@ import { Route as membersRoute } from "~/routes/api/v1/workspaces/$slug/members/
 import { Route as projectsRoute } from "~/routes/api/v1/workspaces/$slug/projects";
 import { Route as streamRoute } from "~/routes/api/v1/workspaces/$slug/stream";
 import { Route as workspacesRoute } from "~/routes/api/v1/workspaces/index";
+import { env } from "~/server/env.server";
 
 import {
   appRequest,
@@ -611,4 +612,47 @@ test("a member added to a workspace hears it on a stream of another workspace", 
     `data: ${JSON.stringify({ entity: "member", id: "bob", projectId: null })}\n\n`
   );
   controller.abort();
+});
+
+test("past STREAMS_PER_USER a new event stream closes the user's oldest one", async () => {
+  const { bob } = await setup();
+  const saved = env.STREAMS_PER_USER;
+  const controllers = [new AbortController(), new AbortController()];
+
+  env.STREAMS_PER_USER = 2;
+
+  const open = async (controller: AbortController) => {
+    const response = await callRoute(
+      streamRoute,
+      appRequest("/api/v1/workspaces/globex/stream", {
+        headers: { cookie: bob },
+        signal: controller.signal,
+      }),
+      { slug: "globex" }
+    );
+
+    const reader = response.body
+      ?.pipeThrough(new TextDecoderStream())
+      .getReader();
+
+    await reader?.read();
+
+    return reader;
+  };
+
+  try {
+    const oldest = await open(new AbortController());
+    const [second, third] = await Promise.all(controllers.map(open));
+    const closed = await oldest?.read();
+
+    expect(closed?.done).toBeTrue();
+    expect(second).toBeDefined();
+    expect(third).toBeDefined();
+  } finally {
+    for (const controller of controllers) {
+      controller.abort();
+    }
+
+    env.STREAMS_PER_USER = saved;
+  }
 });

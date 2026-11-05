@@ -182,6 +182,39 @@ test.skipIf(live)(
 );
 
 test.skipIf(live)(
+  "past SEARCH_EMBEDDINGS_PER_MINUTE a user's searches stay full-text without asking for embeddings",
+  async () => {
+    const calls = stubEmbeddings();
+    const { auth, root } = await setup();
+    const saved = env.SEARCH_EMBEDDINGS_PER_MINUTE;
+
+    await createIssue(root, "ENG", issue("Fix login redirect"));
+    await settleEmbeddings();
+    calls.length = 0;
+    env.SEARCH_EMBEDDINGS_PER_MINUTE = 2;
+
+    try {
+      const results = [];
+
+      for (const q of ["login", "redirect", "login redirect"]) {
+        // oxlint-disable-next-line eslint/no-await-in-loop -- The limit counts searches in order.
+        results.push(await search(auth, `q=${encodeURIComponent(q)}`));
+      }
+
+      expect(results.map(({ semantic }) => semantic)).toEqual([
+        true,
+        true,
+        false,
+      ]);
+      expect(results[2]?.issues).toEqual(["ENG-1"]);
+      expect(calls).toEqual([["login"], ["redirect"]]);
+    } finally {
+      env.SEARCH_EMBEDDINGS_PER_MINUTE = saved;
+    }
+  }
+);
+
+test.skipIf(live)(
   "semantic search fills its candidate limit within a workspace despite closer foreign vectors",
   async () => {
     stubEmbeddings();

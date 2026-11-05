@@ -5,7 +5,7 @@ import type { TransactionSQL } from "bun";
 import * as v from "valibot";
 
 import type { GitLink } from "~/lib/api-types";
-import { errorResponse } from "~/server/api.server";
+import { errorResponse, readLimited } from "~/server/api.server";
 import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
 import { log } from "~/server/log.server";
@@ -488,33 +488,12 @@ const isSigned = (body: Uint8Array, signature: string | null) => {
   return given.length === expected.length && timingSafeEqual(given, expected);
 };
 
-const readLimited = async (request: Request) => {
-  if (Number(request.headers.get("content-length")) > maxPayloadBytes) {
-    return null;
-  }
-
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-
-  for await (const chunk of request.body ?? []) {
-    size += chunk.byteLength;
-
-    if (size > maxPayloadBytes) {
-      return null;
-    }
-
-    chunks.push(chunk);
-  }
-
-  return new Uint8Array(Bun.concatArrayBuffers(chunks));
-};
-
 export const receiveGiteaWebhook = async ({
   request,
 }: {
   request: Request;
 }) => {
-  const body = await readLimited(request);
+  const body = await readLimited(request, maxPayloadBytes);
 
   if (body === null) {
     return errorResponse(413, "too_large", "Payload too large");
