@@ -47,7 +47,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
   useEffect(() => {
     const pending = new Map<string, QueryKey>();
     const remote = new Set<string>();
-    const actors = new Map<string, string>();
+    const actors = new Map<string, Set<string>>();
     const stale = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
     let flushing = false;
@@ -156,7 +156,10 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
                 event.entity === "issue" &&
                 event.actorId !== undefined
               ) {
-                actors.set(event.id, event.actorId);
+                actors.set(
+                  event.id,
+                  (actors.get(event.id) ?? new Set()).add(event.actorId)
+                );
               }
 
               schedule();

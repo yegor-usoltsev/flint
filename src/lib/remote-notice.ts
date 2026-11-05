@@ -151,7 +151,7 @@ export const noticeOffscreen = ({
   queryClient,
   slug,
 }: {
-  actors: Map<string, string>;
+  actors: Map<string, Set<string>>;
   before: Map<string, string | undefined>;
   queryClient: QueryClient;
   slug: string;
@@ -160,11 +160,11 @@ export const noticeOffscreen = ({
     return;
   }
 
-  for (const [id, actorId] of actors) {
+  for (const [id, actorIds] of actors) {
     const earlier = pending.get(id);
 
     pending.set(id, {
-      actorIds: new Set([...(earlier?.actorIds ?? []), actorId]),
+      actorIds: new Set([...(earlier?.actorIds ?? []), ...actorIds]),
       before: earlier === undefined ? before.get(id) : earlier.before,
     });
   }
