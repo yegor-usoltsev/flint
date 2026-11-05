@@ -1485,7 +1485,7 @@ const WikiScreen = ({
     return (
       <WikiShown value={shown ?? null}>
         <div className="flex min-h-0 flex-1">
-          <div className="flex w-xl shrink-0 flex-col border-r">
+          <div className="flex w-96 shrink-0 flex-col border-r">
             <PagePane value="list">
               <WikiIndex compact crumbs={crumbs} wiki={wiki} />
             </PagePane>
