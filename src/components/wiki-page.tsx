@@ -4,6 +4,7 @@ import { cn } from "cn";
 import {
   ArrowDownUpIcon,
   BookOpenIcon,
+  ChevronRightIcon,
   CodeXmlIcon,
   EllipsisIcon,
   FileTextIcon,
@@ -234,13 +235,15 @@ const PageRows = ({
 );
 
 const RecentRows = ({
+  label = "Pages",
   pages,
   wiki,
 }: {
+  label?: string;
   pages: WikiPageSummary[];
   wiki: Wiki;
 }) => (
-  <ul aria-label="Pages" className="p-2">
+  <ul aria-label={label} className="p-2">
     {pages.map((page) => (
       <li key={page.id}>
         <NodeMenu node={page} wiki={wiki}>
@@ -384,8 +387,11 @@ const NodeList = ({
 }) => {
   const pages = useQuery(wikiPagesQuery(wiki));
   const sort = useWikiSort();
-  const tree = buildTree(pages.data ?? []);
-  const nodes = folder === "" ? tree : (findNode(tree, folder)?.children ?? []);
+  const pagesTree = buildTree(pages.data ?? []);
+
+  const nodes =
+    folder === "" ? pagesTree : (findNode(pagesTree, folder)?.children ?? []);
+
   const recent = sort === "edited" ? recentPages(pages.data ?? [], folder) : [];
 
   if (pages.isPending) {
@@ -411,14 +417,51 @@ const NodeList = ({
   }
 
   if (recent.length > 0) {
-    return <RecentRows pages={recent} wiki={wiki} />;
+    return (
+      <div className="mx-auto w-full max-w-240">
+        <RecentRows pages={recent} wiki={wiki} />
+      </div>
+    );
   }
 
   if (nodes.length > 0) {
-    return (
-      <WikiDragDrop tree={tree} wiki={wiki}>
+    const all = recentPages(pages.data ?? [], "");
+    const latest = folder === "" && all.length > 15 ? all.slice(0, 8) : [];
+
+    const tree = (
+      <WikiDragDrop tree={pagesTree} wiki={wiki}>
         <PageRows label="Pages" nodes={nodes} wiki={wiki} />
       </WikiDragDrop>
+    );
+
+    if (latest.length === 0) {
+      return <div className="mx-auto w-full max-w-240">{tree}</div>;
+    }
+
+    return (
+      <div className="mx-auto w-full max-w-240 xl:grid xl:max-w-7xl xl:grid-cols-2 xl:items-start xl:gap-6">
+        <section aria-labelledby="wiki-all" className="min-w-0 xl:pt-2">
+          <h2
+            className="text-muted-foreground hidden px-4 text-xs font-medium xl:block"
+            id="wiki-all"
+          >
+            All pages
+          </h2>
+          {tree}
+        </section>
+        <section
+          aria-labelledby="wiki-recent"
+          className="hidden min-w-0 xl:block xl:pt-2"
+        >
+          <h2
+            className="text-muted-foreground px-4 text-xs font-medium"
+            id="wiki-recent"
+          >
+            Recently edited
+          </h2>
+          <RecentRows label="Recently edited" pages={latest} wiki={wiki} />
+        </section>
+      </div>
     );
   }
 
@@ -492,20 +535,24 @@ const headingIndent = ["pl-2", "pl-2", "pl-5", "pl-8"];
 const Contents = ({
   headings,
   onJump,
+  title = true,
 }: {
   headings: Heading[];
   onJump: (index: number) => void;
+  title?: boolean;
 }) => (
   <nav aria-label="On this page" className="flex flex-col gap-1">
-    <h2 className="text-muted-foreground px-2 text-xs font-medium">
-      On this page
-    </h2>
+    {title ? (
+      <h2 className="text-muted-foreground px-2 text-xs font-medium">
+        On this page
+      </h2>
+    ) : null}
     <ul className="flex flex-col">
       {headings.map((heading, index) => (
         <li key={heading.id}>
           <button
             className={cn(
-              "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring w-full truncate rounded-md py-1 pr-2 text-left outline-none focus-visible:ring-2",
+              "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring w-full rounded-md py-1 pr-2 text-left text-pretty wrap-anywhere outline-none focus-visible:ring-2",
               headingIndent[heading.level]
             )}
             onClick={() => {
@@ -520,6 +567,31 @@ const Contents = ({
     </ul>
   </nav>
 );
+
+const ContentsDisclosure = ({
+  headings,
+  onJump,
+}: {
+  headings: Heading[];
+  onJump: (index: number) => void;
+}) => {
+  if (headings.length < 2) {
+    return null;
+  }
+
+  return (
+    <details className="group/contents rounded-lg border px-1 py-1 xl:hidden">
+      <summary className="text-muted-foreground hover:text-foreground flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-md px-2 text-xs font-medium [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon
+          aria-hidden
+          className="size-3.5 transition-transform duration-150 group-open/contents:rotate-90"
+        />
+        On this page
+      </summary>
+      <Contents headings={headings} onJump={onJump} title={false} />
+    </details>
+  );
+};
 
 const DeletedBanner = ({
   onRestore,
@@ -812,6 +884,13 @@ const PageEditor = ({
 
   const headings = headingsOf(body.value);
 
+  const jump = (index: number) => {
+    headingElements()[index]?.scrollIntoView({
+      behavior: reducedMotion() ? "auto" : "smooth",
+      block: "start",
+    });
+  };
+
   const recreate = useMutation({
     mutationFn: async () =>
       await request("POST /wiki/:pageId/restore", {
@@ -943,6 +1022,9 @@ const PageEditor = ({
             }}
             readOnly={recreate.isPending || copy.isPending}
           />
+          {rail ? null : (
+            <ContentsDisclosure headings={headings} onJump={jump} />
+          )}
           <div className="[&_.ProseMirror]:min-h-[50vh]" ref={bodyBox}>
             <MarkdownEditor
               autoFocus={page.body === ""}
@@ -977,15 +1059,7 @@ const PageEditor = ({
             aria-label="Page details"
             className="sticky top-0 col-start-3 row-start-1 flex max-h-[calc(100svh-2.75rem)] max-w-72 flex-col gap-6 overflow-y-auto py-8 pr-6"
           >
-            <Contents
-              headings={headings}
-              onJump={(index) => {
-                headingElements()[index]?.scrollIntoView({
-                  behavior: reducedMotion() ? "auto" : "smooth",
-                  block: "start",
-                });
-              }}
-            />
+            <Contents headings={headings} onJump={jump} />
           </aside>
         ) : null}
       </div>
