@@ -740,13 +740,14 @@ const withoutEndDots = (text: string) => {
 
 const downloadName = (filename: string) => {
   const name = withoutEndDots(
-    (filename.split(/[\\/]/u).at(-1) ?? "")
-      .replaceAll(/\p{Cc}/gu, "")
+    (filename.normalize("NFKC").split(/[\\/]/u).at(-1) ?? "")
+      .replaceAll(/[\p{Cc}\p{Cf}]/gu, "")
+      .normalize("NFKC")
       .replaceAll(":", "_")
       .replace(/^[\s.]+/u, "")
   );
 
-  const lower = name.toLowerCase();
+  const lower = name.toUpperCase().toLowerCase();
 
   if (loadedNames.has(lower) || /\.config\.[cm]?[jt]s$/u.test(lower)) {
     throw new CliError(
@@ -755,7 +756,11 @@ const downloadName = (filename: string) => {
     );
   }
 
-  if (/^(?:aux|con|nul|prn|com\d|lpt\d)(?:\.|$)/u.test(lower)) {
+  if (
+    /^(?:aux|con|conin\$|conout\$|nul|prn|(?:com|lpt)[\d¹²³])(?:\.|$)/u.test(
+      lower
+    )
+  ) {
     return `_${name}`;
   }
 

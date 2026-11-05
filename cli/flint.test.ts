@@ -962,6 +962,11 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
           "C:package.json",
           "package.json. ",
           "NUL.txt",
+          "package\u200C.json",
+          "ma\u212Aefile",
+          "\uFF50\uFF41\uFF43\uFF4B\uFF41\uFF47\uFF45\uFF0E\uFF4A\uFF53\uFF4F\uFF4E",
+          "\u200C.envrc",
+          "makef\u0131le",
         ].map((name, index) => [
           `GET /files/f${index}`,
           () =>
@@ -996,6 +1001,15 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
       expect(await flint("attachment", "download", "f8")).toBe(0);
       expect(JSON.parse(printed.join(""))).toMatchObject({ path: "_NUL.txt" });
 
+      for (const id of ["f9", "f10", "f11", "f13"]) {
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
+        expect(await flint("attachment", "download", id)).toBe(1);
+        expect(printed.join("")).toContain("pass -o <path>");
+      }
+
+      expect(await flint("attachment", "download", "f12")).toBe(0);
+      expect(JSON.parse(printed.join(""))).toMatchObject({ path: "envrc" });
+
       for (const id of ["f2", "f3", "f4"]) {
         // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
         expect(await flint("attachment", "download", id)).toBe(1);
@@ -1014,6 +1028,7 @@ test("attachment download keeps dotfiles and tool configs out of the current dir
         "attachment",
         "b.txt",
         "bunfig.toml",
+        "envrc",
         "npmrc",
         "yarnrc",
       ]);
