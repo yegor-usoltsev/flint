@@ -640,6 +640,8 @@ test("an invite needs a name Gitea allows", async () => {
     });
   }
 
+  addGiteaUser("x.y_z-1");
+
   expect(await addMember(root, "acme", "x.y_z-1")).toMatchObject({
     status: 201,
   });
