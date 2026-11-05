@@ -290,7 +290,7 @@ export const RowContent = ({
   <>
     <RowCheck id={issue.id} />
     <PriorityIcon
-      className={cn(issue.priority === 0 && "max-md:invisible")}
+      className={cn(issue.priority === 0 && "invisible")}
       priority={issue.priority}
     />
     <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
@@ -305,11 +305,11 @@ export const RowContent = ({
     >
       {issue.title}
     </span>
-    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden @max-[80rem]/list:empty:hidden @min-[80rem]/list:w-80 @min-[80rem]/list:max-w-none @min-[80rem]/list:shrink-0 @max-4xl/list:[&>:nth-child(n+2)]:hidden">
+    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden @max-[80rem]/list:empty:hidden md:@max-3xl/list:hidden @min-[80rem]/list:w-80 @min-[80rem]/list:max-w-none @min-[80rem]/list:shrink-0 @max-4xl/list:[&>:nth-child(n+2)]:hidden">
       <IssueLabels issue={issue} lookup={lookup} />
     </span>
     {issue.labelIds.length > 1 ? (
-      <span className="text-muted-foreground shrink-0 text-xs tabular-nums @4xl/list:hidden">
+      <span className="text-muted-foreground shrink-0 text-xs tabular-nums md:@max-3xl/list:hidden @4xl/list:hidden">
         +{issue.labelIds.length - 1}
       </span>
     ) : null}
@@ -326,7 +326,7 @@ export const RowContent = ({
       />
     ) : null}
     <time
-      className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0 md:@max-3xl/list:hidden"
+      className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0"
       dateTime={issue.updatedAt}
     >
       <span className="sr-only">Updated </span>
@@ -436,7 +436,7 @@ const CardContent = ({
     </span>
     <span className="flex flex-wrap items-center gap-1.5 empty:hidden">
       {issue.priority === 0 ? null : <PriorityIcon priority={issue.priority} />}
-      <IssueLabels issue={issue} lookup={lookup} max={2} />
+      <IssueLabels issue={issue} lookup={lookup} max={1} />
       <PullRequestIcon state={issue.pullRequestState} />
       <CiIcon state={issue.ciState} />
       <Checklist issue={issue} />
@@ -651,7 +651,7 @@ const useMoreRight = (
 };
 
 const columnGap = 8;
-const columnMinRem = 16.5;
+const columnMinRem = 15;
 const columnMaxRem = 25;
 const buttonStrip = 48;
 

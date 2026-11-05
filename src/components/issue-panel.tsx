@@ -386,6 +386,11 @@ export const IssuePanelHost = ({
   const slide = useSlide(shown);
   const origin = usePanelOrigin();
   const width = clampWidth(state.width, space, origin?.view !== "board");
+  const [last, setLast] = useState(state.issue);
+
+  if (state.issue !== null && state.issue !== last) {
+    setLast(state.issue);
+  }
 
   useEffect(() => {
     syncPanelIssue(issue, slug, scope, path);
@@ -431,7 +436,7 @@ export const IssuePanelHost = ({
           <div className="relative flex w-(--panel-width) shrink-0 flex-col">
             {shown ? <ResizeHandle space={space} width={width} /> : null}
             {slide.mounted ? (
-              <PanelBody issueKey={state.issue} panel={panel} />
+              <PanelBody issueKey={shown ? state.issue : last} panel={panel} />
             ) : null}
           </div>
         </aside>
