@@ -14,6 +14,7 @@ import type {
 } from "~/lib/api-types";
 import { countChecklist } from "~/lib/checklist";
 import {
+  isInstanceAdmin,
   notFound,
   requireWorkspace,
   userRef,
@@ -300,7 +301,7 @@ const checkAssignee = async (
   const rows = await tx<{ id: string }[]>`
     select u.id from users u
     where u.id = ${assigneeId}
-      and (u.is_instance_admin or exists (
+      and (${isInstanceAdmin()} or exists (
         select 1 from workspace_members m
         where m.user_id = u.id and m.workspace_id = ${workspaceId}
       ))

@@ -5,6 +5,7 @@ import type { Workspace } from "~/lib/api-types";
 import { colors } from "~/lib/colors";
 import { reservedSlugs } from "~/lib/workspace";
 import {
+  isInstanceAdmin,
   requireWorkspace,
   UniqueViolationSchema,
   workspaceColumns,
@@ -58,12 +59,12 @@ const slugTaken = (slug: string) =>
 export const listWorkspaces = async (actor: Actor) =>
   await db<Workspace[]>`
     select ${workspaceColumns},
-      case when u.is_instance_admin then 'admin' else m.role end as role
+      case when ${isInstanceAdmin()} then 'admin' else m.role end as role
     from workspaces w
     join users u on u.id = ${actor.userId}
     left join workspace_members m
       on m.workspace_id = w.id and m.user_id = u.id
-    where (m.role is not null or u.is_instance_admin)
+    where (m.role is not null or ${isInstanceAdmin()})
       and (
         ${actor.workspaceIds === undefined}
         or w.id = any(${db.array(actor.workspaceIds ?? [], "uuid")})

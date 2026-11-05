@@ -31,6 +31,25 @@ const positive = (fallback: string) =>
     fallback
   );
 
+const Usernames = v.pipe(
+  v.string(),
+  v.transform((value) =>
+    value
+      .split(",")
+      .map((name) => name.trim().replace(/^@/u, "").toLowerCase())
+      .filter((name) => name !== "")
+  ),
+  v.array(
+    v.pipe(
+      v.string(),
+      v.regex(
+        /^[\w.-]{1,40}$/u,
+        (issue) => `Invalid Gitea username: ${issue.received}`
+      )
+    )
+  )
+);
+
 const EnvSchema = v.object({
   APP_URL: Url,
   DATABASE_URL: Required,
@@ -44,6 +63,7 @@ const EnvSchema = v.object({
   EMBEDDING_API_URL: v.optional(Url, "https://openrouter.ai/api/v1"),
   EMBEDDING_MODEL: v.optional(Required, "perplexity/pplx-embed-v1-0.6b"),
   EMBEDDING_TIMEOUT_MS: positive("30000"),
+  INSTANCE_ADMINS: v.optional(Usernames, ""),
   MAX_UPLOAD_BYTES: v.optional(
     v.pipe(
       v.string(),

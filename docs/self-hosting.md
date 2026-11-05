@@ -10,6 +10,8 @@ The image is also on `ghcr.io/yegor-usoltsev/flint`. Each start applies pending 
 
 Put a reverse proxy in front that terminates TLS and serves HTTP/2, because browsers without SharedWorker open an event stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings.
 
+Instance admins administer every workspace, including ones created later. Set `INSTANCE_ADMINS` to their Gitea usernames; nobody else becomes one. Flint compares each name with the username an account had at its latest sign-in, so update the list when an admin renames their Gitea account. Without `INSTANCE_ADMINS`, the first account to sign in becomes the only instance admin, so sign in right after deployment, before anyone else on your Gitea can.
+
 ## Gitea
 
 Flint needs a Gitea OAuth2 application and a system webhook. From a clone of this repository, after `bun install`, the bootstrap script creates or updates both, using a site admin token with `write:admin` and `write:user`:
@@ -49,6 +51,7 @@ APP_URL=https://flint.example.com bun run gitea:external-tracker acme alice/webs
 | `GITEA_WEBHOOK_SECRET` | required | Webhook secret |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | required | Attachment storage |
 | `S3_REGION` | `auto` | Bucket region |
+| `INSTANCE_ADMINS` | empty | Gitea usernames of the instance admins, separated by commas; when empty, the first account to sign in becomes one |
 | `MAX_UPLOAD_BYTES` | `26214400` (25 MB) | Largest attachment, at least 1 MB; Bun caps request bodies at 128 MB |
 | `TRASH_RETENTION_DAYS` | `30` | Days before deleted issues and pages are purged |
 | `DRAFT_UPLOAD_RETENTION_DAYS` | `30` | Days to keep uploads of a new issue that was never created; browsers keep its draft 30 days regardless |
