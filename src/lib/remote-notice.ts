@@ -9,13 +9,12 @@ const headerHeight = 44;
 const settleMs = 1200;
 
 interface Change {
-  actorId: string;
+  actorIds: Set<string>;
   before: string | undefined;
 }
 
 const pending = new Map<string, Change>();
-let timer: ReturnType<typeof setTimeout> | undefined;
-let shown: string | null = null;
+let timer: ReturnType<typeof setTimeout> | null = null;
 
 const rowOf = (id: string) =>
   document.querySelector<HTMLElement>(`[data-issue="${CSS.escape(id)}"]`);
@@ -73,14 +72,17 @@ const message = (
   [id, change]: [string, Change],
   hidden: [string, Change][]
 ) => {
-  const actors = new Set(hidden.map(([, item]) => item.actorId));
+  const actors = new Set(hidden.flatMap(([, item]) => [...item.actorIds]));
   const issue = findShownIssue(queryClient, id);
 
   if (actors.size > 1) {
-    return `${hidden.length} issues changed`;
+    return hidden.length > 1
+      ? `${hidden.length} issues changed`
+      : `${issue?.key ?? "An issue"} changed`;
   }
 
-  const actor = actorName(queryClient, slug, change.actorId);
+  const [actorId = ""] = actors;
+  const actor = actorName(queryClient, slug, actorId);
 
   if (hidden.length > 1) {
     return `${actor} updated ${hidden.length} issues`;
@@ -122,10 +124,6 @@ const flush = (queryClient: QueryClient, slug: string) => {
     return;
   }
 
-  if (shown !== null) {
-    toast.close(shown);
-  }
-
   const id = toast.add({
     actionProps: {
       children: "Show",
@@ -145,8 +143,6 @@ const flush = (queryClient: QueryClient, slug: string) => {
     },
     title: message(queryClient, slug, first, hidden),
   });
-
-  shown = id;
 };
 
 export const noticeOffscreen = ({
@@ -165,14 +161,16 @@ export const noticeOffscreen = ({
   }
 
   for (const [id, actorId] of actors) {
+    const earlier = pending.get(id);
+
     pending.set(id, {
-      actorId,
-      before: pending.get(id)?.before ?? before.get(id),
+      actorIds: new Set([...(earlier?.actorIds ?? []), actorId]),
+      before: earlier === undefined ? before.get(id) : earlier.before,
     });
   }
 
-  clearTimeout(timer);
-  timer = setTimeout(() => {
+  timer ??= setTimeout(() => {
+    timer = null;
     flush(queryClient, slug);
   }, settleMs);
 };
