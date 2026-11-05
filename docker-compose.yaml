@@ -17,6 +17,7 @@ services:
       EMBEDDING_API_URL: ${EMBEDDING_API_URL:-https://openrouter.ai/api/v1}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-perplexity/pplx-embed-v1-0.6b}
       EMBEDDING_TIMEOUT_MS: ${EMBEDDING_TIMEOUT_MS:-30000}
+      INSTANCE_ADMINS: ${INSTANCE_ADMINS:-}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
       PORT: "4700"
       S3_ACCESS_KEY_ID: flint

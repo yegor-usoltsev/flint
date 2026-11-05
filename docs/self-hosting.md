@@ -14,6 +14,8 @@ With an `https` `APP_URL`, the session and sign-in cookies carry the `__Host-` p
 
 Each account gets about `SEARCH_EMBEDDINGS_PER_MINUTE` query embeddings a minute, after which search falls back to full text until the allowance refills. It can run `UPLOADS_PER_USER` uploads at once, with images resized in turns between accounts, and hold `STREAMS_PER_USER` event streams open, after which new ones answer 429 and retry until one closes. JSON request bodies stop at 4 MB. Flint counts all of this in memory per container, so limit anonymous traffic at the reverse proxy.
 
+Instance admins administer every workspace, including ones created later. Set `INSTANCE_ADMINS` to their Gitea usernames; nobody else becomes one. Flint compares each name with the username an account had at its latest sign-in, so update the list when an admin renames their Gitea account. Without `INSTANCE_ADMINS`, the first account to sign in becomes the only instance admin, so sign in right after deployment, before anyone else on your Gitea can.
+
 ## Gitea
 
 Flint needs a Gitea OAuth2 application and a system webhook. From a clone of this repository, after `bun install`, the bootstrap script creates or updates both, using a site admin token with `write:admin` and `write:user`:
@@ -53,6 +55,7 @@ APP_URL=https://flint.example.com bun run gitea:external-tracker acme alice/webs
 | `GITEA_WEBHOOK_SECRET` | required | Webhook secret |
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | required | Attachment storage |
 | `S3_REGION` | `auto` | Bucket region |
+| `INSTANCE_ADMINS` | empty | Gitea usernames of the instance admins, separated by commas; when empty, the first account to sign in becomes one |
 | `MAX_UPLOAD_BYTES` | `26214400` (25 MB) | Largest attachment, at least 1 MB; Bun caps request bodies at 128 MB |
 | `TRASH_RETENTION_DAYS` | `30` | Days before deleted issues and pages are purged |
 | `DRAFT_UPLOAD_RETENTION_DAYS` | `30` | Days to keep uploads of a new issue that was never created; browsers keep its draft 30 days regardless |

@@ -5,6 +5,7 @@ import { Route as callbackRoute } from "~/routes/api/auth/callback";
 import { Route as loginRoute } from "~/routes/api/auth/login";
 import { Route as logoutRoute } from "~/routes/api/auth/logout";
 import { Route as meRoute } from "~/routes/api/v1/me";
+import { workspaceRole } from "~/server/access.server";
 import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
 
@@ -188,6 +189,45 @@ test("only the first user becomes instance admin, even concurrently", async () =
   >`select 1 from users where is_instance_admin`;
 
   expect(admins).toHaveLength(1);
+});
+
+test("INSTANCE_ADMINS names the instance admins and turns off the first-user bootstrap", async () => {
+  const saved = env.INSTANCE_ADMINS;
+
+  env.INSTANCE_ADMINS = ["carol"];
+
+  try {
+    const alice = await createUser("alice");
+    const carol = await createUser("Carol");
+    const workspaceId = Bun.randomUUIDv7();
+    await db`insert into workspaces (id, slug, name, color) values (${workspaceId}, 'acme', 'Acme', 'blue')`;
+
+    const meOf = async (userId: string) => {
+      const response = await getMe(await sessionCookieFor(userId));
+      const body: unknown = await response.json();
+
+      return body;
+    };
+
+    expect(await meOf(alice)).toMatchObject({
+      isInstanceAdmin: false,
+      workspaces: [],
+    });
+    expect(await meOf(carol)).toMatchObject({
+      isInstanceAdmin: true,
+      workspaces: [{ role: "admin", slug: "acme" }],
+    });
+    expect(
+      await db`select username from users where is_instance_admin`
+    ).toEqual([]);
+
+    await db`update users set is_instance_admin = true where id = ${alice}`;
+
+    expect(await workspaceRole({ userId: alice }, workspaceId)).toBeNull();
+    expect(await workspaceRole({ userId: carol }, workspaceId)).toBe("admin");
+  } finally {
+    env.INSTANCE_ADMINS = saved;
+  }
 });
 
 test("login applies pending invites and refreshes the profile", async () => {
