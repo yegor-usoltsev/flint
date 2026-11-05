@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, SquarePenIcon } from "lucide-react";
 import { createContext, use, useCallback, useRef, useState } from "react";
 import type { RefObject, ReactNode } from "react";
 
@@ -595,6 +595,7 @@ export const CreateIssueProvider = ({ children }: { children: ReactNode }) => {
     {
       group: "Create",
       hotkey: { keys: "c" },
+      icon: <SquarePenIcon />,
       id: "create-issue",
       label: "Create issue",
       run: () => {

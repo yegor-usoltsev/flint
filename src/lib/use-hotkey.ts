@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { ReactElement } from "react";
 
 export interface Hotkey {
   inInputs?: boolean;
@@ -11,6 +12,7 @@ export interface Hotkey {
 export interface Command {
   group?: string;
   hotkey?: Hotkey;
+  icon?: ReactElement;
   id: string;
   keywords?: string;
   label?: string;

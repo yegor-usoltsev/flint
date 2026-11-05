@@ -739,6 +739,7 @@ export const WikiCreateCommands = () => {
   useCommands([
     {
       group: "Create",
+      icon: <FilePlusIcon />,
       id: "wiki-create-page",
       label: "Create wiki page",
       run: () => {
@@ -747,6 +748,7 @@ export const WikiCreateCommands = () => {
     },
     {
       group: "Create",
+      icon: <FolderPlusIcon />,
       id: "wiki-create-folder",
       label: "Create wiki folder",
       run: () => {

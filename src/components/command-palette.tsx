@@ -12,17 +12,26 @@ import {
 } from "@tanstack/react-router";
 import {
   BookOpenIcon,
+  BoxIcon,
   CheckIcon,
+  CircleDotIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   DeleteIcon,
   FileTextIcon,
+  KeyRoundIcon,
+  ListIcon,
   PlusIcon,
   RotateCwIcon,
+  SettingsIcon,
+  SquareKanbanIcon,
+  TagIcon,
+  Trash2Icon,
 } from "lucide-react";
 import { createContext, use, useCallback, useEffect, useState } from "react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 
+import { ProjectIcon } from "~/components/project-icon";
 import { Keys, ShortcutsDialog } from "~/components/shortcuts-dialog";
 import { StatusIcon } from "~/components/status-icon";
 import {
@@ -123,10 +132,12 @@ const go = (
   label: string,
   keys: string | undefined,
   run: () => void,
-  when?: () => boolean
+  when?: () => boolean,
+  icon?: ReactElement
 ): PaletteCommand => ({
   group: "Navigation",
   hotkey: keys === undefined ? undefined : { keys },
+  icon,
   id,
   label,
   run,
@@ -432,13 +443,15 @@ const IssueResult = ({
     onSelect={onSelect}
     value={hitValue("issues", issue.id)}
   >
-    {status === undefined ? null : (
+    {status === undefined ? (
+      <FileTextIcon />
+    ) : (
       <StatusIcon category={status.category} color={status.color} />
     )}
-    <span className="text-muted-foreground w-16 shrink-0 text-xs tabular-nums">
+    <span className="min-w-0 flex-1 truncate">{issue.title}</span>
+    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
       {issue.key}
     </span>
-    <span className="min-w-0 flex-1 truncate">{issue.title}</span>
   </CommandItem>
 );
 
@@ -640,12 +653,10 @@ const RootList = ({
                       : statuses.get(item.statusId)
                   }
                 />
-                {item.kind === "issue" ? (
-                  <span className="text-muted-foreground w-16 shrink-0 text-xs tabular-nums">
-                    {item.label}
-                  </span>
-                ) : null}
                 <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                <span className="text-muted-foreground max-w-1/3 shrink-0 truncate text-xs tabular-nums">
+                  {item.label}
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -658,6 +669,9 @@ const RootList = ({
                 onSelect={run(command.run)}
                 value={command.id}
               >
+                {command.icon ?? (
+                  <span aria-hidden className="size-4 shrink-0" />
+                )}
                 <span className="min-w-0 flex-1 truncate">{command.label}</span>
                 {command.hotkey === undefined ? null : (
                   <span
@@ -963,12 +977,26 @@ const useLayerCommands = ({
         void deletion.remove(issues);
       }
     ),
-    go("my-issues", "Go to My issues", "g m", () => {
-      void navigate({ params: { slug }, to: "/$slug/my-issues" });
-    }),
-    go("projects", "Go to projects", "g p", () => {
-      void navigate({ params: { slug }, to: "/$slug/settings/projects" });
-    }),
+    go(
+      "my-issues",
+      "Go to My issues",
+      "g m",
+      () => {
+        void navigate({ params: { slug }, to: "/$slug/my-issues" });
+      },
+      undefined,
+      <CircleDotIcon />
+    ),
+    go(
+      "projects",
+      "Go to projects",
+      "g p",
+      () => {
+        void navigate({ params: { slug }, to: "/$slug/settings/projects" });
+      },
+      undefined,
+      <BoxIcon />
+    ),
     go(
       "list",
       "Go to list",
@@ -976,7 +1004,8 @@ const useLayerCommands = ({
       () => {
         openView("list");
       },
-      hasProject
+      hasProject,
+      <ListIcon />
     ),
     go(
       "board",
@@ -985,28 +1014,65 @@ const useLayerCommands = ({
       () => {
         openView("board");
       },
-      hasProject
+      hasProject,
+      <SquareKanbanIcon />
     ),
-    go("wiki", "Go to wiki", "g w", () => {
-      void navigate(wikiTarget(workspace, ""));
-    }),
-    go("settings", "Go to settings", "g s", () => {
-      void navigate({ params: { slug }, to: "/$slug/settings" });
-    }),
-    go("trash", "Go to trash", "g t", () => {
-      void navigate({ params: { slug }, to: "/$slug/settings/trash" });
-    }),
-    go("labels-settings", "Go to labels", undefined, () => {
-      void navigate({ params: { slug }, to: "/$slug/settings/labels" });
-    }),
-    go("api-keys", "Go to API keys", undefined, () => {
-      void navigate({
-        params: { slug },
-        to: "/$slug/settings/account/api-keys",
-      });
-    }),
+    go(
+      "wiki",
+      "Go to wiki",
+      "g w",
+      () => {
+        void navigate(wikiTarget(workspace, ""));
+      },
+      undefined,
+      <BookOpenIcon />
+    ),
+    go(
+      "settings",
+      "Go to settings",
+      "g s",
+      () => {
+        void navigate({ params: { slug }, to: "/$slug/settings" });
+      },
+      undefined,
+      <SettingsIcon />
+    ),
+    go(
+      "trash",
+      "Go to trash",
+      "g t",
+      () => {
+        void navigate({ params: { slug }, to: "/$slug/settings/trash" });
+      },
+      undefined,
+      <Trash2Icon />
+    ),
+    go(
+      "labels-settings",
+      "Go to labels",
+      undefined,
+      () => {
+        void navigate({ params: { slug }, to: "/$slug/settings/labels" });
+      },
+      undefined,
+      <TagIcon />
+    ),
+    go(
+      "api-keys",
+      "Go to API keys",
+      undefined,
+      () => {
+        void navigate({
+          params: { slug },
+          to: "/$slug/settings/account/api-keys",
+        });
+      },
+      undefined,
+      <KeyRoundIcon />
+    ),
     ...(projects.data ?? []).map((item): PaletteCommand => ({
       group: "Projects",
+      icon: <ProjectIcon color={item.color} icon={item.icon} />,
       id: `project-${item.id}`,
       keywords: item.key,
       label: `Open ${item.name}`,
