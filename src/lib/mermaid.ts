@@ -266,7 +266,7 @@ export const diagramQuery = (code: string, dark: boolean) =>
   });
 
 const mermaidFence =
-  /^(?<fence>`{3,}|~{3,})[^\S\n]*mermaid[^\S\n]*\n(?<code>[\s\S]*?)\n\k<fence>[^\S\n]*$/gmu;
+  /^(?<fence>(?<mark>[`~])\k<mark>{2,})[^\S\n]*mermaid[^\S\n]*\n(?<code>[\s\S]*?)\n\k<fence>\k<mark>*[^\S\n]*$/gmu;
 
 export const diagramsIn = (markdown: string) =>
   [...markdown.replaceAll("\r\n", "\n").matchAll(mermaidFence)].map(

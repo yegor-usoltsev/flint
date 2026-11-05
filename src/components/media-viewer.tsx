@@ -376,6 +376,10 @@ const ZoomLevel = ({
   const percent = Math.round(fit * scale * 100);
   const actual = percent === 100;
 
+  if (fit >= 1) {
+    return <span className="px-1.5 py-1">{percent}%</span>;
+  }
+
   return (
     <button
       aria-label={actual ? "Fit to screen" : "Zoom to 100%"}

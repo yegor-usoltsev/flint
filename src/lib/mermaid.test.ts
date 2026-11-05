@@ -46,11 +46,12 @@ test("rendered styles lose global at-rules", () => {
 test("diagram fences match backtick, tilde, longer and CRLF fences", () => {
   expect(
     diagramsIn(
-      "a\r\n```mermaid\r\ngraph TD\r\nA-->B\r\n```\r\n\n~~~mermaid\nflowchart LR\nX-->Y\n~~~\n\n````mermaid\nsequenceDiagram\n```\ninner\n```\n````\n\n```ts\nconst x = 1;\n```"
+      "a\r\n```mermaid\r\ngraph TD\r\nA-->B\r\n```\r\n\n~~~mermaid\nflowchart LR\nX-->Y\n~~~\n\n````mermaid\nsequenceDiagram\n```\ninner\n```\n````\n\n```mermaid\npie\n`````\n\n```ts\nconst x = 1;\n```"
     )
   ).toEqual([
     "graph TD\nA-->B",
     "flowchart LR\nX-->Y",
     "sequenceDiagram\n```\ninner\n```",
+    "pie",
   ]);
 });
