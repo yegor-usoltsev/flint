@@ -555,7 +555,7 @@ export const AppSidebar = ({
                   <BookOpenIcon />
                   <span>Wiki</span>
                 </SidebarMenuButton>
-                {wikiPath === null || split ? null : (
+                {wikiPath === null || wikiPath === "" || split ? null : (
                   <WikiTree
                     current={wikiPath}
                     wiki={workspaceWiki(workspace)}

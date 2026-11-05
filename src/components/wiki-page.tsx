@@ -17,7 +17,7 @@ import {
   TypeIcon,
 } from "lucide-react";
 import { createContext, use, useEffect, useRef, useState } from "react";
-import type { ComponentProps, ReactElement, RefObject } from "react";
+import type { ComponentProps, ReactElement, ReactNode, RefObject } from "react";
 
 import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
@@ -447,7 +447,7 @@ const NodeList = ({
 
   if (recent.length > 0) {
     return (
-      <div className="mx-auto w-full max-w-240">
+      <div className="mx-auto w-full max-w-3xl">
         <RecentRows pages={recent} wiki={wiki} />
       </div>
     );
@@ -463,11 +463,11 @@ const NodeList = ({
     );
 
     if (latest.length === 0) {
-      return <div className="mx-auto w-full max-w-240">{tree}</div>;
+      return <div className="mx-auto w-full max-w-3xl">{tree}</div>;
     }
 
     return (
-      <div className="mx-auto w-full max-w-240 xl:grid xl:max-w-7xl xl:grid-cols-2 xl:items-start xl:gap-6">
+      <div className="mx-auto w-full max-w-3xl xl:grid xl:max-w-7xl xl:grid-cols-2 xl:items-start xl:gap-6">
         <section aria-labelledby="wiki-all" className="min-w-0 xl:pt-2">
           <h2
             className="text-muted-foreground hidden px-4 text-xs font-medium xl:block"
@@ -652,6 +652,26 @@ const Contents = ({
       ))}
     </ul>
   </nav>
+);
+
+const PageGrid = ({
+  children,
+  scroller,
+}: {
+  children: ReactNode;
+  scroller: RefObject<HTMLDivElement | null>;
+}) => (
+  <div
+    className={cn(
+      "min-w-0 flex-1 overflow-y-auto xl:grid xl:items-start",
+      use(PagePane) === "detail"
+        ? "xl:grid-cols-[2rem_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)]"
+        : "xl:grid-cols-[minmax(6rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)]"
+    )}
+    ref={scroller}
+  >
+    {children}
+  </div>
 );
 
 const ContentsRail = ({
@@ -1105,10 +1125,7 @@ const PageEditor = ({
       crumbs={crumbs}
       title={title.value.trim() || page.title}
     >
-      <div
-        className="min-w-0 flex-1 overflow-y-auto xl:grid xl:grid-cols-[minmax(6rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)] xl:items-start"
-        ref={scroller}
-      >
+      <PageGrid scroller={scroller}>
         <article className="max-w-document mx-auto box-content flex flex-col gap-2 px-4 pt-5 pb-16 md:px-8 md:pt-8 xl:col-start-2 xl:row-start-1 xl:mx-0 xl:px-12">
           {lookupError === null ? null : (
             <LoadFailed
@@ -1199,7 +1216,7 @@ const PageEditor = ({
             scroller={scroller}
           />
         ) : null}
-      </div>
+      </PageGrid>
       <DraftConflict draft={title} field="title" />
       <DraftConflict draft={body} field="page" />
     </Page>
