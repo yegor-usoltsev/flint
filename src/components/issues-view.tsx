@@ -718,7 +718,11 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
 
     shownWidth.current = layout.width;
 
-    if (element !== null && previous !== layout.width) {
+    if (
+      element !== null &&
+      previous !== layout.width &&
+      window.matchMedia("(min-width: 48rem)").matches
+    ) {
       const gap = columnGapRem * rootRem();
       const first = Math.round(element.scrollLeft / (previous + gap));
 
