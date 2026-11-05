@@ -699,12 +699,12 @@ const IssueScreen = ({
     <Page
       actions={
         <>
-          <CopyLink issueKey={issueKey} slug={workspace.slug} />
           <Neighbors
             count={neighbors.count}
             index={neighbors.index}
             onGo={step}
           />
+          <CopyLink issueKey={issueKey} slug={workspace.slug} />
           {ready ? (
             <IssueActions
               branch={branchName(username, data.key, data.title)}
