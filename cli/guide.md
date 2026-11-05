@@ -11,7 +11,7 @@
 
 - Output is JSON when piped (`--human` prints tables); writes print the updated object.
 - JSON carries ids such as `statusId`, `assigneeId` and `labelIds`; `flint project view KEY`, `flint label list` and `flint member list` name them. `priority` runs 0 none, 1 urgent, 2 high, 3 medium, 4 low. Flags take names: `-s "In Review"`, `-l bug`, `-a @me`, `-a none`, `--priority high`.
-- Exit code 1 means the API refused or a local step failed; 2 is a usage error, such as an unknown flag, status, label or checklist item, whose message lists the valid names. JSON errors go to stdout as `{"error": {"code": "…", "message": "…"}}`.
+- Exit code 1 means the API refused or a local step failed; 2 is a usage error, such as an unknown flag, status, label or checklist item; an unknown status or label lists the valid names, and an ambiguous checklist item lists its matches. JSON errors go to stdout as `{"error": {"code": "…", "message": "…"}}`.
 - Pass Markdown with `-F <file>` or `-F -` (stdin). Text starting with `-` needs `-d` or `-F`, or it reads as a flag.
 - Outside a terminal, deletes, `member remove`, `token revoke` and `workspace logo --remove` need `--yes`.
 
@@ -66,7 +66,7 @@ flint wiki append notes/agent-log -d "- 2026-10-23: migrated the cache"
 2. Write with that base: `flint issue update ENG-12 -F new.md --if-version 7` or `flint wiki put guides/deploy -F new.md --id <id> --base-revision 4`.
 3. On `error.code` `conflict`, `error.current` holds the current object. Apply your change to its `description` or `body` and retry with its `version` or `revision`, so the other edit survives.
 
-Status, priority, assignee, comments, `wiki append`, `--add-label` and `--remove-label` need no base, because the server applies them atomically; `-l` replaces all labels. `issue check` and `attach --inline` send the version or revision themselves. If `attach --inline` still ends in `conflict`, its files are already uploaded and listed in `attachments`: add their urls by editing the description or with `wiki append` instead of rerunning it, which uploads them again. View the issue before rerunning `check`, because item numbers may have shifted.
+Status, priority, assignee, comments, `wiki append`, `--add-label` and `--remove-label` need no base, because the server applies them atomically; `-l` replaces all labels. `issue check` and `attach --inline` send the version or revision themselves. If `attach --inline` still ends in `conflict`, its files are already uploaded and listed in `attachments`: add their urls with `issue update` or `wiki append` instead of rerunning it, which uploads them again. View the issue before rerunning `check`, because item numbers may have shifted.
 
 ## More
 
