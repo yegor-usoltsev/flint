@@ -75,17 +75,38 @@ const SearchButton = () => {
   );
 };
 
+const TitleText = ({ short, title }: { short?: string; title: string }) => {
+  if (short === undefined) {
+    return <span className="truncate">{title}</span>;
+  }
+
+  return (
+    <>
+      <span className="truncate max-md:sr-only">{title}</span>
+      <span aria-hidden className="truncate md:hidden">
+        {short}
+      </span>
+    </>
+  );
+};
+
 const PageTitle = ({
+  short,
   switcher,
   title,
 }: {
+  short?: string;
   switcher?: ReactNode;
   title: string;
 }) => {
   const { isMobile, open } = useSidebar();
 
   if (switcher === undefined || (open && !isMobile)) {
-    return <h1 className="text-foreground truncate font-medium">{title}</h1>;
+    return (
+      <h1 className="text-foreground flex min-w-0 font-medium">
+        <TitleText short={short} title={title} />
+      </h1>
+    );
   }
 
   return (
@@ -94,7 +115,7 @@ const PageTitle = ({
         <DropdownMenuTrigger
           render={<Button className="-ml-2.5 min-w-0 shrink" variant="ghost" />}
         >
-          <span className="truncate">{title}</span>
+          <TitleText short={short} title={title} />
           <ChevronDownIcon
             className="text-muted-foreground"
             data-icon="inline-end"
@@ -128,6 +149,7 @@ export const Page = ({
   children,
   className,
   crumbs = noCrumbs,
+  short,
   switcher,
   title,
 }: {
@@ -135,6 +157,7 @@ export const Page = ({
   children: ReactNode;
   className?: string;
   crumbs?: Crumb[];
+  short?: string;
   switcher?: ReactNode;
   title: string;
 }) => {
@@ -181,7 +204,7 @@ export const Page = ({
               );
             })}
             <BreadcrumbItem className="min-w-24">
-              <PageTitle switcher={switcher} title={title} />
+              <PageTitle short={short} switcher={switcher} title={title} />
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>

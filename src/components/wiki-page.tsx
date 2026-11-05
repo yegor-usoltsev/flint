@@ -728,6 +728,8 @@ const CopyLinkButton = ({ id }: { id: string }) => (
   </Hint>
 );
 
+const parentLabel = (crumbs: Crumb[]) => crumbs.at(-1)?.label;
+
 const PageEditor = ({
   crumbs,
   deleted,
@@ -898,6 +900,7 @@ const PageEditor = ({
       }
       className="flex overflow-hidden"
       crumbs={crumbs}
+      short={parentLabel(crumbs)}
       switcher={<NavSwitcher place={{ kind: "wiki", path: page.path }} />}
       title={title.value.trim() || page.title}
     >

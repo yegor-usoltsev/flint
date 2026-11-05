@@ -775,6 +775,7 @@ const IssueScreen = ({
         </>
       }
       className="@container"
+      short={issueKey}
       crumbs={[
         {
           label: workspace.name,
