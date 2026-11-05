@@ -8,7 +8,7 @@
 
 @theme inline {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --container-document: 833px;
+  --container-document: 52.0625rem;
   --shadow-focus-bar: inset 2px 0 0 var(--primary);
   --font-sans:
     "Inter Variable", "SF Pro Display", -apple-system, system-ui, "Segoe UI",
