@@ -2,7 +2,15 @@
 
 <h1 align="center">Flint</h1>
 
-<p align="center"><a href="https://codecov.io/gh/yegor-usoltsev/flint"><img src="https://codecov.io/gh/yegor-usoltsev/flint/graph/badge.svg" alt="Test coverage"></a></p>
+<p align="center">
+  <a href="https://github.com/yegor-usoltsev/flint/actions"><img src="https://github.com/yegor-usoltsev/flint/actions/workflows/ci.yml/badge.svg" alt="Build Status"></a>
+  <a href="https://codecov.io/github/yegor-usoltsev/flint"><img src="https://codecov.io/github/yegor-usoltsev/flint/graph/badge.svg" alt="Codecov"></a>
+  <a href="https://github.com/yegor-usoltsev/flint/releases"><img src="https://img.shields.io/github/v/release/yegor-usoltsev/flint?sort=semver" alt="GitHub Release"></a>
+  <a href="https://www.npmjs.com/package/@yusoltsev/flint-cli"><img src="https://img.shields.io/npm/v/@yusoltsev/flint-cli?label=npm" alt="npm package"></a>
+  <a href="https://hub.docker.com/r/yusoltsev/flint"><img src="https://img.shields.io/docker/v/yusoltsev/flint?label=docker.io&amp;sort=semver" alt="Docker Image (docker.io)"></a>
+  <a href="https://github.com/yegor-usoltsev/flint/pkgs/container/flint"><img src="https://img.shields.io/docker/v/yusoltsev/flint?label=ghcr.io&amp;sort=semver" alt="Docker Image (ghcr.io)"></a>
+  <a href="https://hub.docker.com/r/yusoltsev/flint/tags"><img src="https://img.shields.io/docker/image-size/yusoltsev/flint?sort=semver&amp;arch=amd64" alt="Docker Image Size"></a>
+</p>
 
 <p align="center"><img src="assets/screenshots/issue.webp" width="500" alt="An issue in Flint with its pull request, branch, commit and passing CI check"></p>
 
