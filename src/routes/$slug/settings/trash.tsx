@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { FileTextIcon, FolderIcon, TrashIcon } from "lucide-react";
+import {
+  CircleDotIcon,
+  FileTextIcon,
+  FolderIcon,
+  TrashIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -68,7 +73,7 @@ const DeleteForever = ({
         <Button
           aria-label={`Delete ${name} forever`}
           size="icon-sm"
-          variant="ghost"
+          variant="quiet"
         />
       }
     >
@@ -240,6 +245,10 @@ const IssueRow = ({
       pending={restore.isPending || purge.isPending}
       purgeText="The issue, its comments, activity and attachments are deleted for everyone. This cannot be undone."
     >
+      <CircleDotIcon
+        aria-hidden
+        className="text-muted-foreground size-4 shrink-0"
+      />
       <span className="text-muted-foreground tracking-key shrink-0 tabular-nums">
         {issue.key}
       </span>

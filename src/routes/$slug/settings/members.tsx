@@ -226,7 +226,7 @@ const RemoveMember = ({ member, slug }: { member: Member; slug: string }) => {
           <Button
             aria-label={`Remove @${member.username}`}
             size="icon-sm"
-            variant="ghost"
+            variant="quiet"
           />
         }
       >

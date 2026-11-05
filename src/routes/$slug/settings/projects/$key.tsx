@@ -12,6 +12,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from "~/components/settings-page";
+import { buttonVariants } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { isNotFound, request } from "~/lib/api";
 import type { ProjectDetail } from "~/lib/api-types";
@@ -21,14 +22,12 @@ import { projectQuery, projectsQuery } from "~/lib/queries";
 import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
-const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
+const useProjectUpdate = (project: ProjectDetail) => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const workspace = useWorkspace();
-  const isAdmin = workspace.role === "admin";
   const { queryKey } = projectQuery(project.key);
 
-  const update = useMutation({
+  return useMutation({
     mutationFn: async (changes: Body<"PATCH /projects/:key">) =>
       await request("PATCH /projects/:key", {
         body: changes,
@@ -54,6 +53,36 @@ const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
       });
     },
   });
+};
+
+const ProjectHeading = ({ project }: { project: ProjectDetail }) => {
+  const workspace = useWorkspace();
+  const update = useProjectUpdate(project);
+
+  return (
+    <span className="flex items-center gap-3">
+      <IconPicker
+        color={project.color}
+        disabled={workspace.role !== "admin"}
+        icon={project.icon}
+        label="Project icon"
+        onChange={(change) => {
+          update.mutate(change);
+        }}
+      />
+      <span className="truncate">{project.name}</span>
+    </span>
+  );
+};
+
+const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const workspace = useWorkspace();
+  const isAdmin = workspace.role === "admin";
+  const { queryKey } = projectQuery(project.key);
+
+  const update = useProjectUpdate(project);
 
   const remove = useMutation({
     mutationFn: async () => {
@@ -76,20 +105,6 @@ const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
   return (
     <>
       <SettingsSection>
-        <SettingsRow
-          description="Shown in the sidebar and on every issue key"
-          label="Icon and color"
-        >
-          <IconPicker
-            color={project.color}
-            disabled={!isAdmin}
-            icon={project.icon}
-            label="Project icon"
-            onChange={(change) => {
-              update.mutate(change);
-            }}
-          />
-        </SettingsRow>
         <SettingsRow htmlFor="project-name" label="Name">
           <SettingsInput
             disabled={!isAdmin}
@@ -154,6 +169,20 @@ const ProjectSettingsPage = () => {
           />
         ),
       }}
+      actions={
+        <Link
+          className={buttonVariants({ variant: "outline" })}
+          params={{ key: key.toUpperCase(), slug: workspace.slug }}
+          to="/$slug/project/$key"
+        >
+          Open project
+        </Link>
+      }
+      heading={
+        project.data === undefined ? undefined : (
+          <ProjectHeading project={project.data} />
+        )
+      }
       title={project.data?.name ?? key.toUpperCase()}
     >
       {project.isPending ? <Skeleton className="h-48 w-full" /> : null}

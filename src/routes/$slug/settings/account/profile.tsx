@@ -115,15 +115,13 @@ const Profile = () => {
           />
         </SettingsRow>
         <SettingsRow label="Full name">
-          <span className="text-muted-foreground truncate">
-            {me.displayName}
-          </span>
+          <span className="truncate">{me.displayName}</span>
         </SettingsRow>
         <SettingsRow label="Username">
-          <span className="text-muted-foreground truncate">@{me.username}</span>
+          <span className="truncate">@{me.username}</span>
         </SettingsRow>
         <SettingsRow label="Email">
-          <span className="text-muted-foreground truncate">
+          <span className="truncate">
             {me.email === "" ? "Not shared by Gitea" : me.email}
           </span>
         </SettingsRow>

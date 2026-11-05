@@ -1,5 +1,4 @@
 import { useLocation } from "@tanstack/react-router";
-import { cn } from "cn";
 import { SearchIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
@@ -75,12 +74,13 @@ export const SettingsHeader = ({
               </BreadcrumbItem>
             </>
           )}
+          {parent === undefined ? (
+            <BreadcrumbItem className="md:hidden">Settings</BreadcrumbItem>
+          ) : null}
           {label === undefined ? null : (
             <>
-              <BreadcrumbSeparator
-                className={cn(parent === undefined && "max-md:hidden")}
-              />
-              <BreadcrumbItem className="min-w-12">
+              <BreadcrumbSeparator className="max-md:hidden" />
+              <BreadcrumbItem className="min-w-12 max-md:hidden">
                 <span className="text-foreground truncate font-medium">
                   {label}
                 </span>
@@ -112,17 +112,19 @@ export const SettingsPage = ({
     <SettingsHeader label={title} parent={parent} />
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="flex min-w-0 flex-1 flex-col gap-1 px-0.5">
-            <h1 className="text-2xl font-medium">{heading ?? title}</h1>
-            {description === undefined ? null : (
-              <p className="text-muted-foreground text-pretty">{description}</p>
+        <div className="flex flex-col gap-1 px-0.5">
+          <div className="flex items-start gap-4">
+            <h1 className="min-w-0 flex-1 text-2xl font-semibold">
+              {heading ?? title}
+            </h1>
+            {actions === undefined ? null : (
+              <div className="flex h-8 shrink-0 items-center gap-2">
+                {actions}
+              </div>
             )}
           </div>
-          {actions === undefined ? null : (
-            <div className="flex h-8 shrink-0 items-center gap-2">
-              {actions}
-            </div>
+          {description === undefined ? null : (
+            <p className="text-muted-foreground text-pretty">{description}</p>
           )}
         </div>
         {children}

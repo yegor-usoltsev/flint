@@ -150,7 +150,7 @@ const DeleteLabel = ({
         <Button
           aria-label={`Delete ${label.name}`}
           size="icon-sm"
-          variant="ghost"
+          variant="quiet"
         />
       }
     >

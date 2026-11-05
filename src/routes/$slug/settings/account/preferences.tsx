@@ -13,13 +13,16 @@ const Preferences = () => {
   const theme = useTheme();
 
   return (
-    <SettingsPage title="Preferences">
+    <SettingsPage
+      description="These settings apply to this browser."
+      title="Preferences"
+    >
       <SettingsSection>
         <SettingsRow
           description="Follow the system setting or pick light or dark"
           label="Theme"
         >
-          <div className="bg-muted flex rounded-lg p-0.5">
+          <div className="bg-surface-3 flex rounded-lg p-0.5 max-sm:w-full">
             {themeItems.map((item) => (
               <Button
                 aria-pressed={theme === item.value}
