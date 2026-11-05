@@ -116,7 +116,7 @@ export const Page = ({
           </>
         )}
         <Breadcrumb
-          aria-label={pane === "detail" ? "Page breadcrumb" : undefined}
+          aria-label={pane === "detail" ? "Page breadcrumb" : "breadcrumb"}
           className="@container min-w-0 flex-1"
         >
           <BreadcrumbList className="flex-nowrap">

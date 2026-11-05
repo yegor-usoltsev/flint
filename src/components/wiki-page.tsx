@@ -724,13 +724,16 @@ const ContentsRail = ({
   headings,
   onJump,
   scroller,
+  source,
 }: {
   body: RefObject<HTMLDivElement | null>;
   headings: Heading[];
   onJump: (index: number) => void;
   scroller: RefObject<HTMLDivElement | null>;
+  source: boolean;
 }) => {
-  const active = useActiveHeading(scroller, body);
+  const reading = useActiveHeading(scroller, body);
+  const active = source ? -1 : reading;
 
   return (
     <aside
@@ -990,6 +993,9 @@ const CopyLinkButton = ({ id }: { id: string }) => (
   </Hint>
 );
 
+const focusEmpty = (page: WikiPage, preview: boolean) =>
+  !preview && page.body === "";
+
 const PageEditor = ({
   crumbs,
   deleted,
@@ -997,6 +1003,7 @@ const PageEditor = ({
   onRelease,
   onRetryLookup,
   page,
+  preview,
   replacement,
   wiki,
 }: {
@@ -1006,6 +1013,7 @@ const PageEditor = ({
   onRelease: () => void;
   onRetryLookup: () => void;
   page: WikiPage;
+  preview: boolean;
   replacement: WikiPage | null;
   wiki: Wiki;
 }) => {
@@ -1226,7 +1234,7 @@ const PageEditor = ({
           )}
           <div className="[&_.ProseMirror]:min-h-[50vh]" ref={bodyBox}>
             <MarkdownEditor
-              autoFocus={page.body === ""}
+              autoFocus={focusEmpty(page, preview)}
               className="text-prose"
               editable={!(recreate.isPending || copy.isPending)}
               draft={body.draft}
@@ -1259,6 +1267,7 @@ const PageEditor = ({
             headings={headings}
             onJump={jump}
             scroller={scroller}
+            source={source}
           />
         ) : null}
       </PageGrid>
@@ -1391,10 +1400,12 @@ const useKeptPage = (
 const WikiPageScreen = ({
   crumbs,
   path,
+  preview = false,
   wiki,
 }: {
   crumbs: Crumb[];
   path: string;
+  preview?: boolean;
   wiki: Wiki;
 }) => {
   const page = useQuery(wikiPageQuery(wiki, path));
@@ -1423,6 +1434,7 @@ const WikiPageScreen = ({
           void moved.refetch();
         }}
         page={kept}
+        preview={preview}
         replacement={page.data ?? null}
         wiki={wiki}
       />
@@ -1443,6 +1455,7 @@ const WikiPageScreen = ({
             void moved.refetch();
           }}
           page={page.data}
+          preview={preview}
           replacement={null}
           wiki={wiki}
         />
@@ -1500,6 +1513,31 @@ const firstPage = (nodes: WikiNode[]): string | undefined => {
   return undefined;
 };
 
+const useShownPage = (wiki: Wiki, path: string, split: boolean) => {
+  const pages = useQuery(wikiPagesQuery(wiki));
+  const sort = useWikiSort();
+  const [held, setHeld] = useState<string | undefined>();
+
+  const preview =
+    sort === "edited"
+      ? recentPages(pages.data ?? [], "")[0]?.path
+      : firstPage(buildTree(pages.data ?? []));
+
+  if (path !== "" && held !== undefined) {
+    setHeld(undefined);
+  }
+
+  if (split && path === "" && held === undefined && preview !== undefined) {
+    setHeld(preview);
+  }
+
+  if (path !== "") {
+    return path;
+  }
+
+  return split ? (held ?? preview) : undefined;
+};
+
 const WikiScreen = ({
   crumbs,
   path: rawPath,
@@ -1515,8 +1553,6 @@ const WikiScreen = ({
 
   usePageTitle(pages.data?.find((page) => page.path === path)?.title);
 
-  const sort = useWikiSort();
-
   const titleOf = (target: string) =>
     pages.data?.find((page) => page.path === target)?.title ?? humanize(target);
 
@@ -1526,52 +1562,42 @@ const WikiScreen = ({
       link: <Link {...wikiTarget(wiki, ancestor)} />,
     }));
 
-  if (split) {
-    const preview =
-      sort === "edited"
-        ? recentPages(pages.data ?? [], "")[0]?.path
-        : firstPage(buildTree(pages.data ?? []));
+  const shown = useShownPage(wiki, path, split);
 
-    const shown = path === "" ? preview : path;
+  const fullCrumbs = [
+    ...crumbs.map(({ label, link }) => ({ label, link })),
+    { label: "Wiki", link: <Link {...wikiTarget(wiki, "")} /> },
+  ];
 
-    return (
-      <WikiShown value={shown ?? null}>
-        <div className="flex min-h-0 flex-1">
+  const pageCrumbs = split ? [] : fullCrumbs;
+  const index = split ? null : <WikiIndex crumbs={crumbs} wiki={wiki} />;
+
+  return (
+    <WikiShown value={split ? (shown ?? null) : null}>
+      <div className="flex min-h-0 flex-1">
+        {split ? (
           <div className="flex w-96 shrink-0 flex-col border-r">
             <PagePane value="list">
               <WikiIndex compact crumbs={crumbs} wiki={wiki} />
             </PagePane>
           </div>
-          <div className="flex min-w-0 flex-1 flex-col">
-            {shown === undefined ? null : (
-              <PagePane value="detail">
-                <WikiPageScreen
-                  crumbs={pathCrumbs(shown)}
-                  path={shown}
-                  wiki={wiki}
-                />
-              </PagePane>
-            )}
-          </div>
+        ) : null}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {shown === undefined ? (
+            index
+          ) : (
+            <PagePane value={split ? "detail" : null}>
+              <WikiPageScreen
+                crumbs={[...pageCrumbs, ...pathCrumbs(shown)]}
+                path={shown}
+                preview={path === ""}
+                wiki={wiki}
+              />
+            </PagePane>
+          )}
         </div>
-      </WikiShown>
-    );
-  }
-
-  if (path === "") {
-    return <WikiIndex crumbs={crumbs} wiki={wiki} />;
-  }
-
-  return (
-    <WikiPageScreen
-      crumbs={[
-        ...crumbs.map(({ label, link }) => ({ label, link })),
-        { label: "Wiki", link: <Link {...wikiTarget(wiki, "")} /> },
-        ...pathCrumbs(path),
-      ]}
-      path={path}
-      wiki={wiki}
-    />
+      </div>
+    </WikiShown>
   );
 };
 
