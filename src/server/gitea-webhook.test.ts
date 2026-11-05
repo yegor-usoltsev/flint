@@ -861,3 +861,19 @@ test("a workspace takes links only from the repositories it lists, a private one
 
   expect(await kinds("ENG-1")).toEqual(["pull_request"]);
 });
+
+test("a push racing a repository's removal from the list cannot leave its link behind", async () => {
+  const { root } = await setup();
+  let delivery: ReturnType<typeof deliver> | undefined;
+
+  await db.begin(async (tx) => {
+    await tx`
+      update workspaces set gitea_repositories = '{}' where slug = 'acme'
+    `;
+    delivery = deliver("push", "push-branch");
+    await Bun.sleep(300);
+  });
+
+  expect(await delivery).toMatchObject({ status: 200 });
+  expect(await linksOf(root, "ENG-1")).toEqual([]);
+});

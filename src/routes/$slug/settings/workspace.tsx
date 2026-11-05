@@ -262,6 +262,7 @@ const General = () => {
         >
           <SettingsInput
             disabled={!isAdmin}
+            emptyAllowed
             id="workspace-repositories"
             maxLength={2000}
             onSave={async (list) => {

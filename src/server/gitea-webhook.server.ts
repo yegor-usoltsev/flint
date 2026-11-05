@@ -173,6 +173,7 @@ const linkIssues = async (
         repo.full_name,
         repo.private
       )}
+    for share of w
   `;
 
   const rows = keyed.flatMap(({ keys: itemKeys, link }) =>
