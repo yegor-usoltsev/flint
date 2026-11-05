@@ -356,7 +356,7 @@
       @apply bg-surface-2 overflow-x-auto rounded-lg border px-3 py-2.5 font-mono text-[12.5px] leading-5;
     }
     & pre code {
-      @apply bg-transparent p-0 text-inherit;
+      @apply border-0 bg-transparent p-0 text-inherit;
     }
     & :is(.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-doctag) {
       @apply text-[#cf222e] dark:text-[#ff7b72];

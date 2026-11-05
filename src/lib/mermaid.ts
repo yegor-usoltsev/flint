@@ -178,6 +178,16 @@ const hashCode = (code: string) => {
   return `${code.length.toString(36)}.${hash.toString(36)}`;
 };
 
+const writeSizes = (value: string) => {
+  try {
+    localStorage.setItem(sizesKey, value);
+
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const readSizes = () => {
   try {
     const parsed = v.safeParse(
@@ -231,19 +241,14 @@ const rememberSize = (code: string, svg: string) => {
   const width = Math.round(size.width * 10) / 10;
   const height = Math.round(size.height * 10) / 10;
 
-  try {
-    localStorage.setItem(
-      sizesKey,
-      JSON.stringify(
-        Object.fromEntries([
-          ...sizes.slice(-(sizeLimit - 1)),
-          [key, [width, height]],
-        ])
-      )
-    );
-  } catch {
-    localStorage.removeItem(sizesKey);
-  }
+  writeSizes(
+    JSON.stringify(
+      Object.fromEntries([
+        ...sizes.slice(-(sizeLimit - 1)),
+        [key, [width, height]],
+      ])
+    )
+  );
 };
 
 export const diagramQuery = (code: string, dark: boolean) =>
@@ -260,10 +265,11 @@ export const diagramQuery = (code: string, dark: boolean) =>
     staleTime: "static",
   });
 
-const mermaidFence = /^```mermaid[^\S\n]*\n(?<code>[\s\S]*?)\n```[^\S\n]*$/gmu;
+const mermaidFence =
+  /^(?<fence>`{3,}|~{3,})[^\S\n]*mermaid[^\S\n]*\n(?<code>[\s\S]*?)\n\k<fence>[^\S\n]*$/gmu;
 
 export const diagramsIn = (markdown: string) =>
-  [...markdown.matchAll(mermaidFence)].map(
+  [...markdown.replaceAll("\r\n", "\n").matchAll(mermaidFence)].map(
     (match) => match.groups?.["code"] ?? ""
   );
 

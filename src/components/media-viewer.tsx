@@ -64,9 +64,10 @@ const clamp = (value: number, limit: number) =>
 const clampView = (
   view: View,
   stage: HTMLElement | null,
-  media: HTMLElement | null
+  media: HTMLElement | null,
+  limit: number
 ): View => {
-  const scale = Math.min(Math.max(view.scale, 1), maxScale);
+  const scale = Math.min(Math.max(view.scale, 1), limit);
 
   if (scale === 1 || stage === null || media === null) {
     return rest;
@@ -82,8 +83,13 @@ const clampView = (
   };
 };
 
-const zoomAt = (view: View, point: Point, scale: number): View => {
-  const ratio = Math.min(Math.max(scale, 1), maxScale) / view.scale;
+const zoomAt = (
+  view: View,
+  point: Point,
+  scale: number,
+  limit = maxScale
+): View => {
+  const ratio = Math.min(Math.max(scale, 1), limit) / view.scale;
 
   return {
     scale: view.scale * ratio,
@@ -115,12 +121,14 @@ const swipeStep = (gesture: Gesture | null) => {
 
 const useZoom = ({
   enabled,
+  limit,
   media,
   onSwipe,
   shown,
   stage,
 }: {
   enabled: boolean;
+  limit: number;
   media: HTMLElement | null;
   onSwipe: (step: number) => void;
   shown: number | null;
@@ -137,7 +145,7 @@ const useZoom = ({
   }
 
   const update = (next: View) => {
-    setView(clampView(next, stage, media));
+    setView(clampView(next, stage, media, limit));
   };
 
   const local = (event: { clientX: number; clientY: number }): Point => {
@@ -165,7 +173,12 @@ const useZoom = ({
   const onWheel = useEffectEvent((event: WheelEvent) => {
     event.preventDefault();
     update(
-      zoomAt(view, local(event), view.scale * Math.exp(-event.deltaY / 300))
+      zoomAt(
+        view,
+        local(event),
+        view.scale * Math.exp(-event.deltaY / 300),
+        limit
+      )
     );
   });
 
@@ -186,7 +199,7 @@ const useZoom = ({
 
   return {
     fill: (scale: number) => {
-      update(zoomAt(view, rest, scale));
+      update(zoomAt(view, rest, scale, limit));
     },
     keys: (key: string) => {
       const step = zoomSteps.get(key);
@@ -194,7 +207,7 @@ const useZoom = ({
       if (key === "0") {
         update(rest);
       } else if (step !== undefined) {
-        update(zoomAt(view, rest, view.scale * step));
+        update(zoomAt(view, rest, view.scale * step, limit));
       }
 
       return key === "0" || step !== undefined;
@@ -202,7 +215,9 @@ const useZoom = ({
     pointer: {
       onDoubleClick: (event: { clientX: number; clientY: number }) => {
         if (enabled) {
-          update(view.scale > 1 ? rest : zoomAt(view, local(event), 2.5));
+          update(
+            view.scale > 1 ? rest : zoomAt(view, local(event), 2.5, limit)
+          );
         }
       },
       onPointerCancel: (event: PointerEvent) => {
@@ -237,7 +252,7 @@ const useZoom = ({
 
         if (points.length > 1 && start.distance > 0) {
           const scale = (start.view.scale * spread(points)) / start.distance;
-          const zoomed = zoomAt(start.view, start.middle, scale);
+          const zoomed = zoomAt(start.view, start.middle, scale, limit);
 
           update({ ...zoomed, x: zoomed.x + moved.x, y: zoomed.y + moved.y });
         } else if (start.view.scale > 1) {
@@ -404,6 +419,10 @@ export const MediaViewer = ({
 
   const zoom = useZoom({
     enabled: zoomable,
+    limit: Math.max(
+      maxScale,
+      fit !== null && fit.src === item?.src && fit.fit > 0 ? 1 / fit.fit : 1
+    ),
     media,
     onSwipe: go,
     shown: index,

@@ -16,7 +16,7 @@ import {
   Trash2Icon,
   WorkflowIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { MediaViewer } from "~/components/media-viewer";
@@ -51,6 +51,7 @@ import {
   parseDiagram,
   useDarkTheme,
 } from "~/lib/mermaid";
+import type { DiagramSize } from "~/lib/mermaid";
 import { themeColors } from "~/lib/theme";
 
 const Toolbar = ({
@@ -253,6 +254,15 @@ const diagramFrame =
 const useDiagramViewer = () => {
   const [src, setSrc] = useState<string | null>(null);
 
+  useEffect(
+    () => () => {
+      if (src !== null) {
+        URL.revokeObjectURL(src);
+      }
+    },
+    [src]
+  );
+
   const open = (svg: string, dark: boolean) => {
     const image = diagramImage(svg, dark ? null : themeColors.light);
 
@@ -266,8 +276,7 @@ const useDiagramViewer = () => {
       index={src === null ? null : 0}
       items={src === null ? [] : [{ kind: "image", name: "Diagram.svg", src }]}
       onIndex={(index) => {
-        if (index === null && src !== null) {
-          URL.revokeObjectURL(src);
+        if (index === null) {
           setSrc(null);
         }
       }}
@@ -277,31 +286,18 @@ const useDiagramViewer = () => {
   return { open, viewer };
 };
 
-const Diagram = ({
-  code,
-  menu,
+const DiagramFrame = ({
+  onExpand,
   onSelect,
+  size,
+  svg,
 }: {
-  code: string;
-  menu?: ReactNode;
+  onExpand: () => void;
   onSelect?: () => void;
+  size: DiagramSize | undefined;
+  svg: string | undefined;
 }) => {
-  const dark = useDarkTheme();
-  const viewer = useDiagramViewer();
-  const empty = code.trim() === "";
-  const size = diagramSize(code);
-
-  const diagram = useQuery({
-    ...diagramQuery(code, dark),
-    enabled: !empty,
-    placeholderData: keepPreviousData,
-  });
-
-  if (diagram.isError && diagram.data === undefined) {
-    return <p className={statusClass}>{errorMessage(diagram.error)}</p>;
-  }
-
-  const svg = empty ? "" : diagram.data;
+  const frame = cn(diagramFrame, "[&_svg]:h-auto [&_svg]:max-w-full");
 
   if (svg === undefined) {
     return (
@@ -326,46 +322,85 @@ const Diagram = ({
     );
   }
 
-  const expand = () => {
-    viewer.open(svg, dark);
-  };
+  if (onSelect === undefined) {
+    return (
+      <button
+        aria-label="Expand diagram"
+        className={cn(frame, "w-full cursor-zoom-in")}
+        // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
+        dangerouslySetInnerHTML={{ __html: svg }}
+        disabled={svg === ""}
+        onClick={onExpand}
+        type="button"
+      />
+    );
+  }
 
-  const frame = cn(diagramFrame, "[&_svg]:h-auto [&_svg]:max-w-full");
+  return (
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
+    <div
+      className={frame}
+      // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
+      dangerouslySetInnerHTML={{ __html: svg }}
+      onClick={() => {
+        if (svg !== "" && coarsePointer()) {
+          onExpand();
+        }
+      }}
+      onMouseDown={(event) => {
+        if (!coarsePointer()) {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+    />
+  );
+};
+
+const Diagram = ({
+  code,
+  menu,
+  onSelect,
+}: {
+  code: string;
+  menu?: ReactNode;
+  onSelect?: () => void;
+}) => {
+  const dark = useDarkTheme();
+  const viewer = useDiagramViewer();
+  const empty = code.trim() === "";
+  const size = diagramSize(code);
+
+  const diagram = useQuery({
+    ...diagramQuery(code, dark),
+    enabled: !empty,
+    placeholderData: keepPreviousData,
+  });
+
+  const svg = empty ? "" : diagram.data;
+  const failed = diagram.isError && diagram.data === undefined;
+
+  const expand = () => {
+    if (svg !== undefined) {
+      viewer.open(svg, dark);
+    }
+  };
 
   return (
     <>
-      {onSelect === undefined ? (
-        <button
-          aria-label="Expand diagram"
-          className={cn(frame, "w-full cursor-zoom-in")}
-          // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
-          dangerouslySetInnerHTML={{ __html: svg }}
-          disabled={svg === ""}
-          onClick={expand}
-          type="button"
-        />
+      {failed ? (
+        <p className={statusClass}>{errorMessage(diagram.error)}</p>
       ) : (
-        // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
-        <div
-          className={frame}
-          // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
-          dangerouslySetInnerHTML={{ __html: svg }}
-          onClick={() => {
-            if (svg !== "" && coarsePointer()) {
-              expand();
-            }
-          }}
-          onMouseDown={(event) => {
-            if (!coarsePointer()) {
-              event.preventDefault();
-              onSelect();
-            }
-          }}
+        <DiagramFrame
+          onExpand={expand}
+          onSelect={onSelect}
+          size={size}
+          svg={svg}
         />
       )}
       {menu === undefined ? null : (
         <Toolbar className="pointer-coarse:opacity-100">
-          {svg === "" ? null : (
+          {svg === undefined || svg === "" ? null : (
             <ToolbarButton label="Expand diagram" onClick={expand}>
               <Maximize2Icon />
             </ToolbarButton>
