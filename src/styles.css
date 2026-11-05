@@ -239,19 +239,23 @@
 }
 
 @keyframes remote-flash {
-  from {
+  0%,
+  40% {
     background-color: var(--row-selected-hover);
+    box-shadow: inset 2px 0 0 var(--primary);
   }
 }
 
 @keyframes remote-flash-again {
-  from {
+  0%,
+  40% {
     background-color: var(--row-selected-hover);
+    box-shadow: inset 2px 0 0 var(--primary);
   }
 }
 
 @utility remote-flash {
-  animation: remote-flash 1.6s var(--ease-out);
+  animation: remote-flash 2.4s var(--ease-out);
 
   @media (prefers-reduced-motion: reduce) {
     background-color: var(--row-selected-hover) !important;
@@ -259,7 +263,7 @@
 }
 
 @utility remote-flash-again {
-  animation: remote-flash-again 1.6s var(--ease-out);
+  animation: remote-flash-again 2.4s var(--ease-out);
 
   @media (prefers-reduced-motion: reduce) {
     background-color: var(--row-selected-hover) !important;
