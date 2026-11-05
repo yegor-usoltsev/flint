@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { meQuery } from "~/lib/api";
+import { prefetchDiagrams } from "~/lib/mermaid";
 import {
   assignedIssuesQuery,
   issueQuery,
@@ -45,6 +46,8 @@ export const loadIssue = async (queryClient: QueryClient, key: string) => {
   void queryClient
     .query({ ...timelineQuery(issue), staleTime: "static" })
     .catch(() => null);
+
+  await prefetchDiagrams(queryClient, issue.description);
 };
 
 export const loadMyIssues = async (queryClient: QueryClient, slug: string) => {
@@ -79,7 +82,7 @@ export const loadWiki = async (
   if (workspace !== undefined) {
     const wiki = workspaceWiki(workspace);
 
-    await Promise.all([
+    const [, page] = await Promise.all([
       queryClient.query({ ...wikiPagesQuery(wiki), staleTime: "static" }),
       path === ""
         ? null
@@ -91,5 +94,9 @@ export const loadWiki = async (
             staleTime: "static",
           }),
     ]);
+
+    if (page !== null) {
+      await prefetchDiagrams(queryClient, page.body);
+    }
   }
 };

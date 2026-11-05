@@ -11,6 +11,7 @@ import {
   CodeXmlIcon,
   CopyIcon,
   EllipsisIcon,
+  Maximize2Icon,
   SlidersHorizontalIcon,
   Trash2Icon,
   WorkflowIcon,
@@ -18,6 +19,7 @@ import {
 import { useState } from "react";
 import type { ReactNode } from "react";
 
+import { MediaViewer } from "~/components/media-viewer";
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -33,6 +35,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "~/components/ui/popover";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
 import {
   codeLanguages,
@@ -41,11 +44,27 @@ import {
   languageLabel,
 } from "~/lib/code-languages";
 import { copyText } from "~/lib/copy";
-import { parseDiagram, renderDiagram, useDarkTheme } from "~/lib/mermaid";
+import {
+  diagramImage,
+  diagramQuery,
+  diagramSize,
+  parseDiagram,
+  useDarkTheme,
+} from "~/lib/mermaid";
+import { themeColors } from "~/lib/theme";
 
-const Toolbar = ({ children }: { children: ReactNode }) => (
+const Toolbar = ({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
   <div
-    className="bg-popover absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full border p-0.5 opacity-0 transition-opacity duration-150 group-hover/code:opacity-100 group-data-active/code:opacity-100 group-data-selected/code:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100"
+    className={cn(
+      "bg-popover absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full border p-0.5 opacity-0 transition-opacity duration-150 group-hover/code:opacity-100 group-data-active/code:opacity-100 group-data-selected/code:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100",
+      className
+    )}
     contentEditable={false}
   >
     {children}
@@ -226,43 +245,136 @@ const errorMessage = (error: Error | null) =>
 
 const statusClass = "text-muted-foreground mt-1 px-1 font-sans text-xs";
 
+const coarsePointer = () => window.matchMedia("(pointer: coarse)").matches;
+
+const diagramFrame =
+  "group-data-selected/code:ring-ring flex min-h-16 justify-center overflow-x-auto rounded-lg border p-4 group-data-selected/code:ring-2";
+
+const useDiagramViewer = () => {
+  const [src, setSrc] = useState<string | null>(null);
+
+  const open = (svg: string, dark: boolean) => {
+    const image = diagramImage(svg, dark ? null : themeColors.light);
+
+    if (image !== null) {
+      setSrc(image);
+    }
+  };
+
+  const viewer = (
+    <MediaViewer
+      index={src === null ? null : 0}
+      items={src === null ? [] : [{ kind: "image", name: "Diagram.svg", src }]}
+      onIndex={(index) => {
+        if (index === null && src !== null) {
+          URL.revokeObjectURL(src);
+          setSrc(null);
+        }
+      }}
+    />
+  );
+
+  return { open, viewer };
+};
+
 const Diagram = ({
   code,
+  menu,
   onSelect,
 }: {
   code: string;
+  menu?: ReactNode;
   onSelect?: () => void;
 }) => {
   const dark = useDarkTheme();
+  const viewer = useDiagramViewer();
   const empty = code.trim() === "";
+  const size = diagramSize(code);
 
   const diagram = useQuery({
+    ...diagramQuery(code, dark),
     enabled: !empty,
     placeholderData: keepPreviousData,
-    queryFn: async () => await renderDiagram(code, dark),
-    queryKey: ["mermaid", "svg", code, dark],
-    retry: false,
-    staleTime: "static",
   });
 
   if (diagram.isError && diagram.data === undefined) {
     return <p className={statusClass}>{errorMessage(diagram.error)}</p>;
   }
 
+  const svg = empty ? "" : diagram.data;
+
+  if (svg === undefined) {
+    return (
+      <div aria-busy className={diagramFrame}>
+        <Skeleton
+          className={cn(
+            "max-w-full",
+            size === undefined
+              ? "h-40 w-full max-w-lg"
+              : "aspect-(--diagram-ratio) w-(--diagram-width)"
+          )}
+          style={
+            size === undefined
+              ? undefined
+              : {
+                  "--diagram-ratio": `${size.width} / ${size.height}`,
+                  "--diagram-width": `${size.width}px`,
+                }
+          }
+        />
+      </div>
+    );
+  }
+
+  const expand = () => {
+    viewer.open(svg, dark);
+  };
+
+  const frame = cn(diagramFrame, "[&_svg]:h-auto [&_svg]:max-w-full");
+
   return (
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- A click selects the block like a click on any atom; its menu reaches every action by keyboard.
-    <div
-      className="group-data-selected/code:ring-ring flex min-h-16 justify-center overflow-x-auto rounded-lg border p-4 group-data-selected/code:ring-2 [&_svg]:h-auto [&_svg]:max-w-full"
-      // Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
-      // oxlint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: empty ? "" : (diagram.data ?? "") }}
-      onMouseDown={(event) => {
-        if (onSelect !== undefined) {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-    />
+    <>
+      {onSelect === undefined ? (
+        <button
+          aria-label="Expand diagram"
+          className={cn(frame, "w-full cursor-zoom-in")}
+          // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
+          dangerouslySetInnerHTML={{ __html: svg }}
+          disabled={svg === ""}
+          onClick={expand}
+          type="button"
+        />
+      ) : (
+        // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
+        <div
+          className={frame}
+          // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
+          dangerouslySetInnerHTML={{ __html: svg }}
+          onClick={() => {
+            if (svg !== "" && coarsePointer()) {
+              expand();
+            }
+          }}
+          onMouseDown={(event) => {
+            if (!coarsePointer()) {
+              event.preventDefault();
+              onSelect();
+            }
+          }}
+        />
+      )}
+      {menu === undefined ? null : (
+        <Toolbar className="pointer-coarse:opacity-100">
+          {svg === "" ? null : (
+            <ToolbarButton label="Expand diagram" onClick={expand}>
+              <Maximize2Icon />
+            </ToolbarButton>
+          )}
+          {menu}
+        </Toolbar>
+      )}
+      {viewer.viewer}
+    </>
   );
 };
 
@@ -384,10 +496,10 @@ const DiagramBlock = ({
           </Toolbar>
         </>
       ) : (
-        <>
-          <Diagram code={code} onSelect={editable ? select : undefined} />
-          {editable ? (
-            <Toolbar>
+        <Diagram
+          code={code}
+          menu={
+            editable ? (
               <DiagramMenu
                 code={code}
                 onDelete={deleteNode}
@@ -395,9 +507,10 @@ const DiagramBlock = ({
                   setSource(true);
                 }}
               />
-            </Toolbar>
-          ) : null}
-        </>
+            ) : undefined
+          }
+          onSelect={editable ? select : undefined}
+        />
       )}
     </NodeViewWrapper>
   );
