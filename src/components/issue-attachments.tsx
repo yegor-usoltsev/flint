@@ -115,6 +115,7 @@ const useAttachments = (ownerId: string, path: string) => {
 
 export const AttachmentList = ({
   body,
+  compact = false,
   editable,
   hint,
   id,
@@ -122,6 +123,7 @@ export const AttachmentList = ({
   path,
 }: {
   body?: string;
+  compact?: boolean;
   editable: boolean;
   hint: string;
   id: string;
@@ -132,8 +134,9 @@ export const AttachmentList = ({
     useAttachments(id, path);
 
   const [deleting, setDeleting] = useState<Attachment | null>(null);
+  const empty = attachments.length === 0 && uploads.length === 0;
 
-  if (!editable && !failed && attachments.length === 0) {
+  if ((compact || !editable) && !failed && empty) {
     return null;
   }
 
@@ -162,7 +165,7 @@ export const AttachmentList = ({
           </Button>
         </p>
       ) : null}
-      {loaded && attachments.length === 0 && uploads.length === 0 ? (
+      {loaded && empty ? (
         <p className="text-muted-foreground text-xs">{hint}</p>
       ) : null}
       <ul className="flex flex-col">
@@ -265,13 +268,16 @@ export const AttachmentList = ({
 };
 
 export const IssueAttachments = ({
+  compact = false,
   editable,
   issue,
 }: {
+  compact?: boolean;
   editable: boolean;
   issue: Issue;
 }) => (
   <AttachmentList
+    compact={compact}
     editable={editable}
     hint="Paste or drop files into the description, or attach them here."
     id={issue.id}

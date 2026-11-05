@@ -181,7 +181,13 @@ const Group = ({ children, title }: { children: ReactNode; title: string }) => (
   </div>
 );
 
-export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
+export const IssueDevelopment = ({
+  compact = false,
+  issue,
+}: {
+  compact?: boolean;
+  issue: Issue;
+}) => {
   const heading = useId();
   const [allCommits, setAllCommits] = useState(false);
   const pulls = issue.links.filter((link) => link.kind === "pull_request");
@@ -189,6 +195,10 @@ export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
   const commits = issue.links.filter((link) => link.kind === "commit");
   const hidden = commits.length - shownCommits;
   const manyRepos = new Set(issue.links.map((link) => link.repo)).size > 1;
+
+  if (compact && issue.links.length === 0) {
+    return null;
+  }
 
   return (
     <section aria-labelledby={heading} className="flex flex-col">

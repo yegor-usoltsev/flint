@@ -349,11 +349,11 @@ export const IssueProperties = ({
             <PriorityIcon priority={issue.priority} />
           </IconSlot>
           {issue.priority === 0 ? (
-            <Text compact={pills} muted>
+            <Text compact={false} muted>
               {pills ? "Priority" : "Set priority"}
             </Text>
           ) : (
-            <Text compact={pills}>{priorities[issue.priority]}</Text>
+            <Text compact={false}>{priorities[issue.priority]}</Text>
           )}
         </>
       )}
@@ -374,7 +374,7 @@ export const IssueProperties = ({
         assignee === undefined ? (
           <>
             <UserRoundIcon className="text-muted-foreground size-4 shrink-0" />
-            <Text compact={pills} muted>
+            <Text compact={false} muted>
               {issue.assigneeId === null && !pills ? "Assign" : "Assignee"}
             </Text>
           </>
