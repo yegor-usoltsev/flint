@@ -62,6 +62,8 @@ test("the web client sends no path that leaves its endpoint", async () => {
     String.raw`/issues/..\workspaces\acme`,
     "/wiki/.\t./me",
     "/issues/./x",
+    "/workspaces/acme/wiki/.. ",
+    "/workspaces/acme/wiki/..\u0000",
   ]) {
     expect(
       // oxlint-disable-next-line no-await-in-loop -- Each path is checked on its own.

@@ -37,9 +37,8 @@ const dotSegment = /^(?:\.|%2e){1,2}$/iu;
 
 const leavesEndpoint = (path: string) =>
   (path.split(/[?#]/u)[0] ?? "")
-    .replaceAll(/[\t\n\r]/gu, "")
     .split(/[/\\]/u)
-    .some((segment) => dotSegment.test(segment));
+    .some((segment) => dotSegment.test(segment.replaceAll(/[\p{Cc} ]/gu, "")));
 
 export const api = async <Result>(
   path: string,
