@@ -25,6 +25,7 @@ import { Hint } from "~/components/issue-parts";
 import { LoadFailed } from "~/components/load-failed";
 import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
+import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
 import type { Crumb } from "~/components/page";
 import {
@@ -451,7 +452,12 @@ const WikiIndex = ({ crumbs, wiki }: { crumbs: Crumb[]; wiki: Wiki }) => {
   const { buttons, create } = useCreate(wiki, "");
 
   return (
-    <Page actions={buttons} crumbs={crumbs} title="Wiki">
+    <Page
+      actions={buttons}
+      crumbs={crumbs}
+      switcher={<NavSwitcher place={{ kind: "wiki", path: "" }} />}
+      title="Wiki"
+    >
       <NodeList create={create} folder="" wiki={wiki} />
     </Page>
   );
@@ -480,6 +486,7 @@ const FolderView = ({
         </>
       }
       crumbs={crumbs}
+      switcher={<NavSwitcher place={{ kind: "wiki", path: folder.path }} />}
       title={folder.title}
     >
       <NodeList create={create} folder={folder.path} wiki={wiki} />
@@ -891,6 +898,7 @@ const PageEditor = ({
       }
       className="flex overflow-hidden"
       crumbs={crumbs}
+      switcher={<NavSwitcher place={{ kind: "wiki", path: page.path }} />}
       title={title.value.trim() || page.title}
     >
       <div className="min-w-0 flex-1 overflow-y-auto xl:grid xl:grid-cols-[minmax(10rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(10rem,1fr)] xl:items-start">

@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { CloudOffIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, CloudOffIcon, SearchIcon } from "lucide-react";
 import { Fragment } from "react";
 import type { ReactElement, ReactNode } from "react";
 
@@ -14,8 +14,13 @@ import {
   BreadcrumbSeparator,
 } from "~/components/ui/breadcrumb";
 import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { Separator } from "~/components/ui/separator";
-import { SidebarTrigger } from "~/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "~/components/ui/sidebar";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
   Tooltip,
@@ -70,6 +75,39 @@ const SearchButton = () => {
   );
 };
 
+const PageTitle = ({
+  switcher,
+  title,
+}: {
+  switcher?: ReactNode;
+  title: string;
+}) => {
+  const { isMobile, open } = useSidebar();
+
+  if (switcher === undefined || (open && !isMobile)) {
+    return <h1 className="text-foreground truncate font-medium">{title}</h1>;
+  }
+
+  return (
+    <h1 className="text-foreground flex min-w-0 font-medium">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button className="-ml-2.5 min-w-0 shrink" variant="ghost" />}
+        >
+          <span className="truncate">{title}</span>
+          <ChevronDownIcon
+            className="text-muted-foreground"
+            data-icon="inline-end"
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-96 w-64">
+          {switcher}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </h1>
+  );
+};
+
 export const PagePending = () => (
   <div aria-busy className="flex min-h-0 flex-1 flex-col">
     <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
@@ -90,12 +128,14 @@ export const Page = ({
   children,
   className,
   crumbs = noCrumbs,
+  switcher,
   title,
 }: {
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
   crumbs?: Crumb[];
+  switcher?: ReactNode;
   title: string;
 }) => {
   const connected = useRealtimeConnected();
@@ -113,7 +153,7 @@ export const Page = ({
           <BreadcrumbList className="flex-nowrap">
             {crumbs.map((crumb, index) => {
               const hidden = cn(
-                crumb !== scope && "max-md:hidden",
+                (crumb !== scope || switcher !== undefined) && "max-md:hidden",
                 index === crumbs.length - 1
                   ? "md:@max-3xs:hidden"
                   : "md:@max-lg:hidden"
@@ -141,7 +181,7 @@ export const Page = ({
               );
             })}
             <BreadcrumbItem className="min-w-24">
-              <h1 className="text-foreground truncate font-medium">{title}</h1>
+              <PageTitle switcher={switcher} title={title} />
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>

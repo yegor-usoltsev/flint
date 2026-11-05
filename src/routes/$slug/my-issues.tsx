@@ -14,6 +14,7 @@ import { useState } from "react";
 import { IssueContextMenu } from "~/components/issue-menu";
 import type { IssueLookup } from "~/components/issue-parts";
 import { listClass, RowContent, rowClass } from "~/components/issues-view";
+import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
 import { ProjectDialog } from "~/components/project-dialog";
 import { StatusIcon } from "~/components/status-icon";
@@ -254,6 +255,7 @@ const MyIssues = () => {
           short: workspace.name,
         },
       ]}
+      switcher={<NavSwitcher place={{ kind: "mine" }} />}
       title="My issues"
     >
       {projects.isPending ? (
