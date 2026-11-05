@@ -1,10 +1,15 @@
 import { expect, test } from "bun:test";
 
+import { QueryClient } from "@tanstack/react-query";
+
 import {
   clampWidth,
   listMin,
+  openPanel,
   panelIssue,
   panelMin,
+  setPanelSpace,
+  showFirstRow,
   syncPanelIssue,
 } from "~/lib/issue-panel";
 
@@ -38,4 +43,50 @@ test("a link replaces the panel issue, page changes keep it and a new scope clea
   syncPanelIssue("ENG-3", "acme", "wiki");
   syncPanelIssue(null, "other", "wiki");
   expect(panelIssue()).toBeNull();
+});
+
+test("an automatic preview stays out of the URL until the user opens it", () => {
+  const location = { href: "http://flint.test/acme/my-issues" };
+  const items = new Map<string, string>();
+
+  Object.assign(globalThis, {
+    document: {
+      activeElement: null,
+      querySelectorAll: () => [{ dataset: { issue: "1" } }],
+    },
+    History: {
+      prototype: {
+        replaceState: (_state: null, _title: string, url: URL) => {
+          location.href = url.href;
+        },
+      },
+    },
+    localStorage: {
+      getItem: (name: string) => items.get(name) ?? null,
+      setItem: (name: string, value: string) => items.set(name, value),
+    },
+    window: { history: { state: null }, innerWidth: 1900, location },
+  });
+
+  try {
+    const queryClient = new QueryClient();
+
+    queryClient.setQueryData(
+      ["issues", "p"],
+      [{ deletedAt: null, id: "1", key: "ENG-1" }]
+    );
+    syncPanelIssue(null, "acme", "list");
+    setPanelSpace(2000, true);
+
+    expect(showFirstRow(queryClient)).toBe(true);
+    expect(panelIssue()).toBe("ENG-1");
+    expect(new URL(location.href).searchParams.has("issue")).toBe(false);
+
+    openPanel("ENG-1");
+    expect(new URL(location.href).searchParams.get("issue")).toBe("ENG-1");
+  } finally {
+    for (const name of ["document", "History", "localStorage", "window"]) {
+      Reflect.deleteProperty(globalThis, name);
+    }
+  }
 });

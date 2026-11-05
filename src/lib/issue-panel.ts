@@ -199,8 +199,8 @@ export const syncPanelIssue = (
 
 export const writePanelUrl = () => {
   const url = new URL(window.location.href);
-  const { issue, open } = snapshot();
-  const key = open ? issue : null;
+  const { issue, open, picked } = snapshot();
+  const key = open && !picked ? issue : null;
 
   if (key === null) {
     url.searchParams.delete("issue");
@@ -229,14 +229,11 @@ export const openPanel = (key: string | null) => {
     return false;
   }
 
-  setOpen(true);
-
-  if (key !== null && key !== panelIssue()) {
-    update({ issue: key, picked: false });
-    writePanelUrl();
-  } else if (key !== null) {
-    update({ picked: false });
-  }
+  localStorage.setItem(openKey, "true");
+  update(
+    key === null ? { open: true } : { issue: key, open: true, picked: false }
+  );
+  writePanelUrl();
 
   return true;
 };
