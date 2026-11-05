@@ -10,12 +10,14 @@ import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
 import { log } from "~/server/log.server";
 import { publish } from "~/server/realtime.server";
+import { repositoryListed } from "~/server/workspaces.server";
 
 const maxPayloadBytes = 5 * 1024 * 1024;
 
 const RepositorySchema = v.object({
   full_name: v.string(),
   html_url: v.string(),
+  private: v.optional(v.boolean(), true),
 });
 
 const CommitSchema = v.object({
@@ -162,8 +164,15 @@ const linkIssues = async (
   const issues = await tx<IssueRef[]>`
     select i.id, p.key || '-' || i.number as key,
       i.project_id as "projectId", p.workspace_id as "workspaceId"
-    from issues i join projects p on p.id = i.project_id
+    from issues i
+    join projects p on p.id = i.project_id
+    join workspaces w on w.id = p.workspace_id
     where p.key || '-' || i.number = any(${tx.array(keys, "text")})
+      and ${repositoryListed(
+        tx`w.gitea_repositories`,
+        repo.full_name,
+        repo.private
+      )}
   `;
 
   const rows = keyed.flatMap(({ keys: itemKeys, link }) =>
@@ -180,6 +189,7 @@ const linkIssues = async (
               occurred_at: link.occurredAt,
               ref: link.ref ?? null,
               repo_full_name: repo.full_name,
+              repo_private: repo.private,
               repo_url: repo.html_url,
               state: link.state,
               title: link.title,
@@ -198,6 +208,7 @@ const linkIssues = async (
     insert into git_links ${tx(rows)}
     on conflict (issue_id, kind, repo_full_name, external_id) do update set
       url = excluded.url, title = excluded.title, state = excluded.state,
+      repo_private = excluded.repo_private,
       head_sha = case
         when git_links.kind = 'commit' and git_links.ref is distinct from excluded.ref
           then git_links.head_sha

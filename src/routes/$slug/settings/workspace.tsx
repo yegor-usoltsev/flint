@@ -22,6 +22,8 @@ import {
   forgetWorkspace,
   lastWorkspace,
   nextWorkspace,
+  repositoryList,
+  repositoryProblem,
   slugProblem,
   withoutWorkspace,
 } from "~/lib/workspace";
@@ -251,6 +253,22 @@ const General = () => {
             prefix={`${host}/`}
             validate={(slug) => slugProblem(slug.toLowerCase())}
             value={workspace.slug}
+          />
+        </SettingsRow>
+        <SettingsRow
+          description="Owners or owner/repository names, separated by commas. Branches, commits and pull requests link to issues only from these; an owner covers its public repositories, a private one needs its full name."
+          htmlFor="workspace-repositories"
+          label="Gitea repositories"
+        >
+          <SettingsInput
+            disabled={!isAdmin}
+            id="workspace-repositories"
+            maxLength={2000}
+            onSave={async (list) => {
+              await update.mutateAsync({ repositories: repositoryList(list) });
+            }}
+            validate={repositoryProblem}
+            value={workspace.repositories.join(", ")}
           />
         </SettingsRow>
         <SettingsRow

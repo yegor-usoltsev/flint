@@ -1,9 +1,10 @@
+import type { SQL } from "bun";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
 import type { Workspace } from "~/lib/api-types";
 import { colors } from "~/lib/colors";
-import { reservedSlugs } from "~/lib/workspace";
+import { repositoryPattern, reservedSlugs } from "~/lib/workspace";
 import {
   requireWorkspace,
   UniqueViolationSchema,
@@ -33,6 +34,33 @@ const SlugSchema = v.pipe(
 
 const ColorSchema = v.picklist(colors);
 
+const RepositoriesSchema = v.pipe(
+  v.array(
+    v.pipe(
+      v.string(),
+      v.trim(),
+      v.regex(repositoryPattern, "Enter a Gitea owner or owner/repository")
+    )
+  ),
+  v.maxLength(100),
+  v.transform((names) => [
+    ...new Map(names.map((name) => [name.toLowerCase(), name])).values(),
+  ])
+);
+
+// oxlint-disable-next-line typescript/promise-function-async -- Returns an unexecuted Bun SQL fragment, which is thenable.
+export const repositoryListed = (
+  repositories: ReturnType<SQL["array"]> | SQL.Query<unknown>,
+  fullName: SQL.Query<unknown> | string,
+  isPrivate: SQL.Query<unknown> | boolean
+) => db`
+  exists (
+    select 1 from unnest(${repositories}) r
+    where lower(r) = lower(${fullName})
+      or (not ${isPrivate} and lower(r) = lower(split_part(${fullName}, '/', 1)))
+  )
+`;
+
 export const CreateWorkspaceSchema = v.object({
   color: v.optional(ColorSchema),
   demo: v.optional(v.boolean()),
@@ -43,6 +71,7 @@ export const CreateWorkspaceSchema = v.object({
 export const UpdateWorkspaceSchema = v.object({
   color: v.optional(ColorSchema),
   name: v.optional(NameSchema),
+  repositories: v.optional(RepositoriesSchema),
   slug: v.optional(SlugSchema),
 });
 
@@ -167,22 +196,44 @@ export const createWorkspace = async (
   return await requireWorkspace(actor, slug);
 };
 
-export const updateWorkspace = async (
-  actor: Actor,
+const saveWorkspace = async (
+  workspaceId: string,
   slug: string,
   changes: v.InferOutput<typeof UpdateWorkspaceSchema>
 ) => {
-  const workspace = await requireWorkspace(actor, slug, "admin");
+  const { repositories } = changes;
 
   try {
-    await db`
-      update workspaces set
-        name = coalesce(${changes.name ?? null}, name),
-        slug = coalesce(${changes.slug ?? null}, slug),
-        color = coalesce(${changes.color ?? null}, color),
-        updated_at = now()
-      where id = ${workspace.id}
-    `;
+    return await db.begin(async (tx) => {
+      await tx`
+        update workspaces set
+          name = coalesce(${changes.name ?? null}, name),
+          slug = coalesce(${changes.slug ?? null}, slug),
+          color = coalesce(${changes.color ?? null}, color),
+          gitea_repositories = ${
+            repositories === undefined
+              ? tx`gitea_repositories`
+              : tx.array(repositories, "text")
+          },
+          updated_at = now()
+        where id = ${workspaceId}
+      `;
+
+      return repositories === undefined
+        ? []
+        : await tx<{ issueId: string; projectId: string }[]>`
+            delete from git_links g
+            using issues i, projects p
+            where g.issue_id = i.id and p.id = i.project_id
+              and p.workspace_id = ${workspaceId}
+              and not ${repositoryListed(
+                tx.array(repositories, "text"),
+                tx`g.repo_full_name`,
+                tx`g.repo_private`
+              )}
+            returning i.id as "issueId", i.project_id as "projectId"
+          `;
+    });
   } catch (error) {
     if (v.is(UniqueViolationSchema, error)) {
       throw slugTaken(changes.slug ?? slug);
@@ -190,8 +241,23 @@ export const updateWorkspace = async (
 
     throw error;
   }
+};
+
+export const updateWorkspace = async (
+  actor: Actor,
+  slug: string,
+  changes: v.InferOutput<typeof UpdateWorkspaceSchema>
+) => {
+  const workspace = await requireWorkspace(actor, slug, "admin");
+  const unlinked = await saveWorkspace(workspace.id, slug, changes);
 
   workspaceChanged(workspace.id);
+
+  for (const { issueId, projectId } of new Map(
+    unlinked.map((link) => [link.issueId, link])
+  ).values()) {
+    publish(workspace.id, { entity: "issue", id: issueId, projectId });
+  }
 
   return await requireWorkspace(actor, changes.slug ?? slug);
 };

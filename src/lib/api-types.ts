@@ -36,6 +36,7 @@ export interface WorkspaceRef {
 export interface Workspace extends WorkspaceRef {
   color: Color;
   logoUrl: string | null;
+  repositories: string[];
   role: Role;
 }
 

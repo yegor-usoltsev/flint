@@ -13,7 +13,7 @@ import { Route as webhookRoute } from "~/routes/api/webhooks/gitea";
 import { db } from "~/server/db.server";
 import { createIssue } from "~/server/issues.server";
 import { createProject } from "~/server/projects.server";
-import { createWorkspace } from "~/server/workspaces.server";
+import { createWorkspace, updateWorkspace } from "~/server/workspaces.server";
 
 import {
   appRequest,
@@ -52,6 +52,8 @@ const setup = async () => {
   await createProject(root, "globex", { color: "red", key: "OPS", name: "O" });
   await createIssue(root, "ENG", newIssue());
   await createIssue(root, "OPS", newIssue());
+  await updateWorkspace(root, "acme", { repositories: ["flint-admin"] });
+  await updateWorkspace(root, "globex", { repositories: ["flint-admin"] });
 
   return { actor: root, root: await sessionCookieFor(rootId) };
 };
@@ -819,4 +821,43 @@ test("without a pull request an issue's CI follows its commit's branch head", as
       }),
     ],
   });
+});
+
+test("a workspace takes links only from the repositories it lists, a private one only by its full name", async () => {
+  const { actor, root } = await setup();
+
+  const kinds = async (key: string) => {
+    const links = await linksOf(root, key);
+
+    return links.map(({ kind }) => kind).toSorted();
+  };
+
+  await updateWorkspace(actor, "globex", { repositories: ["someone-else"] });
+  await deliver("pull_request", "pull-request-opened");
+
+  expect(await kinds("ENG-1")).toEqual(["pull_request"]);
+  expect(await kinds("OPS-1")).toEqual([]);
+
+  const push = await fixture("push-branch");
+  const hidden = push.replace('"private": false', '"private": true');
+
+  await send("push", hidden);
+
+  expect(await kinds("ENG-1")).toEqual(["pull_request"]);
+
+  await updateWorkspace(actor, "acme", {
+    repositories: ["Flint-Admin/demo-app"],
+  });
+  await send("push", hidden);
+
+  expect(await kinds("ENG-1")).toEqual([
+    "branch",
+    "commit",
+    "commit",
+    "pull_request",
+  ]);
+
+  await updateWorkspace(actor, "acme", { repositories: ["flint-admin"] });
+
+  expect(await kinds("ENG-1")).toEqual(["pull_request"]);
 });

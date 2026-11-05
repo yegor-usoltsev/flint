@@ -30,7 +30,9 @@ In Gitea's `app.ini`, raise `[ui] FEED_MAX_COMMIT_NUM` (the local stack uses 50)
 
 ### How links work
 
-An issue key such as `ENG-12` in a branch name (`feature/eng-12-fix` counts), commit message, or pull request title or body links that item to the issue, with the pull request's state and CI statuses. Every repository on the instance counts. Flint itself never writes to Gitea or changes an issue's status.
+An issue key such as `ENG-12` in a branch name (`feature/eng-12-fix` counts), commit message, or pull request title or body links that item to the issue, with the pull request's state and CI statuses. Flint itself never writes to Gitea or changes an issue's status.
+
+A workspace takes links only from the repositories its admins list under **Settings → General → Gitea repositories** or with `flint workspace update --repos`. An owner such as `acme` covers its public repositories; a private one counts only under its full name, such as `acme/billing`, because every workspace member sees its branch names, commit and pull request titles and CI states. Taking a repository off the list removes its links. The upgrade that introduced the list fills it with the repositories each workspace already had links from; review it, because it may include a repository from outside your organization.
 
 For links back from Gitea, the same admin token sets an external issue tracker on owners (all their current repositories) or single repositories; Gitea then links keys in brackets, such as `[ENG-12]`. This hides a repository's own issues, including Renovate's Dependency Dashboard.
 
