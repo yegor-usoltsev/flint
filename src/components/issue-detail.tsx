@@ -159,6 +159,7 @@ const originCrumb = (
   origin.view === "mine"
     ? {
         label: "My issues",
+        short: "My issues",
         link: (
           <Link
             params={{ slug }}
@@ -169,6 +170,8 @@ const originCrumb = (
       }
     : {
         label:
+          origin.projectKey === project.key ? project.name : origin.projectKey,
+        short:
           origin.projectKey === project.key ? project.name : origin.projectKey,
         link: (
           <Link
