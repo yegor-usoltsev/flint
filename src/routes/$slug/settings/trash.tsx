@@ -9,7 +9,6 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { Hint } from "~/components/issue-parts";
 import { LoadFailed } from "~/components/load-failed";
 import {
   SettingsFilter,
@@ -145,21 +144,11 @@ const expiresText = (days: number) => {
   return days === 1 ? "tomorrow" : `in ${days} days`;
 };
 
-const ExpiresIn = ({
-  deletedAt,
-  purgeAt,
-}: {
-  deletedAt: string;
-  purgeAt: string;
-}) => (
-  <Hint label={`Deleted ${formatDate(deletedAt)}`}>
-    <span className={tableDate}>
-      <span className="sr-only">
-        Deleted {formatDate(deletedAt)}, removed for good{" "}
-      </span>
-      {expiresText(daysLeft(purgeAt))}
-    </span>
-  </Hint>
+const ExpiresIn = ({ purgeAt }: { purgeAt: string }) => (
+  <span className={tableDate}>
+    <span className="sr-only">Deleted forever </span>
+    {expiresText(daysLeft(purgeAt))}
+  </span>
 );
 
 const ExpiresLine = ({
@@ -169,9 +158,11 @@ const ExpiresLine = ({
   deletedAt: string;
   purgeAt: string;
 }) => (
-  <span className="text-muted-foreground text-xs md:hidden">
-    Deleted {formatDate(deletedAt)}, removed for good{" "}
-    {expiresText(daysLeft(purgeAt))}
+  <span className="text-muted-foreground text-xs">
+    Deleted {formatDate(deletedAt)}
+    <span className="md:hidden">
+      , deleted forever {expiresText(daysLeft(purgeAt))}
+    </span>
   </span>
 );
 
@@ -204,7 +195,7 @@ const TrashRow = ({
       <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
     </div>
     <DeletedBy user={deletedBy} />
-    <ExpiresIn deletedAt={deletedAt} purgeAt={purgeAt} />
+    <ExpiresIn purgeAt={purgeAt} />
     <div className="flex w-28 shrink-0 items-center justify-end gap-1">
       <Button
         disabled={pending}
