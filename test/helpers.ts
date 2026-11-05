@@ -17,7 +17,7 @@ export const resetDatabase = async () => {
 
 const giteaIds = new Map<string, number>();
 
-const giteaIdOf = (username: string) => {
+export const addGiteaUser = (username: string) => {
   const key = username.toLowerCase();
   const id = giteaIds.get(key) ?? 1000 + giteaIds.size;
 
@@ -25,8 +25,6 @@ const giteaIdOf = (username: string) => {
 
   return id;
 };
-
-export const addGiteaUser = (username: string) => giteaIdOf(username);
 
 const fakeGiteaUsers = async (input: RequestInfo | URL) => {
   const url = new URL(input instanceof Request ? input.url : input);
@@ -55,7 +53,7 @@ export const createUser = async (username: string) =>
   await signIn({
     avatarUrl: "",
     email: `${username}@example.test`,
-    giteaId: String(giteaIdOf(username)),
+    giteaId: String(addGiteaUser(username)),
     name: username,
     username,
   });

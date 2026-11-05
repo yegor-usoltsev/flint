@@ -127,7 +127,7 @@ export const addMember = async (
       throw new ApiError(
         409,
         "conflict",
-        `Several accounts were called @${username}; ask the right one to sign in to Flint again, then add them`
+        `Several Flint accounts are called @${username}; whoever no longer uses that name in Gitea has to sign in to Flint again first`
       );
     }
 
