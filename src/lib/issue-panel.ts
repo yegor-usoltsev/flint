@@ -13,15 +13,21 @@ import {
 
 export const panelMin = 420;
 export const listMin = 520;
+const listMax = 1440;
 const panelMaxShare = 0.65;
 const defaultShare = 0.42;
+const splitByDefault = 1800;
 const openKey = "flint:issue-panel";
 const widthKey = "flint:issue-panel-width";
+
+export type PanelScope = "list" | "wiki";
 
 interface PanelState {
   available: boolean;
   issue: string | null;
   open: boolean;
+  picked: boolean;
+  scope: PanelScope;
   width: number | null;
 }
 
@@ -29,6 +35,8 @@ let state: PanelState = {
   available: false,
   issue: null,
   open: false,
+  picked: false,
+  scope: "list",
   width: null,
 };
 
@@ -43,10 +51,11 @@ const load = () => {
   loaded = true;
 
   const width = Number(localStorage.getItem(widthKey));
+  const open = localStorage.getItem(openKey);
 
   state = {
     ...state,
-    open: localStorage.getItem(openKey) === "true",
+    open: open === null ? window.innerWidth >= splitByDefault : open === "true",
     width: Number.isFinite(width) && width > 0 ? width : null,
   };
 };
@@ -56,12 +65,17 @@ const update = (patch: Partial<PanelState>) => {
 
   const next = { ...state, ...patch };
 
-  if (
+  const sameView =
     next.available === state.available &&
     next.issue === state.issue &&
-    next.open === state.open &&
-    next.width === state.width
-  ) {
+    next.open === state.open;
+
+  const sameLayout =
+    next.picked === state.picked &&
+    next.scope === state.scope &&
+    next.width === state.width;
+
+  if (sameView && sameLayout) {
     return;
   }
 
@@ -90,6 +104,8 @@ const serverState: PanelState = {
   available: false,
   issue: null,
   open: false,
+  picked: false,
+  scope: "list",
   width: null,
 };
 
@@ -124,10 +140,17 @@ export const panelAvailable = () => snapshot().available;
 
 export const panelIssue = () => snapshot().issue;
 
-export const clampWidth = (width: number | null, space: number) =>
+export const clampWidth = (
+  width: number | null,
+  space: number,
+  capList = true
+) =>
   Math.round(
     Math.min(
-      Math.max(width ?? space * defaultShare, panelMin),
+      Math.max(
+        width ?? Math.max(space * defaultShare, capList ? space - listMax : 0),
+        panelMin
+      ),
       Math.max(panelMin, Math.min(space * panelMaxShare, space - listMin))
     )
   );
@@ -148,18 +171,23 @@ export const setPanelAvailable = (available: boolean) => {
 
 let workspace: string | null = null;
 
-export const syncPanelIssue = (issue: string | null, slug: string) => {
-  if (slug !== workspace) {
+export const syncPanelIssue = (
+  issue: string | null,
+  slug: string,
+  scope: PanelScope
+) => {
+  if (slug !== workspace || scope !== snapshot().scope) {
     workspace = slug;
-    update({ issue });
-  } else if (issue !== null) {
-    update({ issue });
+    update({ issue, picked: false, scope });
+  } else if (issue !== null && issue !== snapshot().issue) {
+    update({ issue, picked: false });
   }
 };
 
 export const writePanelUrl = () => {
   const url = new URL(window.location.href);
-  const key = panelIssue();
+  const { issue, open } = snapshot();
+  const key = open ? issue : null;
 
   if (key === null) {
     url.searchParams.delete("issue");
@@ -180,6 +208,7 @@ export const writePanelUrl = () => {
 const setOpen = (open: boolean) => {
   localStorage.setItem(openKey, String(open));
   update({ open });
+  writePanelUrl();
 };
 
 export const openPanel = (key: string | null) => {
@@ -190,8 +219,10 @@ export const openPanel = (key: string | null) => {
   setOpen(true);
 
   if (key !== null && key !== panelIssue()) {
-    update({ issue: key });
+    update({ issue: key, picked: false });
     writePanelUrl();
+  } else if (key !== null) {
+    update({ picked: false });
   }
 
   return true;
@@ -216,8 +247,11 @@ export const showInPanel = (key: string) => panelShown() && openPanel(key);
 const issueKeyOfRow = (queryClient: QueryClient, id: string | undefined) =>
   id === undefined ? null : (findIssue(queryClient, id)?.key ?? null);
 
+export const panelVisible = (current: PanelState) =>
+  current.open && current.available && current.issue !== null;
+
 export const togglePanel = (queryClient: QueryClient) => {
-  if (panelShown()) {
+  if (panelVisible(snapshot())) {
     closePanel();
 
     return;
@@ -228,6 +262,27 @@ export const togglePanel = (queryClient: QueryClient) => {
       panelIssue() ??
       issueKeyOfRow(queryClient, rowOrder()[0])
   );
+};
+
+const savedKey = (key: string | null) =>
+  key !== null && /-\d+$/u.test(key) ? key : null;
+
+export const showFirstRow = (queryClient: QueryClient) => {
+  const key =
+    savedKey(issueKeyOfRow(queryClient, focusedId() ?? undefined)) ??
+    rowOrder()
+      .map((id) => savedKey(issueKeyOfRow(queryClient, id)))
+      .find((found) => found !== null) ??
+    null;
+
+  if (key === null) {
+    return false;
+  }
+
+  update({ issue: key, picked: true });
+  writePanelUrl();
+
+  return true;
 };
 
 export const peekFocused = (queryClient: QueryClient) => {

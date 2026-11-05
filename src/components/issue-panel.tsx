@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useLocation,
   useMatch,
+  useNavigate,
   useParams,
   useSearch,
 } from "@tanstack/react-router";
@@ -28,9 +29,13 @@ import { Skeleton } from "~/components/ui/skeleton";
 import {
   clampWidth,
   listMin,
+  openPanel,
+  panelAvailable,
   panelMin,
+  panelVisible,
   setPanelAvailable,
   setPanelWidth,
+  showFirstRow,
   syncPanelIssue,
   returnFocusToList,
   usePanel,
@@ -269,6 +274,81 @@ const useSlide = (shown: boolean) => {
   return slide;
 };
 
+const useFirstRow = (
+  host: RefObject<HTMLDivElement | null>,
+  active: boolean
+) => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const element = host.current;
+
+    const observer = new MutationObserver(() => {
+      if (showFirstRow(queryClient)) {
+        observer.disconnect();
+      }
+    });
+
+    if (active && element !== null && !showFirstRow(queryClient)) {
+      observer.observe(element, {
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [active, host, queryClient]);
+};
+
+const useLinkedIssue = ({
+  active,
+  issue,
+  space,
+}: {
+  active: boolean;
+  issue: string | null;
+  space: number;
+}) => {
+  const navigate = useNavigate();
+  const origin = usePanelOrigin();
+  const handled = useRef<string | null>(null);
+
+  const slug = useParams({
+    select: (params) => params.slug ?? "",
+    strict: false,
+  });
+
+  useEffect(() => {
+    if (issue === null) {
+      handled.current = null;
+    }
+
+    if (space === 0 || issue === null || handled.current === issue) {
+      return;
+    }
+
+    handled.current = issue;
+
+    if (!active) {
+      return;
+    }
+
+    if (panelAvailable()) {
+      openPanel(issue);
+    } else {
+      void navigate({
+        params: { issueKey: issue, slug },
+        replace: true,
+        state: { from: origin },
+        to: "/$slug/issue/$issueKey",
+      });
+    }
+  }, [active, issue, navigate, origin, slug, space]);
+};
+
 export const IssuePanelHost = ({
   children,
   enabled,
@@ -280,6 +360,11 @@ export const IssuePanelHost = ({
   const panel = useRef<HTMLElement>(null);
   const queryClient = useQueryClient();
   const href = useLocation({ select: (location) => location.href });
+
+  const scope = useLocation({
+    select: (location) =>
+      /^\/[^/]+\/wiki(?:\/|$)/u.test(location.pathname) ? "wiki" : "list",
+  });
 
   const slug = useParams({
     select: (params) => params.slug ?? "",
@@ -293,13 +378,20 @@ export const IssuePanelHost = ({
 
   const state = usePanel();
   const space = useAvailableSpace(host, enabled);
-  const shown = enabled && state.open && state.available;
+  const shown = enabled && panelVisible(state);
   const slide = useSlide(shown);
-  const width = clampWidth(state.width, space);
+  const origin = usePanelOrigin();
+  const width = clampWidth(state.width, space, origin?.view !== "board");
 
   useEffect(() => {
-    syncPanelIssue(issue, slug);
-  }, [issue, slug]);
+    syncPanelIssue(issue, slug, scope);
+  }, [issue, scope, slug]);
+
+  const waiting = state.open && state.available && state.issue === null;
+
+  useLinkedIssue({ active: enabled, issue, space });
+
+  useFirstRow(host, enabled && scope === "list" && waiting);
 
   useEffect(() => {
     if (enabled && href !== "" && slug !== "") {

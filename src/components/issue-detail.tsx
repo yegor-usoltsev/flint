@@ -15,6 +15,7 @@ import {
   GitBranchIcon,
   LinkIcon,
   Maximize2Icon,
+  PanelRightIcon,
   RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -56,6 +57,7 @@ import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
 import { useContextIssue } from "~/lib/issue-focus";
+import { usePanel } from "~/lib/issue-panel";
 import { orderIssues } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
 import { useMyIssues } from "~/lib/my-issues";
@@ -431,11 +433,13 @@ const IssueActions = ({
   branch,
   issue,
   onDelete,
+  project,
   slug,
 }: {
   branch: string;
   issue: Issue;
   onDelete: () => void;
+  project?: string;
   slug: string;
 }) => (
   <DropdownMenu>
@@ -447,6 +451,25 @@ const IssueActions = ({
       <EllipsisIcon />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-60">
+      {project === undefined ? null : (
+        <div className="max-lg:hidden">
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              render={
+                <Link
+                  params={{ key: project, slug }}
+                  search={{ issue: issue.key }}
+                  to="/$slug/project/$key"
+                />
+              }
+            >
+              <PanelRightIcon />
+              Show in project
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+        </div>
+      )}
       <DropdownMenuGroup>
         <DropdownMenuItem
           onClick={() => {
@@ -769,6 +792,7 @@ const IssueScreen = ({
               branch={branchName(username, data.key, data.title)}
               issue={data}
               onDelete={remove}
+              project={project.key}
               slug={workspace.slug}
             />
           ) : null}
@@ -831,8 +855,9 @@ const PanelScreen = ({
   const { data } = issue;
   const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
+  const { picked } = usePanel();
 
-  useContextIssue(data, editable);
+  useContextIssue(data, editable && !picked);
 
   return (
     <>

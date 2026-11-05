@@ -9,6 +9,7 @@
 @theme inline {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --container-document: 833px;
+  --container-list: 90rem;
   --shadow-focus-bar: inset 2px 0 0 var(--primary);
   --font-sans:
     "Inter Variable", "SF Pro Display", -apple-system, system-ui, "Segoe UI",
@@ -116,8 +117,8 @@
   --surface-2: oklch(0.952 0.001 282.7);
   --surface-3: oklch(0.935 0.001 282.7);
   --row-focus: oklch(0.967 0.001 282.7);
-  --group-header: oklch(0.945 0.001 282.7);
-  --group-header-hover: oklch(0.928 0.002 282.7);
+  --group-header: oklch(0.958 0.001 282.7);
+  --group-header-hover: oklch(0.94 0.002 282.7);
   --row-selected: oklch(0.95 0.025 277);
   --row-selected-hover: oklch(0.925 0.04 277);
   --priority-urgent: oklch(0.62 0.2 40);
@@ -172,8 +173,8 @@
   --surface-2: oklch(0.218 0.002 271.1);
   --surface-3: oklch(0.233 0.003 270.9);
   --row-focus: oklch(0.21 0.003 270.8);
-  --group-header: oklch(0.235 0.003 270.9);
-  --group-header-hover: oklch(0.255 0.003 270.9);
+  --group-header: oklch(0.222 0.003 270.9);
+  --group-header-hover: oklch(0.245 0.003 270.9);
   --row-selected: oklch(0.28 0.049 278.5);
   --row-selected-hover: oklch(0.315 0.06 278.5);
   --priority-urgent: oklch(0.7 0.18 40);
@@ -252,6 +253,10 @@
       1fr;
     column-gap: clamp(16px, 8.696cqw - 55.304px, 56px);
   }
+}
+
+@utility fade-right {
+  mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
 }
 
 @utility mention {
