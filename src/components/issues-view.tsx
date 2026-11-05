@@ -650,51 +650,44 @@ const useMoreRight = (
   return more;
 };
 
-const columnGap = 8;
+const columnGapRem = 0.5;
 const columnMinRem = 15;
 const columnMaxRem = 25;
-const buttonStrip = 48;
+const buttonStripRem = 3;
+
+const rootRem = () =>
+  Number(
+    getComputedStyle(document.documentElement).fontSize.replace(/px$/u, "")
+  ) || 16;
 
 const useColumnWidth = (
   board: RefObject<HTMLDivElement | null>,
   count: number
 ) => {
-  const [layout, setLayout] = useState({ fits: true, width: 288 });
+  const [layout, setLayout] = useState({ fits: true, step: 0, width: 288 });
 
   useLayoutEffect(() => {
     const element = board.current;
 
     const measure = () => {
-      const rem =
-        Number(
-          getComputedStyle(document.documentElement).fontSize.replace(
-            /px$/u,
-            ""
-          )
-        ) || 16;
-
+      const rem = rootRem();
+      const gap = columnGapRem * rem;
       const columnMin = columnMinRem * rem;
       const columnMax = columnMaxRem * rem;
-      const inner = (element?.clientWidth ?? 0) - columnGap * 2;
-      const all = (inner - columnGap * (count - 1)) / count;
+      const inner = (element?.clientWidth ?? 0) - gap * 2;
+      const all = (inner - gap * (count - 1)) / count;
 
       if (all >= columnMin) {
-        setLayout({ fits: true, width: Math.min(all, columnMax) });
+        setLayout({ fits: true, step: 0, width: Math.min(all, columnMax) });
 
         return;
       }
 
-      const room = inner - buttonStrip;
+      const room = inner - buttonStripRem * rem;
+      const shown = Math.max(1, Math.floor((room + gap) / (columnMin + gap)));
+      const width = Math.min((room - gap * (shown - 1)) / shown, columnMax);
 
-      const shown = Math.max(
-        1,
-        Math.floor((room + columnGap) / (columnMin + columnGap))
-      );
-
-      setLayout({
-        fits: false,
-        width: (room - columnGap * (shown - 1)) / shown,
-      });
+      setLayout({ fits: false, step: shown * (width + gap), width });
     };
 
     const observer = new ResizeObserver(measure);
@@ -754,9 +747,7 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
 
                 element?.scrollTo({
                   behavior: "smooth",
-                  left: more
-                    ? element.scrollLeft + element.clientWidth - columnGap
-                    : 0,
+                  left: more ? element.scrollLeft + layout.step : 0,
                 });
               }}
               size="icon-round"
