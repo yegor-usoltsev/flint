@@ -13,8 +13,8 @@ import { Route as membersRoute } from "~/routes/api/v1/workspaces/$slug/members/
 import { Route as projectsRoute } from "~/routes/api/v1/workspaces/$slug/projects";
 import { Route as streamRoute } from "~/routes/api/v1/workspaces/$slug/stream";
 import { Route as workspacesRoute } from "~/routes/api/v1/workspaces/index";
-import { env } from "~/server/env.server";
 import { db } from "~/server/db.server";
+import { env } from "~/server/env.server";
 import { signIn } from "~/server/users.server";
 
 import {
@@ -740,6 +740,100 @@ test("a member added to a workspace hears it on a stream of another workspace", 
   controller.abort();
 });
 
+test("a name two members share changes or removes neither until one signs in again", async () => {
+  const { root } = await setup();
+  const carolId = String(addGiteaUser("carol"));
+  const daveId = String(addGiteaUser("dave"));
+
+  const carol = await signInAs(carolId, "carol");
+
+  await addMember(root, "acme", "carol");
+  await addMember(root, "acme", "dave");
+
+  const dave = await signInAs(daveId, "Carol");
+
+  expect(await me(dave)).toMatchObject({
+    body: { workspaces: [{ role: "member", slug: "acme" }] },
+  });
+
+  for (const [cookie, method, body] of [
+    [root, "PATCH", { role: "admin" }],
+    [root, "DELETE", undefined],
+    [dave, "DELETE", undefined],
+  ] as const) {
+    // oxlint-disable-next-line no-await-in-loop -- Each call is checked in turn.
+    const response = await memberCall(cookie, method, "acme", "carol", body);
+
+    expect(response).toMatchObject({
+      body: { error: { code: "conflict" } },
+      status: 409,
+    });
+    expect(JSON.stringify(response.body)).toContain("@carol");
+  }
+
+  for (const cookie of [carol, dave]) {
+    // oxlint-disable-next-line no-await-in-loop -- Each member is checked in turn.
+    expect(await me(cookie)).toMatchObject({
+      body: { workspaces: [{ role: "member", slug: "acme" }] },
+    });
+  }
+
+  await signInAs(carolId, "carla");
+
+  expect(
+    await memberCall(root, "PATCH", "acme", "carol", { role: "admin" })
+  ).toMatchObject({ body: { role: "admin", username: "Carol" }, status: 200 });
+  expect(await me(dave)).toMatchObject({
+    body: { workspaces: [{ role: "admin", slug: "acme" }] },
+  });
+  expect(await me(carol)).toMatchObject({
+    body: { workspaces: [{ role: "member", slug: "acme" }] },
+  });
+});
+
+test("a member and an invite with one name change or remove neither", async () => {
+  const { root } = await setup();
+  const erinId = String(addGiteaUser("erin"));
+
+  await addMember(root, "acme", "erin");
+  await signInAs("9020", "frank");
+  await addMember(root, "acme", "frank");
+
+  const frank = await signInAs("9020", "erin");
+
+  for (const [method, body] of [
+    ["PATCH", { role: "admin" }],
+    ["DELETE", undefined],
+  ] as const) {
+    // oxlint-disable-next-line no-await-in-loop -- Each call is checked in turn.
+    const response = await memberCall(root, method, "acme", "erin", body);
+
+    expect(response).toMatchObject({
+      body: { error: { code: "conflict" } },
+      status: 409,
+    });
+    expect(JSON.stringify(response.body)).toContain("pending invite");
+  }
+
+  expect(await me(frank)).toMatchObject({
+    body: { workspaces: [{ role: "member", slug: "acme" }] },
+  });
+
+  await signInAs(erinId, "erna");
+
+  expect(await memberCall(root, "DELETE", "acme", "erin")).toMatchObject({
+    status: 204,
+  });
+  expect(await me(frank)).toMatchObject({ body: { workspaces: [] } });
+  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
+    body: [
+      { username: "alice" },
+      { pending: false, role: "member", username: "erna" },
+      { username: "root" },
+    ],
+  });
+});
+
 test("past STREAMS_PER_USER a new event stream answers 429 and the open ones stay connected", async () => {
   const { bob } = await setup();
   const saved = env.STREAMS_PER_USER;
@@ -845,96 +939,4 @@ test("an event stream aborted before it opens frees its slot", async () => {
 
     env.STREAMS_PER_USER = saved;
   }
-test("a name two members share changes or removes neither until one signs in again", async () => {
-  const { root } = await setup();
-  const carolId = String(addGiteaUser("carol"));
-  const daveId = String(addGiteaUser("dave"));
-
-  const carol = await signInAs(carolId, "carol");
-
-  await addMember(root, "acme", "carol");
-  await addMember(root, "acme", "dave");
-
-  const dave = await signInAs(daveId, "Carol");
-
-  expect(await me(dave)).toMatchObject({
-    body: { workspaces: [{ role: "member", slug: "acme" }] },
-  });
-
-  for (const [cookie, method, body] of [
-    [root, "PATCH", { role: "admin" }],
-    [root, "DELETE", undefined],
-    [dave, "DELETE", undefined],
-  ] as const) {
-    // oxlint-disable-next-line no-await-in-loop -- Each call is checked in turn.
-    const response = await memberCall(cookie, method, "acme", "carol", body);
-
-    expect(response).toMatchObject({
-      body: { error: { code: "conflict" } },
-      status: 409,
-    });
-    expect(JSON.stringify(response.body)).toContain("@carol");
-  }
-
-  for (const cookie of [carol, dave]) {
-    // oxlint-disable-next-line no-await-in-loop -- Each member is checked in turn.
-    expect(await me(cookie)).toMatchObject({
-      body: { workspaces: [{ role: "member", slug: "acme" }] },
-    });
-  }
-
-  await signInAs(carolId, "carla");
-
-  expect(
-    await memberCall(root, "PATCH", "acme", "carol", { role: "admin" })
-  ).toMatchObject({ body: { role: "admin", username: "Carol" }, status: 200 });
-  expect(await me(dave)).toMatchObject({
-    body: { workspaces: [{ role: "admin", slug: "acme" }] },
-  });
-  expect(await me(carol)).toMatchObject({
-    body: { workspaces: [{ role: "member", slug: "acme" }] },
-  });
-});
-
-test("a member and an invite with one name change or remove neither", async () => {
-  const { root } = await setup();
-  const erinId = String(addGiteaUser("erin"));
-
-  await addMember(root, "acme", "erin");
-  await signInAs("9020", "frank");
-  await addMember(root, "acme", "frank");
-
-  const frank = await signInAs("9020", "erin");
-
-  for (const [method, body] of [
-    ["PATCH", { role: "admin" }],
-    ["DELETE", undefined],
-  ] as const) {
-    // oxlint-disable-next-line no-await-in-loop -- Each call is checked in turn.
-    const response = await memberCall(root, method, "acme", "erin", body);
-
-    expect(response).toMatchObject({
-      body: { error: { code: "conflict" } },
-      status: 409,
-    });
-    expect(JSON.stringify(response.body)).toContain("pending invite");
-  }
-
-  expect(await me(frank)).toMatchObject({
-    body: { workspaces: [{ role: "member", slug: "acme" }] },
-  });
-
-  await signInAs(erinId, "erna");
-
-  expect(await memberCall(root, "DELETE", "acme", "erin")).toMatchObject({
-    status: 204,
-  });
-  expect(await me(frank)).toMatchObject({ body: { workspaces: [] } });
-  expect(await listOf(membersRoute, root, "acme", "members")).toMatchObject({
-    body: [
-      { username: "alice" },
-      { pending: false, role: "member", username: "erna" },
-      { username: "root" },
-    ],
-  });
 });
