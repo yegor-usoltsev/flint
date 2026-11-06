@@ -78,6 +78,7 @@ const IssueChip = ({ node }: ReactNodeViewProps) => {
             interceptIssueClick(event, key);
           }}
           params={{ issueKey: key, slug: workspace.slug }}
+          state={(previous) => ({ full: previous.full })}
           to="/$slug/issue/$issueKey"
         >
           <span className="shrink-0 whitespace-nowrap">

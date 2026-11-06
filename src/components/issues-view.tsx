@@ -19,6 +19,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
+  ChevronLeftIcon,
   ChevronRightIcon,
   KanbanIcon,
   ListIcon,
@@ -26,7 +27,7 @@ import {
   PlusIcon,
   SlidersHorizontalIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
 import { useCreateIssue } from "~/components/create-issue";
@@ -289,21 +290,26 @@ export const RowContent = ({
   <>
     <RowCheck id={issue.id} />
     <PriorityIcon
-      className={cn(issue.priority === 0 && "max-md:hidden")}
+      className={cn(issue.priority === 0 && "invisible")}
       priority={issue.priority}
     />
     <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
       {issue.key}
     </span>
     <IssueStatus issue={issue} lookup={lookup} />
-    <span className="order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate @min-[80rem]/list:max-w-160">
+    <span
+      className={cn(
+        "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate @min-[80rem]/list:max-w-160",
+        (!assignee || issue.assigneeId === null) && "max-md:w-full"
+      )}
+    >
       {issue.title}
     </span>
-    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden @max-[80rem]/list:empty:hidden @min-[80rem]/list:w-80 @min-[80rem]/list:max-w-none @min-[80rem]/list:shrink-0 @max-3xl/list:[&>:nth-child(n+2)]:hidden">
+    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden @max-[80rem]/list:empty:hidden md:@max-3xl/list:hidden @min-[80rem]/list:w-80 @min-[80rem]/list:max-w-none @min-[80rem]/list:shrink-0 @max-4xl/list:[&>:nth-child(n+2)]:hidden">
       <IssueLabels issue={issue} lookup={lookup} />
     </span>
     {issue.labelIds.length > 1 ? (
-      <span className="text-muted-foreground shrink-0 text-xs tabular-nums @3xl/list:hidden">
+      <span className="text-muted-foreground shrink-0 text-xs tabular-nums md:@max-3xl/list:hidden @4xl/list:hidden">
         +{issue.labelIds.length - 1}
       </span>
     ) : null}
@@ -320,7 +326,7 @@ export const RowContent = ({
       />
     ) : null}
     <time
-      className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0 md:@max-3xl/list:hidden"
+      className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0"
       dateTime={issue.updatedAt}
     >
       <span className="sr-only">Updated </span>
@@ -409,7 +415,7 @@ const List = ({ columns, statuses, ...props }: ViewProps) => (
 );
 
 const cardClass =
-  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
+  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
 
 const CardContent = ({
   issue,
@@ -430,7 +436,7 @@ const CardContent = ({
     </span>
     <span className="flex flex-wrap items-center gap-1.5 empty:hidden">
       {issue.priority === 0 ? null : <PriorityIcon priority={issue.priority} />}
-      <IssueLabels issue={issue} lookup={lookup} max={2} />
+      <IssueLabels issue={issue} lookup={lookup} max={1} />
       <PullRequestIcon state={issue.pullRequestState} />
       <CiIcon state={issue.ciState} />
       <Checklist issue={issue} />
@@ -457,7 +463,7 @@ const BoardColumn = ({
     <section
       aria-labelledby={`column-${status.id}`}
       className={cn(
-        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:max-w-100 md:grow md:basis-72",
+        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:w-(--column) md:max-w-none",
         isDropTarget && "bg-row-selected"
       )}
       data-column={status.id}
@@ -561,28 +567,44 @@ const ColumnJump = ({
   }, [board, statuses]);
 
   const current = active ?? statuses[0]?.id;
+  const chips = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const chip =
+      current === undefined
+        ? null
+        : chips.current?.querySelector(`[data-chip="${CSS.escape(current)}"]`);
+
+    if (chip instanceof HTMLElement && chips.current !== null) {
+      chips.current.scrollTo({
+        behavior: "smooth",
+        left:
+          chip.offsetLeft -
+          chips.current.clientWidth / 2 +
+          chip.clientWidth / 2,
+      });
+    }
+  }, [current]);
 
   return (
     <nav
       aria-label="Board columns"
-      className="flex shrink-0 gap-1 overflow-x-auto px-2 pt-2 md:hidden"
+      className="fade-x flex shrink-0 gap-1 overflow-x-auto px-4 pt-2 md:hidden"
+      ref={chips}
     >
       {statuses.map((status) => (
         <Button
           aria-current={status.id === current ? "true" : undefined}
           className="shrink-0"
+          data-chip={status.id}
           key={status.id}
-          onClick={(event) => {
-            event.currentTarget.scrollIntoView({
-              block: "nearest",
-              inline: "nearest",
-            });
+          onClick={() => {
             board.current
               ?.querySelector(`[data-column="${CSS.escape(status.id)}"]`)
               ?.scrollIntoView({ block: "nearest", inline: "start" });
           }}
           size="sm"
-          variant={status.id === current ? "secondary" : "ghost"}
+          variant={status.id === current ? "outline" : "ghost"}
         >
           <StatusIcon category={status.category} color={status.color} />
           {status.name}
@@ -628,9 +650,85 @@ const useMoreRight = (
   return more;
 };
 
+const columnGapRem = 0.5;
+const columnMinRem = 15;
+const columnMaxRem = 25;
+const buttonStripRem = 3;
+
+const rootRem = () =>
+  Number(
+    getComputedStyle(document.documentElement).fontSize.replace(/px$/u, "")
+  ) || 16;
+
+const useColumnWidth = (
+  board: RefObject<HTMLDivElement | null>,
+  count: number
+) => {
+  const [layout, setLayout] = useState({ fits: true, step: 0, width: 288 });
+
+  useLayoutEffect(() => {
+    const element = board.current;
+
+    const measure = () => {
+      const rem = rootRem();
+      const gap = columnGapRem * rem;
+      const columnMin = columnMinRem * rem;
+      const columnMax = columnMaxRem * rem;
+      const inner = (element?.clientWidth ?? 0) - gap * 2;
+      const all = (inner - gap * (count - 1)) / count;
+
+      if (all >= columnMin) {
+        setLayout({ fits: true, step: 0, width: Math.min(all, columnMax) });
+
+        return;
+      }
+
+      const room = inner - buttonStripRem * rem;
+      const shown = Math.max(1, Math.floor((room + gap) / (columnMin + gap)));
+      const width = Math.min((room - gap * (shown - 1)) / shown, columnMax);
+
+      setLayout({ fits: false, step: shown * (width + gap), width });
+    };
+
+    const observer = new ResizeObserver(measure);
+
+    if (element !== null) {
+      measure();
+      observer.observe(element);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [board, count]);
+
+  return layout;
+};
+
 const Board = ({ columns, statuses, ...props }: ViewProps) => {
+  const frame = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
   const more = useMoreRight(board, statuses.at(-1)?.id);
+  const layout = useColumnWidth(frame, statuses.length);
+  const shownWidth = useRef(layout.width);
+
+  useLayoutEffect(() => {
+    const element = board.current;
+    const previous = shownWidth.current;
+
+    shownWidth.current = layout.width;
+
+    if (
+      element !== null &&
+      previous !== layout.width &&
+      window.matchMedia("(min-width: 48rem)").matches
+    ) {
+      const gap = columnGapRem * rootRem();
+      const first = Math.round(element.scrollLeft / (previous + gap));
+
+      element.scrollLeft = first * (layout.width + gap);
+    }
+  }, [layout.width]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -640,22 +738,44 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
         statuses={statuses}
         total={props.total}
       />
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 snap-x snap-mandatory gap-2 overflow-x-auto p-2 md:snap-none",
-          more && "fade-right"
+      <div className="flex min-h-0 flex-1" ref={frame}>
+        <div
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto p-2 md:snap-none",
+            more && "max-md:fade-right"
+          )}
+          data-board
+          ref={board}
+          style={{ "--column": `${layout.width}px` }}
+        >
+          {statuses.map((status) => (
+            <BoardColumn
+              ids={columns[status.id] ?? []}
+              key={status.id}
+              status={status}
+              {...props}
+            />
+          ))}
+        </div>
+        {layout.fits ? null : (
+          <div className="flex w-12 shrink-0 justify-center pt-4.5 max-md:hidden">
+            <Button
+              aria-label={more ? "Show more columns" : "Show first columns"}
+              onClick={() => {
+                const element = board.current;
+
+                element?.scrollTo({
+                  behavior: "smooth",
+                  left: more ? element.scrollLeft + layout.step : 0,
+                });
+              }}
+              size="icon-round"
+              variant="outline"
+            >
+              {more ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            </Button>
+          </div>
         )}
-        data-board
-        ref={board}
-      >
-        {statuses.map((status) => (
-          <BoardColumn
-            ids={columns[status.id] ?? []}
-            key={status.id}
-            status={status}
-            {...props}
-          />
-        ))}
       </div>
     </div>
   );

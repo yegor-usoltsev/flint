@@ -10,11 +10,12 @@ import {
   panelMin,
   setPanelSpace,
   showFirstRow,
+  stepFromPanel,
   syncPanelIssue,
 } from "~/lib/issue-panel";
 
 test("the panel width stays between its minimum and what leaves the list its minimum", () => {
-  expect(clampWidth(null, 1400)).toBe(588);
+  expect(clampWidth(null, 1400)).toBe(672);
   expect(clampWidth(100, 1400)).toBe(panelMin);
   expect(clampWidth(5000, 1400)).toBe(1400 - listMin);
   expect(clampWidth(5000, 2400)).toBe(1560);
@@ -23,8 +24,12 @@ test("the panel width stays between its minimum and what leaves the list its min
 
 test("on very wide screens the panel takes what the capped list leaves", () => {
   expect(clampWidth(null, 3600)).toBe(2160);
-  expect(clampWidth(null, 1800)).toBe(756);
-  expect(clampWidth(null, 3600, false)).toBe(1512);
+  expect(clampWidth(null, 1800)).toBe(864);
+});
+
+test("a board keeps a narrower panel so more columns fit", () => {
+  expect(clampWidth(null, 3600, false)).toBe(1152);
+  expect(clampWidth(null, 1800, false)).toBe(576);
 });
 
 test("a link replaces the panel issue, page changes keep it and a new scope clears it", () => {
@@ -119,4 +124,36 @@ test("another list drops an automatic preview but keeps an opened issue", () => 
     syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
     expect(panelIssue()).toBe("ENG-1");
   });
+});
+
+test("stepping from a panel issue that has no row in the list stays put", () => {
+  withBrowser(() => {
+    const queryClient = firstRowClient();
+    const focused: string[] = [];
+
+    queryClient.setQueryData(
+      ["issues", "q"],
+      [{ deletedAt: null, id: "9", key: "AC-1" }]
+    );
+
+    Object.assign(globalThis.document, {
+      querySelector: () => null,
+      querySelectorAll: () => [
+        { dataset: { issue: "1" }, focus: () => focused.push("1") },
+      ],
+    });
+    Object.assign(globalThis, { CSS: { escape: (value: string) => value } });
+
+    syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
+    setPanelSpace(2000, true);
+    openPanel("AC-1");
+
+    stepFromPanel(queryClient, 1);
+    stepFromPanel(queryClient, -1);
+
+    expect(focused).toEqual([]);
+    expect(panelIssue()).toBe("AC-1");
+  });
+
+  Reflect.deleteProperty(globalThis, "CSS");
 });

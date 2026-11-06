@@ -15,8 +15,11 @@ export const panelMin = 420;
 export const listMin = 520;
 const listMax = 1440;
 const panelMaxShare = 0.65;
-const defaultShare = 0.42;
+const defaultShare = 0.48;
+const boardShare = 0.32;
 const splitByDefault = 1800;
+export const splitQuery = `(min-width: ${splitByDefault}px)`;
+
 const openKey = "flint:issue-panel";
 const widthKey = "flint:issue-panel-width";
 
@@ -130,6 +133,28 @@ export const usePanelFits = () =>
     () => false
   );
 
+const wideEntries = new Map<string, boolean>();
+
+export const useWideEntry = (entry: string | undefined) =>
+  useSyncExternalStore(
+    subscribe,
+    () => {
+      const key = entry ?? "";
+      const known = wideEntries.get(key);
+
+      if (known !== undefined) {
+        return known;
+      }
+
+      const wide = matchMedia(splitQuery).matches;
+
+      wideEntries.set(key, wide);
+
+      return wide;
+    },
+    () => false
+  );
+
 export const usePanelShows = (key: string) =>
   useSyncExternalStore(
     subscribe,
@@ -159,7 +184,10 @@ export const clampWidth = (
   Math.round(
     Math.min(
       Math.max(
-        width ?? Math.max(space * defaultShare, capList ? space - listMax : 0),
+        width ??
+          (capList
+            ? Math.max(space * defaultShare, space - listMax)
+            : space * boardShare),
         panelMin
       ),
       Math.max(panelMin, Math.min(space * panelMaxShare, space - listMin))
@@ -356,6 +384,13 @@ export const followFocus = (queryClient: QueryClient) => {
       openPanel(key);
     }
   }, 80);
+};
+
+export const stepFromPanel = (queryClient: QueryClient, step: 1 | -1) => {
+  if (focusPanelRow(queryClient)) {
+    moveFocus(step);
+    followFocus(queryClient);
+  }
 };
 
 export const interceptIssueClick = (event: MouseEvent, key: string) => {

@@ -232,11 +232,27 @@
 }
 
 @utility text-title {
-  font-size: 1.5rem;
-  line-height: 2rem;
+  font-size: var(--title-size, 1.5rem);
+  line-height: var(--title-leading, 2rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 32;
+}
+
+@utility pane-text {
+  --title-size: 1.25rem;
+  --title-leading: 1.75rem;
+
+  & .text-prose {
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+  }
+
+  @container (width >= 820px) {
+    & .issue-layout {
+      grid-template-columns: 0 minmax(0, 60rem) minmax(17.5rem, 25rem) 1fr;
+    }
+  }
 }
 
 @utility border-hairline {
@@ -257,6 +273,16 @@
 
 @utility fade-right {
   mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+}
+
+@utility fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 1rem,
+    black calc(100% - 1.5rem),
+    transparent
+  );
 }
 
 @utility mention {
