@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-const flashMs = 1600;
+const flashMs = 2400;
 const flashing = new Map<string, number>();
 const listeners = new Set<() => void>();
 

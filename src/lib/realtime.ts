@@ -6,6 +6,7 @@ import { meQuery } from "~/lib/api";
 import type { RealtimeEvent } from "~/lib/api-types";
 import { subscribeRealtime } from "~/lib/realtime-transport";
 import { flashRemote } from "~/lib/remote-flash";
+import { issueStatuses, noticeOffscreen } from "~/lib/remote-notice";
 import { retryFailedDrafts } from "~/lib/use-draft";
 import { hasPendingIssueWrites } from "~/lib/use-update-issue";
 
@@ -46,6 +47,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
   useEffect(() => {
     const pending = new Map<string, QueryKey>();
     const remote = new Set<string>();
+    const actors = new Map<string, Set<string>>();
     const stale = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
     let flushing = false;
@@ -77,6 +79,11 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
         });
       }
 
+      const changedIssues = new Map(actors);
+      const before = issueStatuses(queryClient, [...changedIssues.keys()]);
+
+      actors.clear();
+
       const refreshed = [...pending.values()].map(async (queryKey) => {
         await queryClient.invalidateQueries({ queryKey });
       });
@@ -89,6 +96,12 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
       const flashChanged = async () => {
         await Promise.allSettled(refreshed);
         flashRemote(changed);
+        noticeOffscreen({
+          actors: changedIssues,
+          before,
+          queryClient,
+          slug,
+        });
       };
 
       void flashChanged();
@@ -136,6 +149,17 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
                 (event.entity === "issue" || event.entity === "comment")
               ) {
                 remote.add(event.id);
+              }
+
+              if (
+                byOther &&
+                event.entity === "issue" &&
+                event.actorId !== undefined
+              ) {
+                actors.set(
+                  event.id,
+                  (actors.get(event.id) ?? new Set()).add(event.actorId)
+                );
               }
 
               schedule();
