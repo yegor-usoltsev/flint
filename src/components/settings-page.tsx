@@ -1,9 +1,15 @@
-import { cn } from "cn";
-import { ChevronLeftIcon, SearchIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useLocation } from "@tanstack/react-router";
+import { SearchIcon } from "lucide-react";
+import type { ReactElement, ReactNode } from "react";
 
 import { SaveState } from "~/components/conflict-dialog";
-import { BackToApp } from "~/components/settings-sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "~/components/ui/breadcrumb";
 import { Button } from "~/components/ui/button";
 import {
   Empty,
@@ -19,72 +25,109 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "~/components/ui/input-group";
-import { SidebarTrigger, useSidebar } from "~/components/ui/sidebar";
+import { Separator } from "~/components/ui/separator";
+import { SidebarTrigger } from "~/components/ui/sidebar";
 import { useAutosaveText } from "~/lib/use-autosave-text";
 import { useWorkspace } from "~/lib/use-workspace";
 
-export const backLink =
-  "text-muted-foreground hover:text-foreground hit-area relative flex w-fit items-center gap-1 font-medium transition-colors";
+export interface SettingsParent {
+  label: string;
+  link: ReactElement;
+}
 
-export const SettingsHeader = () => {
-  const { slug } = useWorkspace();
-  const { state } = useSidebar();
+export const SettingsHeader = ({
+  label,
+  parent,
+}: {
+  label?: string;
+  parent?: SettingsParent;
+}) => {
+  const workspace = useWorkspace();
+
+  const account = useLocation({
+    select: (location) =>
+      /\/settings\/account(?:\/|$)/u.test(location.pathname),
+  });
 
   return (
-    <header
-      className={cn(
-        "flex h-11 shrink-0 items-center gap-2 border-b px-3",
-        state === "expanded" && "md:hidden"
-      )}
-    >
+    <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
       <SidebarTrigger className="-ml-1" />
-      <BackToApp className={backLink} slug={slug}>
-        <ChevronLeftIcon aria-hidden className="size-4" />
-        Settings
-      </BackToApp>
+      <Separator
+        className="mr-1 data-vertical:h-4 data-vertical:self-center"
+        orientation="vertical"
+      />
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList className="flex-nowrap">
+          <BreadcrumbItem className="min-w-12 max-md:hidden">
+            <span className="truncate">
+              {account ? "Account" : workspace.name}
+            </span>
+          </BreadcrumbItem>
+          {parent === undefined ? null : (
+            <>
+              <BreadcrumbSeparator className="max-md:hidden" />
+              <BreadcrumbItem className="min-w-6 shrink-[100]">
+                <BreadcrumbLink
+                  className="hit-area relative min-w-0"
+                  render={parent.link}
+                >
+                  <span className="block truncate">{parent.label}</span>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
+          {parent === undefined ? (
+            <BreadcrumbItem className="md:hidden">Settings</BreadcrumbItem>
+          ) : null}
+          {label === undefined ? null : (
+            <>
+              <BreadcrumbSeparator className="max-md:hidden" />
+              <BreadcrumbItem className="min-w-12 max-md:hidden">
+                <span className="text-foreground truncate font-medium">
+                  {label}
+                </span>
+              </BreadcrumbItem>
+            </>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
     </header>
   );
 };
 
 export const SettingsPage = ({
   actions,
-  back,
   children,
   description,
+  leading,
+  parent,
   title,
-  wide = false,
 }: {
   actions?: ReactNode;
-  back?: ReactNode;
   children: ReactNode;
   description?: ReactNode;
-  title: ReactNode;
-  wide?: boolean;
+  leading?: ReactNode;
+  parent?: SettingsParent;
+  title: string;
 }) => (
   <>
-    <SettingsHeader />
+    <SettingsHeader label={title} parent={parent} />
     <div className="min-h-0 flex-1 overflow-y-auto">
-      {back === undefined ? null : (
-        <div className="flex h-11 items-center px-4 md:px-5">{back}</div>
-      )}
-      <div
-        className={cn(
-          "mx-auto flex w-full flex-col gap-8 px-4 pb-16",
-          back === undefined ? "pt-8 md:pt-16" : "pt-4 md:pt-5",
-          wide ? "max-w-224" : "max-w-168"
-        )}
-      >
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="flex min-w-0 flex-1 flex-col gap-1 px-0.5">
-            <h1 className="text-2xl font-medium">{title}</h1>
-            {description === undefined ? null : (
-              <p className="text-muted-foreground">{description}</p>
+      <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
+        <div className="flex flex-col gap-1 px-0.5">
+          <div className="flex items-start gap-4">
+            {leading}
+            <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">
+              {title}
+            </h1>
+            {actions === undefined ? null : (
+              <div className="flex h-8 shrink-0 items-center gap-2">
+                {actions}
+              </div>
             )}
           </div>
-          {actions === undefined ? null : (
-            <div className="flex h-8 shrink-0 items-center gap-2">
-              {actions}
-            </div>
+          {description === undefined ? null : (
+            <p className="text-muted-foreground text-pretty">{description}</p>
           )}
         </div>
         {children}
@@ -110,7 +153,7 @@ export const SettingsSection = ({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="text-prose font-medium">{title}</h2>
           {description === undefined ? null : (
-            <p className="text-muted-foreground">{description}</p>
+            <p className="text-muted-foreground text-pretty">{description}</p>
           )}
         </div>
         {action}
@@ -143,7 +186,9 @@ export const SettingsRow = ({
         </label>
       )}
       {description === undefined ? null : (
-        <p className="text-muted-foreground text-xs">{description}</p>
+        <p className="text-muted-foreground text-xs text-pretty">
+          {description}
+        </p>
       )}
     </div>
     {children}
@@ -284,7 +329,7 @@ export const SettingsFilter = ({
   onChange: (value: string) => void;
   value: string;
 }) => (
-  <InputGroup className="sm:w-80">
+  <InputGroup>
     <InputGroupAddon>
       <SearchIcon aria-hidden />
     </InputGroupAddon>

@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { FileTextIcon, FolderIcon, TrashIcon } from "lucide-react";
+import {
+  CircleDotIcon,
+  FileTextIcon,
+  FolderIcon,
+  TrashIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -67,7 +72,7 @@ const DeleteForever = ({
         <Button
           aria-label={`Delete ${name} forever`}
           size="icon-sm"
-          variant="ghost"
+          variant="quiet"
         />
       }
     >
@@ -119,6 +124,48 @@ const useTrashAction = (
   });
 };
 
+const dayMs = 86_400_000;
+
+const startOfDay = (time: number) => new Date(time).setHours(0, 0, 0, 0);
+
+const daysLeft = (purgeAt: string, now = Date.now()) =>
+  Math.max(
+    0,
+    Math.round(
+      (startOfDay(new Date(purgeAt).getTime()) - startOfDay(now)) / dayMs
+    )
+  );
+
+const expiresText = (days: number) => {
+  if (days === 0) {
+    return "today";
+  }
+
+  return days === 1 ? "tomorrow" : `in ${days} days`;
+};
+
+const ExpiresIn = ({ purgeAt }: { purgeAt: string }) => (
+  <span className={tableDate}>
+    <span className="sr-only">Deleted forever </span>
+    {expiresText(daysLeft(purgeAt))}
+  </span>
+);
+
+const ExpiresLine = ({
+  deletedAt,
+  purgeAt,
+}: {
+  deletedAt: string;
+  purgeAt: string;
+}) => (
+  <span className="text-muted-foreground text-xs">
+    Deleted {formatDate(deletedAt)}
+    <span className="md:hidden">
+      , deleted forever {expiresText(daysLeft(purgeAt))}
+    </span>
+  </span>
+);
+
 const TrashRow = ({
   children,
   deletedAt,
@@ -128,6 +175,7 @@ const TrashRow = ({
   onPurge,
   onRestore,
   pending,
+  purgeAt,
   purgeText,
 }: {
   children: ReactNode;
@@ -138,15 +186,16 @@ const TrashRow = ({
   onPurge: () => void;
   onRestore: () => void;
   pending: boolean;
+  purgeAt: string;
   purgeText: string;
 }) => (
   <li className={tableRow}>
-    <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
+    <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 items-center gap-2">{children}</div>
+      <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
+    </div>
     <DeletedBy user={deletedBy} />
-    <span className={tableDate}>
-      <span className="sr-only">Deleted </span>
-      {formatDate(deletedAt)}
-    </span>
+    <ExpiresIn purgeAt={purgeAt} />
     <div className="flex w-28 shrink-0 items-center justify-end gap-1">
       <Button
         disabled={pending}
@@ -203,6 +252,7 @@ const IssueRow = ({
   return (
     <TrashRow
       deletedAt={issue.deletedAt}
+      purgeAt={issue.purgeAt}
       deletedBy={issue.deletedBy}
       isAdmin={isAdmin}
       name={issue.key}
@@ -215,6 +265,10 @@ const IssueRow = ({
       pending={restore.isPending || purge.isPending}
       purgeText="The issue, its comments, activity and attachments are deleted for everyone. This cannot be undone."
     >
+      <CircleDotIcon
+        aria-hidden
+        className="text-muted-foreground size-4 shrink-0"
+      />
       <span className="text-muted-foreground tracking-key shrink-0 tabular-nums">
         {issue.key}
       </span>
@@ -281,6 +335,7 @@ const PageRow = ({
   return (
     <TrashRow
       deletedAt={page.deletedAt}
+      purgeAt={page.purgeAt}
       deletedBy={page.deletedBy}
       isAdmin={isAdmin}
       name={page.title}
@@ -294,10 +349,12 @@ const PageRow = ({
       purgeText={`The ${page.kind}${inside(page.descendants)} are deleted for everyone with their history and attachments. This cannot be undone.`}
     >
       <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
-      <span className="truncate font-medium">{page.title}</span>
-      <span className="text-muted-foreground truncate @max-xl/trash:hidden">
-        {page.path}
-        {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
+      <span className="flex min-w-0 flex-col py-1.5">
+        <span className="truncate font-medium">{page.title}</span>
+        <span className="text-muted-foreground truncate text-xs">
+          {page.path}
+          {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
+        </span>
       </span>
     </TrashRow>
   );
@@ -330,7 +387,7 @@ const TrashTable = ({
     <div aria-hidden className={tableHead}>
       <span className="flex-1">Name</span>
       <span className="w-40 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
-      <span className={tableDate}>Deleted</span>
+      <span className={tableDate}>Deleted forever</span>
       <span className="w-28 shrink-0" />
     </div>
     {issues.length === 0 && pages.length === 0 ? (
@@ -407,7 +464,6 @@ const Trash = () => {
     <SettingsPage
       description={`Deleted issues and wiki pages stay here for ${trashDays} days, then they are deleted forever. Anyone can restore them; only admins can delete them sooner.`}
       title="Trash"
-      wide
     >
       <div className="@container/trash flex flex-col gap-2">
         {trash.isPending ? <Skeleton className="h-20 w-full" /> : null}
