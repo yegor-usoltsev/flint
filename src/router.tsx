@@ -43,6 +43,7 @@ export const getRouter = () => {
 declare module "@tanstack/react-router" {
   interface HistoryState {
     from?: IssueOrigin;
+    full?: boolean;
     walk?: string[];
   }
 

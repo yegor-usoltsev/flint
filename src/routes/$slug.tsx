@@ -41,8 +41,20 @@ import { followWorkspace, rememberWorkspace } from "~/lib/workspace";
 
 const panelPages = /^\/[^/]+\/(?:project|my-issues|wiki)(?:\/|$)/u;
 
-const readSidebarOpen = () =>
-  !document.cookie.split("; ").includes("sidebar_state=false");
+const readSidebarOpen = (settings: boolean) => {
+  const cookies = document.cookie.split("; ");
+
+  if (cookies.includes("sidebar_state=true")) {
+    return true;
+  }
+
+  return (
+    !cookies.includes("sidebar_state=false") &&
+    (settings || !window.matchMedia("(max-width: 1023px)").matches)
+  );
+};
+
+const shellKey = (settings: boolean) => (settings ? "settings" : "app");
 
 const Loading = () => (
   <main aria-busy className="bg-sidebar flex h-svh" id="main">
@@ -169,7 +181,11 @@ const WorkspaceLayout = () => {
   return (
     <RealtimeStatus value={connected}>
       <CreateIssueProvider>
-        <SidebarProvider className="h-svh" defaultOpen={readSidebarOpen()}>
+        <SidebarProvider
+          className="h-svh"
+          defaultOpen={readSidebarOpen(inSettings)}
+          key={shellKey(inSettings)}
+        >
           <CommandLayer>
             {inSettings ? (
               <SettingsSidebar slug={slug} />

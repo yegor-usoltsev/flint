@@ -14,6 +14,7 @@ import {
   GitBranchIcon,
   LinkIcon,
   Maximize2Icon,
+  PanelRightIcon,
   RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -55,6 +56,13 @@ import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
 import { useContextIssue } from "~/lib/issue-focus";
+import {
+  stepFromPanel,
+  useWideEntry,
+  usePanel,
+  usePanelFits,
+  usePanelOpen,
+} from "~/lib/issue-panel";
 import { orderIssues } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
 import { useMyIssues } from "~/lib/my-issues";
@@ -430,11 +438,13 @@ const IssueActions = ({
   branch,
   issue,
   onDelete,
+  project,
   slug,
 }: {
   branch: string;
   issue: Issue;
   onDelete: () => void;
+  project?: string;
   slug: string;
 }) => (
   <DropdownMenu>
@@ -446,6 +456,25 @@ const IssueActions = ({
       <EllipsisIcon />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-60">
+      {project === undefined ? null : (
+        <>
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              render={
+                <Link
+                  params={{ key: project, slug }}
+                  search={{ issue: issue.key }}
+                  to="/$slug/project/$key"
+                />
+              }
+            >
+              <PanelRightIcon />
+              Show in project
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+        </>
+      )}
       <DropdownMenuGroup>
         <DropdownMenuItem
           onClick={() => {
@@ -648,13 +677,14 @@ const IssueScreen = ({
   const { origin } = neighbors;
   const back = useBack(origin);
   const username = useUsername();
+  const full = useLocation({ select: (location) => location.state.full });
 
   const go = (key: string | undefined) => {
     if (key !== undefined) {
       void navigate({
         params: { issueKey: key, slug: workspace.slug },
         replace: true,
-        state: { from: origin, walk: neighbors.keys },
+        state: { from: origin, full, walk: neighbors.keys },
         to: "/$slug/issue/$issueKey",
       });
     }
@@ -663,6 +693,7 @@ const IssueScreen = ({
   const { data } = issue;
   const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
+  const fits = usePanelFits();
 
   const remove = () => {
     if (editable) {
@@ -713,6 +744,7 @@ const IssueScreen = ({
               branch={branchName(username, data.key, data.title)}
               issue={data}
               onDelete={remove}
+              project={fits ? project.key : undefined}
               slug={workspace.slug}
             />
           ) : null}
@@ -766,6 +798,45 @@ const PanelError = ({
   );
 };
 
+const PanelSteps = () => {
+  const queryClient = useQueryClient();
+
+  const step = (offset: -1 | 1) => {
+    stepFromPanel(queryClient, offset);
+  };
+
+  return (
+    <>
+      <Hint label="Previous issue">
+        <Button
+          aria-keyshortcuts="K"
+          aria-label="Previous issue"
+          onClick={() => {
+            step(-1);
+          }}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <ChevronUpIcon />
+        </Button>
+      </Hint>
+      <Hint label="Next issue">
+        <Button
+          aria-keyshortcuts="J"
+          aria-label="Next issue"
+          onClick={() => {
+            step(1);
+          }}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <ChevronDownIcon />
+        </Button>
+      </Hint>
+    </>
+  );
+};
+
 const PanelScreen = ({
   issueKey,
   origin,
@@ -782,48 +853,53 @@ const PanelScreen = ({
   const { data } = issue;
   const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
+  const { picked } = usePanel();
 
-  useContextIssue(data, editable);
+  useContextIssue(data, editable && !picked);
 
   return (
     <>
-      <header className="flex h-11 shrink-0 items-center gap-1 border-b pr-2 pl-4">
-        <h2 className="min-w-0 flex-1 truncate font-medium">
-          <span className="text-muted-foreground tracking-key mr-2">
+      <header className="flex h-11 shrink-0 items-center border-b pr-2 pl-4">
+        <div className="flex w-full max-w-360 items-center gap-1">
+          <h2 className="text-muted-foreground tracking-key min-w-0 flex-1 truncate font-medium">
             {issueKey}
-          </span>
-          {data?.title}
-        </h2>
-        <Hint label="Open full page">
-          <Link
-            aria-label="Open full page"
-            className={buttonVariants({ size: "icon-sm", variant: "ghost" })}
-            params={{ issueKey, slug: workspace.slug }}
-            state={{
-              from:
-                origin === undefined
-                  ? undefined
-                  : { ...origin, panel: issueKey },
-            }}
-            to="/$slug/issue/$issueKey"
-          >
-            <Maximize2Icon />
-          </Link>
-        </Hint>
-        {ready ? (
-          <IssueActions
-            branch={branchName(username, data.key, data.title)}
-            issue={data}
-            onDelete={() => {
-              if (editable) {
-                void deletion.remove([data]);
-              }
-            }}
-            slug={workspace.slug}
-          />
-        ) : null}
+            {data === undefined ? null : (
+              <span className="sr-only"> {data.title}</span>
+            )}
+          </h2>
+          {origin === undefined ? null : <PanelSteps />}
+          <Hint label="Open full page">
+            <Link
+              aria-label="Open full page"
+              className={buttonVariants({ size: "icon-sm", variant: "ghost" })}
+              params={{ issueKey, slug: workspace.slug }}
+              state={{
+                from:
+                  origin === undefined
+                    ? undefined
+                    : { ...origin, panel: issueKey },
+                full: true,
+              }}
+              to="/$slug/issue/$issueKey"
+            >
+              <Maximize2Icon />
+            </Link>
+          </Hint>
+          {ready ? (
+            <IssueActions
+              branch={branchName(username, data.key, data.title)}
+              issue={data}
+              onDelete={() => {
+                if (editable) {
+                  void deletion.remove([data]);
+                }
+              }}
+              slug={workspace.slug}
+            />
+          ) : null}
+        </div>
       </header>
-      <div className="@container min-h-0 flex-1 overflow-y-auto">
+      <div className="pane-text @container min-h-0 flex-1 overflow-y-auto">
         {issue.isError && data === undefined ? (
           <PanelError
             error={issue.error}
@@ -900,11 +976,46 @@ export const IssuePanelContent = ({
   );
 };
 
+const SplitIssue = ({
+  issueKey,
+  project,
+}: {
+  issueKey: string;
+  project: ProjectDetail;
+}) => {
+  const { slug } = useWorkspace();
+  const origin = useOrigin(project);
+
+  if (origin.view === "mine") {
+    return (
+      <Navigate
+        params={{ slug }}
+        replace
+        search={{ issue: issueKey }}
+        to="/$slug/my-issues"
+      />
+    );
+  }
+
+  return (
+    <Navigate
+      params={{ key: origin.projectKey, slug }}
+      replace
+      search={{ ...origin.search, issue: issueKey }}
+      to="/$slug/project/$key"
+    />
+  );
+};
+
 export const IssueDetail = ({ issueKey }: { issueKey: string }) => {
   const workspace = useWorkspace();
   const workspaces = useMe().data?.workspaces;
   const key = issueKey.toUpperCase();
   const project = useQuery(projectQuery(key.split("-")[0] ?? ""));
+  const full = useLocation({ select: (location) => location.state.full });
+  const entry = useLocation({ select: (location) => location.state.__TSR_key });
+  const wide = useWideEntry(entry);
+  const panelOpen = usePanelOpen();
 
   if (project.isError && project.data === undefined) {
     return (
@@ -941,6 +1052,10 @@ export const IssueDetail = ({ issueKey }: { issueKey: string }) => {
         to="/$slug/issue/$issueKey"
       />
     );
+  }
+
+  if (wide && panelOpen && full !== true) {
+    return <SplitIssue issueKey={key} project={project.data} />;
   }
 
   return (

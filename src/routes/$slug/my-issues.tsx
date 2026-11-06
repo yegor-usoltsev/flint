@@ -132,7 +132,7 @@ const IssueRow = ({
       to="/$slug/issue/$issueKey"
     >
       {selected ? <span className="sr-only">Selected,</span> : null}
-      <RowContent issue={issue} lookup={lookup} />
+      <RowContent assignee={false} issue={issue} lookup={lookup} />
     </Link>
   );
 };

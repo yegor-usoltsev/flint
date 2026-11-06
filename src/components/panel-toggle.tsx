@@ -8,13 +8,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { togglePanel, usePanel } from "~/lib/issue-panel";
+import { panelVisible, togglePanel, usePanel } from "~/lib/issue-panel";
 
 export const PanelToggle = () => {
   const queryClient = useQueryClient();
-  const { available, open } = usePanel();
+  const state = usePanel();
+  const open = panelVisible(state);
 
-  if (!available) {
+  if (!state.available || (state.scope === "wiki" && state.issue === null)) {
     return null;
   }
 

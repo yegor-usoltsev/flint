@@ -9,6 +9,7 @@
 @theme inline {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --container-document: 52.0625rem;
+  --container-list: 90rem;
   --shadow-focus-bar: inset 2px 0 0 var(--primary);
   --font-sans:
     "Inter Variable", "SF Pro Display", -apple-system, system-ui, "Segoe UI",
@@ -116,8 +117,8 @@
   --surface-2: oklch(0.952 0.001 282.7);
   --surface-3: oklch(0.935 0.001 282.7);
   --row-focus: oklch(0.967 0.001 282.7);
-  --group-header: oklch(0.945 0.001 282.7);
-  --group-header-hover: oklch(0.928 0.002 282.7);
+  --group-header: oklch(0.958 0.001 282.7);
+  --group-header-hover: oklch(0.94 0.002 282.7);
   --row-selected: oklch(0.95 0.025 277);
   --row-selected-hover: oklch(0.925 0.04 277);
   --remote-change: oklch(0.955 0.035 210);
@@ -173,8 +174,8 @@
   --surface-2: oklch(0.218 0.002 271.1);
   --surface-3: oklch(0.233 0.003 270.9);
   --row-focus: oklch(0.21 0.003 270.8);
-  --group-header: oklch(0.235 0.003 270.9);
-  --group-header-hover: oklch(0.255 0.003 270.9);
+  --group-header: oklch(0.222 0.003 270.9);
+  --group-header-hover: oklch(0.245 0.003 270.9);
   --row-selected: oklch(0.28 0.049 278.5);
   --row-selected-hover: oklch(0.315 0.06 278.5);
   --remote-change: oklch(0.32 0.045 210);
@@ -233,11 +234,27 @@
 }
 
 @utility text-title {
-  font-size: 1.5rem;
-  line-height: 2rem;
+  font-size: var(--title-size, 1.5rem);
+  line-height: var(--title-leading, 2rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 32;
+}
+
+@utility pane-text {
+  --title-size: 1.25rem;
+  --title-leading: 1.75rem;
+
+  & .text-prose {
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+  }
+
+  @container (width >= 820px) {
+    & .issue-layout {
+      grid-template-columns: 0 minmax(0, 60rem) minmax(17.5rem, 25rem) 1fr;
+    }
+  }
 }
 
 @keyframes remote-flash {
@@ -284,6 +301,20 @@
       minmax(0, clamp(17.5rem, 26.087cqw + 4.1304rem, 25rem)) 1fr;
     column-gap: clamp(1rem, 8.696cqw - 3.4565rem, 3.5rem);
   }
+}
+
+@utility fade-right {
+  mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+}
+
+@utility fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 1rem,
+    black calc(100% - 1.5rem),
+    transparent
+  );
 }
 
 @utility mention {
