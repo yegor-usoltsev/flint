@@ -185,6 +185,7 @@ const RowLink = ({
     {...props}
     {...wikiTarget(wiki, node.path)}
     className="group/row hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus data-shown:shadow-focus-bar flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    aria-current={use(WikiShown) === node.path ? "page" : undefined}
     data-shown={use(WikiShown) === node.path ? "" : undefined}
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle without an explicit role the button role.
     role="link"
@@ -1531,7 +1532,11 @@ const useShownPage = (wiki: Wiki, path: string, split: boolean) => {
 
   const [kept, setKept] = useState<{ key: string; path: string } | null>(null);
 
-  const held = kept?.key === wiki.key ? kept.path : undefined;
+  const held =
+    kept?.key === wiki.key &&
+    (pages.data?.some((page) => page.path === kept.path) ?? true)
+      ? kept.path
+      : undefined;
 
   const preview =
     sort === "edited"
