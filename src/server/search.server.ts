@@ -8,6 +8,7 @@ import { db } from "~/server/db.server";
 import { embed, embeddingsEnabled, toVector } from "~/server/embeddings.server";
 import { env } from "~/server/env.server";
 import { escapeLike, keyPattern, summaryColumns } from "~/server/issues.server";
+import { perMinute } from "~/server/limits.server";
 import { log } from "~/server/log.server";
 
 export const SearchQuerySchema = v.object({
@@ -46,6 +47,7 @@ const rrfK = 60;
 const maxDistance = 0.85;
 const distanceWindow = 0.08;
 const minSemanticLength = 3;
+const embeddingAllowed = perMinute(() => env.SEARCH_EMBEDDINGS_PER_MINUTE);
 
 interface TextRank {
   exact: boolean;
@@ -140,11 +142,13 @@ export const search = async (
   const pattern = `%${escapeLike(q)}%`;
 
   // An issue key or a query of one or two characters means nothing to the model and lands nearer unrelated rows than real matches do.
-  const semantic =
+  const meaningful =
     mode === "hybrid" &&
     embeddingsEnabled() &&
     q.length >= minSemanticLength &&
     !keyPattern.test(q);
+
+  const semantic = meaningful && embeddingAllowed(actor.userId);
 
   const depth = semantic ? candidates : limit;
 

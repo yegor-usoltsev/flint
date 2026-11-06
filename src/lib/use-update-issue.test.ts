@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 
 import { QueryClient } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
 import { toast } from "~/components/ui/toast";
 import type { Issue, IssueSummary } from "~/lib/api-types";
 import {
+  findCachedIssue,
   hasPendingIssueWrites,
   writeIssue,
   writeIssues,
@@ -37,6 +39,13 @@ const issue = (id: string, statusId: string): Issue => ({
   updatedAt: "2026-01-01T00:00:00Z",
   version: 1,
 });
+
+const summaryOf = ({
+  deletedAt: _deletedAt,
+  description: _description,
+  links: _links,
+  ...summary
+}: Issue): IssueSummary => summary;
 
 const BodySchema = v.object({
   statusId: v.optional(v.string()),
@@ -324,6 +333,76 @@ describe("issue writes", () => {
     await settle();
 
     expect(saved).toEqual(["new title", "new"]);
+  });
+
+  test("typing behind a pending write sends the latest text once and updates every cached list", async () => {
+    const a = { ...issue("1", "todo"), description: "old" };
+    const { queryClient } = setup([a]);
+    const summary = summaryOf(a);
+    const pagedKey = ["issues", "p", "paged"];
+    const first = deferred();
+    const bodies: unknown[] = [];
+
+    queryClient.setQueryData<InfiniteData<IssueSummary[]>>(pagedKey, {
+      pageParams: [0],
+      pages: [[summary]],
+    });
+
+    spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async (_input: RequestInfo | URL, init?: RequestInit) => {
+          const patch = v.parse(
+            v.record(v.string(), v.unknown()),
+            await new Response(init?.body).json()
+          );
+
+          bodies.push(patch);
+
+          if (bodies.length === 1) {
+            return await first.promise;
+          }
+
+          return Response.json({ ...a, ...patch, version: bodies.length + 1 });
+        },
+        { preconnect: fetch.preconnect }
+      )
+    );
+
+    writeIssue(queryClient, a, { statusId: "doing" });
+    writeIssue(
+      queryClient,
+      a,
+      { description: "- [x] a" },
+      { expect: { description: "old" } }
+    );
+    writeIssue(
+      queryClient,
+      a,
+      { description: "- [x] a\n- [ ] b" },
+      { expect: { description: "- [x] a" } }
+    );
+
+    const paged =
+      queryClient.getQueryData<InfiniteData<IssueSummary[]>>(pagedKey);
+
+    expect(paged?.pages[0]?.[0]).toEqual({
+      ...summary,
+      checklistDone: 1,
+      checklistTotal: 2,
+      statusId: "doing",
+    });
+    expect(findCachedIssue(queryClient, "p", a.key)).toMatchObject({
+      description: "- [x] a\n- [ ] b",
+      statusId: "doing",
+    });
+
+    first.resolve(Response.json({ ...a, statusId: "doing", version: 2 }));
+    await settle();
+
+    expect(bodies).toEqual([
+      { statusId: "doing" },
+      { description: "- [x] a\n- [ ] b", version: 2 },
+    ]);
   });
 
   test("bulk writes run four at a time and report failures in one toast", async () => {

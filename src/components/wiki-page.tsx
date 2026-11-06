@@ -26,6 +26,7 @@ import { Hint } from "~/components/issue-parts";
 import { LoadFailed } from "~/components/load-failed";
 import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
+import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
 import type { Crumb } from "~/components/page";
 import {
@@ -530,7 +531,13 @@ const WikiIndex = ({
   const { buttons, create } = useCreate(wiki, "");
 
   return (
-    <Page actions={buttons} className="@container" crumbs={crumbs} title="Wiki">
+    <Page
+      actions={buttons}
+      className="@container"
+      crumbs={crumbs}
+      switcher={<NavSwitcher place={{ kind: "wiki", path: "" }} />}
+      title="Wiki"
+    >
       <NodeList compact={compact} create={create} folder="" wiki={wiki} />
     </Page>
   );
@@ -560,6 +567,7 @@ const FolderView = ({
       }
       className="@container"
       crumbs={crumbs}
+      switcher={<NavSwitcher place={{ kind: "wiki", path: folder.path }} />}
       title={folder.title}
     >
       <NodeList create={create} folder={folder.path} wiki={wiki} />
@@ -996,6 +1004,8 @@ const CopyLinkButton = ({ id }: { id: string }) => (
 const focusEmpty = (page: WikiPage, preview: boolean) =>
   !preview && page.body === "";
 
+const parentLabel = (crumbs: Crumb[]) => crumbs.at(-1)?.label;
+
 const PageEditor = ({
   crumbs,
   deleted,
@@ -1156,7 +1166,7 @@ const PageEditor = ({
             />
           ) : null}
           {deleted || copy.isPending ? null : (
-            <div className="flex max-md:hidden">
+            <div className="flex">
               <AttachButton
                 onFiles={(files) => {
                   editor.current?.upload(files);
@@ -1176,6 +1186,8 @@ const PageEditor = ({
       }
       className="flex overflow-hidden"
       crumbs={crumbs}
+      short={parentLabel(crumbs)}
+      switcher={<NavSwitcher place={{ kind: "wiki", path: page.path }} />}
       title={title.value.trim() || page.title}
     >
       <PageGrid scroller={scroller}>
@@ -1251,11 +1263,11 @@ const PageEditor = ({
               value={body.value}
             />
           </div>
-          <div className="mt-8">
+          <div className="mt-8 empty:hidden">
             <AttachmentList
               body={body.value}
+              compact
               editable={!deleted}
-              hint="Paste or drop files into the page, or attach them here."
               id={page.id}
               path={`/wiki/${page.id}/attachments`}
             />

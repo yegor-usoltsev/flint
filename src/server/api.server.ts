@@ -148,15 +148,49 @@ export const resolveActor = async (request: Request): Promise<Actor> => {
   return { userId };
 };
 
+const maxJsonBytes = 4 * 1024 * 1024;
+
+export const readLimited = async (request: Request, maxBytes: number) => {
+  if (Number(request.headers.get("content-length")) > maxBytes) {
+    return null;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+
+  for await (const chunk of request.body ?? []) {
+    size += chunk.byteLength;
+
+    if (size > maxBytes) {
+      return null;
+    }
+
+    chunks.push(chunk);
+  }
+
+  return new Uint8Array(Bun.concatArrayBuffers(chunks));
+};
+
 export const readBody = async <Schema extends v.GenericSchema>(
   request: Request,
   schema: Schema
 ) => {
-  const body: unknown = await request.json().catch(() => {
-    throw new ApiError(400, "invalid_request", "Request body must be JSON");
-  });
+  const bytes = await readLimited(request, maxJsonBytes);
 
-  return v.parse(schema, body);
+  if (bytes === null) {
+    throw new ApiError(413, "too_large", "Request body is too large");
+  }
+
+  const json = v.safeParse(
+    v.pipe(v.string(), v.parseJson()),
+    new TextDecoder().decode(bytes)
+  );
+
+  if (!json.success) {
+    throw new ApiError(400, "invalid_request", "Request body must be JSON");
+  }
+
+  return v.parse(schema, json.output);
 };
 
 interface ApiContext<Params> {

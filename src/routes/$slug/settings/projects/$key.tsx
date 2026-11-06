@@ -1,19 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeftIcon } from "lucide-react";
+import { LockIcon } from "lucide-react";
 
 import { ConfirmDelete } from "~/components/confirm-delete";
 import { IconPicker } from "~/components/icon-picker";
 import { LoadFailed } from "~/components/load-failed";
-import { ProjectIcon } from "~/components/project-icon";
 import { RouteNotFound } from "~/components/route-not-found";
 import {
-  backLink,
   SettingsInput,
   SettingsPage,
   SettingsRow,
   SettingsSection,
 } from "~/components/settings-page";
+import { buttonVariants } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { isNotFound, request } from "~/lib/api";
 import type { ProjectDetail } from "~/lib/api-types";
@@ -23,14 +22,12 @@ import { projectQuery, projectsQuery } from "~/lib/queries";
 import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
-const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
+const useProjectUpdate = (project: ProjectDetail) => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const workspace = useWorkspace();
-  const isAdmin = workspace.role === "admin";
   const { queryKey } = projectQuery(project.key);
 
-  const update = useMutation({
+  return useMutation({
     mutationFn: async (changes: Body<"PATCH /projects/:key">) =>
       await request("PATCH /projects/:key", {
         body: changes,
@@ -56,6 +53,33 @@ const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
       });
     },
   });
+};
+
+const ProjectIconPicker = ({ project }: { project: ProjectDetail }) => {
+  const workspace = useWorkspace();
+  const update = useProjectUpdate(project);
+
+  return (
+    <IconPicker
+      color={project.color}
+      disabled={workspace.role !== "admin"}
+      icon={project.icon}
+      label="Project icon"
+      onChange={(change) => {
+        update.mutate(change);
+      }}
+    />
+  );
+};
+
+const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const workspace = useWorkspace();
+  const isAdmin = workspace.role === "admin";
+  const { queryKey } = projectQuery(project.key);
+
+  const update = useProjectUpdate(project);
 
   const remove = useMutation({
     mutationFn: async () => {
@@ -78,20 +102,6 @@ const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
   return (
     <>
       <SettingsSection>
-        <SettingsRow
-          description="Shown in the sidebar and on every issue key"
-          label="Icon and color"
-        >
-          <IconPicker
-            color={project.color}
-            disabled={!isAdmin}
-            icon={project.icon}
-            label="Project icon"
-            onChange={(change) => {
-              update.mutate(change);
-            }}
-          />
-        </SettingsRow>
         <SettingsRow htmlFor="project-name" label="Name">
           <SettingsInput
             disabled={!isAdmin}
@@ -107,7 +117,8 @@ const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
           description="Issue keys, Git references and /issue links use it, so it never changes"
           label="Key"
         >
-          <span className="text-muted-foreground tracking-key">
+          <span className="text-muted-foreground tracking-key bg-muted inline-flex h-7 items-center gap-1.5 rounded-md px-2 font-mono text-xs">
+            <LockIcon aria-hidden className="size-3" />
             {project.key}
           </span>
         </SettingsRow>
@@ -146,32 +157,30 @@ const ProjectSettingsPage = () => {
 
   return (
     <SettingsPage
-      back={
+      parent={{
+        label: "Projects",
+        link: (
+          <Link
+            params={{ slug: workspace.slug }}
+            to="/$slug/settings/projects"
+          />
+        ),
+      }}
+      actions={
         <Link
-          className={backLink}
-          params={{ slug: workspace.slug }}
-          to="/$slug/settings/projects"
+          className={buttonVariants({ variant: "outline" })}
+          params={{ key: key.toUpperCase(), slug: workspace.slug }}
+          to="/$slug/project/$key"
         >
-          <ChevronLeftIcon aria-hidden className="size-4" />
-          Projects
+          Open project
         </Link>
       }
-      title={
-        project.data === undefined ? (
-          key.toUpperCase()
-        ) : (
-          <span className="flex items-center gap-3">
-            <span className="bg-surface-2 flex size-10 shrink-0 items-center justify-center rounded-lg">
-              <ProjectIcon
-                className="size-5"
-                color={project.data.color}
-                icon={project.data.icon}
-              />
-            </span>
-            <span className="truncate">{project.data.name}</span>
-          </span>
+      leading={
+        project.data === undefined ? undefined : (
+          <ProjectIconPicker project={project.data} />
         )
       }
+      title={project.data?.name ?? key.toUpperCase()}
     >
       {project.isPending ? <Skeleton className="h-48 w-full" /> : null}
       {project.isError && project.data === undefined ? (

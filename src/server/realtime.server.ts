@@ -1,7 +1,9 @@
 import type { RealtimeEvent } from "~/lib/api-types";
 import { notFound, requireWorkspace } from "~/server/access.server";
-import { resolveActor } from "~/server/api.server";
+import { ApiError, resolveActor } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
+import { env } from "~/server/env.server";
+import { perKey } from "~/server/limits.server";
 
 interface Listener {
   close: () => void;
@@ -13,6 +15,7 @@ interface Listener {
 const pingMs = 5000;
 const pingsPerCheck = 6;
 const listeners = new Map<string, Set<Listener>>();
+const streams = perKey(() => env.STREAMS_PER_USER);
 const encoder = new TextEncoder();
 
 export const publish = (workspaceId: string, event: RealtimeEvent) => {
@@ -57,6 +60,14 @@ const openStream = (
   signal: AbortSignal,
   isAllowed: () => Promise<boolean>
 ) => {
+  if (!streams.acquire(userId)) {
+    throw new ApiError(
+      429,
+      "rate_limited",
+      `Up to ${env.STREAMS_PER_USER} live-update streams stay open per account; close a tab to free one`
+    );
+  }
+
   const workspaceListeners = listeners.get(workspaceId) ?? new Set<Listener>();
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
   let ping: ReturnType<typeof setInterval> | undefined;
@@ -76,7 +87,10 @@ const openStream = (
     },
     stop: () => {
       clearInterval(ping);
-      workspaceListeners.delete(listener);
+
+      if (workspaceListeners.delete(listener)) {
+        streams.release(userId);
+      }
     },
     userId,
   };
@@ -106,6 +120,10 @@ const openStream = (
   });
 
   signal.addEventListener("abort", listener.stop);
+
+  if (signal.aborted) {
+    listener.close();
+  }
 
   return new Response(body, {
     headers: {

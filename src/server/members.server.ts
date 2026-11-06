@@ -12,6 +12,7 @@ import {
 import { ApiError } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
+import { env } from "~/server/env.server";
 import { disconnect, publish, publishToUser } from "~/server/realtime.server";
 import { lockUsers } from "~/server/users.server";
 
@@ -23,7 +24,7 @@ export const AddMemberSchema = v.object({
     v.string(),
     v.trim(),
     v.transform((name) => name.replace(/^@/u, "")),
-    v.regex(/^[\w.-]{1,40}$/u, "Enter a Gitea username")
+    v.regex(/^[\da-zA-Z][\w.-]{0,39}$/u, "Enter a Gitea username")
   ),
 });
 
@@ -31,6 +32,64 @@ export const UpdateMemberSchema = v.object({ role: RoleSchema });
 
 const memberChanged = (workspaceId: string, username: string) => {
   publish(workspaceId, { entity: "member", id: username, projectId: null });
+};
+
+const GiteaUserSchema = v.object({ id: v.number(), login: v.string() });
+
+const hiddenStatuses = new Set([401, 403, 404]);
+
+const findGiteaUser = async (username: string) => {
+  const response = await fetch(
+    new URL(`/api/v1/users/${encodeURIComponent(username)}`, env.GITEA_URL),
+    { signal: AbortSignal.timeout(5000) }
+  ).catch(() => null);
+
+  if (response !== null && hiddenStatuses.has(response.status)) {
+    return null;
+  }
+
+  const user = v.safeParse(
+    GiteaUserSchema,
+    response?.ok === true ? await response.json().catch(() => null) : null
+  );
+
+  if (!user.success) {
+    throw new ApiError(
+      502,
+      "bad_gateway",
+      "Gitea did not answer; try again later"
+    );
+  }
+
+  return { giteaId: String(user.output.id), username: user.output.login };
+};
+
+const rejectNameClash = async (
+  tx: TransactionSQL,
+  workspaceId: string,
+  account: { giteaId: string; username: string }
+) => {
+  const [clash] = await tx<{ pending: boolean }[]>`
+    select false as pending
+    from workspace_members m join users u on u.id = m.user_id
+    where m.workspace_id = ${workspaceId} and u.gitea_id <> ${account.giteaId}
+      and lower(u.username) = lower(${account.username})
+    union all
+    select true from invites
+    where workspace_id = ${workspaceId} and gitea_id <> ${account.giteaId}
+      and lower(gitea_username) = lower(${account.username})
+    limit 1
+  `;
+
+  if (clash !== undefined) {
+    throw new ApiError(
+      409,
+      "conflict",
+      clash.pending
+        ? `A pending invite for another Gitea account is called @${account.username}; withdraw it first`
+        : `Another member is called @${account.username} in Flint; whoever no longer uses that name in Gitea has to sign in to Flint again first`
+    );
+  }
 };
 
 const lastAdmin = () =>
@@ -56,17 +115,38 @@ export const listMembers = async (actor: Actor, slug: string) => {
   `;
 };
 
-const findMembership = async (
+const findTarget = async (
   tx: TransactionSQL,
   workspaceId: string,
   username: string
 ) => {
-  const [row] = await tx<{ role: Role; userId: string }[]>`
-    select m.user_id as "userId", m.role
+  const rows = await tx<
+    { inviteId: string | null; role: Role; userId: string | null }[]
+  >`
+    select m.user_id as "userId", null::uuid as "inviteId", m.role
     from workspace_members m join users u on u.id = m.user_id
     where m.workspace_id = ${workspaceId}
       and lower(u.username) = lower(${username})
+    union all
+    select null, id, role from invites
+    where workspace_id = ${workspaceId}
+      and lower(gitea_username) = lower(${username})
+    limit 2
   `;
+
+  if (rows.length > 1) {
+    throw new ApiError(
+      409,
+      "conflict",
+      `${
+        rows.some((row) => row.inviteId !== null)
+          ? "A member and a pending invite are"
+          : "Several members are"
+      } called @${username} in Flint; whoever no longer uses that name in Gitea has to sign in to Flint again first`
+    );
+  }
+
+  const [row] = rows;
 
   return row;
 };
@@ -87,19 +167,43 @@ export const addMember = async (
   { role, username }: v.InferOutput<typeof AddMemberSchema>
 ) => {
   const workspace = await requireWorkspace(actor, slug, "admin");
+  const giteaUser = await findGiteaUser(username);
 
   const member = await db.begin(async (tx): Promise<Member> => {
     await lockUsers(tx);
 
-    const [user] = await tx<Omit<Member, "joinedAt" | "pending" | "role">[]>`
-      select id as "userId", username, display_name as "displayName",
-        avatar_url as "avatarUrl"
-      from users where lower(username) = lower(${username})
-      order by updated_at desc
-      limit 1
+    const users = await tx<
+      (Omit<Member, "joinedAt" | "pending" | "role"> & { giteaId: string })[]
+    >`
+      select id as "userId", gitea_id as "giteaId", username,
+        display_name as "displayName", avatar_url as "avatarUrl"
+      from users
+      where ${
+        giteaUser === null
+          ? tx`lower(username) = lower(${username})`
+          : tx`gitea_id = ${giteaUser.giteaId}`
+      }
+      limit 2
     `;
 
-    if (user !== undefined) {
+    if (users.length > 1) {
+      throw new ApiError(
+        409,
+        "conflict",
+        `Several Flint accounts are called @${username}; whoever no longer uses that name in Gitea has to sign in to Flint again first`
+      );
+    }
+
+    const [found] = users;
+
+    if (found !== undefined) {
+      const { giteaId, ...user } = found;
+
+      await rejectNameClash(tx, workspace.id, {
+        giteaId,
+        username: user.username,
+      });
+
       const [added] = await tx<{ joinedAt: string }[]>`
         insert into workspace_members (workspace_id, user_id, role)
         values (${workspace.id}, ${user.userId}, ${role})
@@ -114,30 +218,44 @@ export const addMember = async (
       return { ...user, joinedAt: added.joinedAt, pending: false, role };
     }
 
+    if (giteaUser === null) {
+      throw new ApiError(
+        404,
+        "not_found",
+        `Flint cannot find @${username} in Gitea; ask them to sign in to Flint once, then add them`
+      );
+    }
+
+    await rejectNameClash(tx, workspace.id, giteaUser);
+
     const [invited] = await tx<{ joinedAt: string }[]>`
       insert into invites (
-        id, workspace_id, gitea_username, role, created_by
+        id, workspace_id, gitea_id, gitea_username, role, created_by
       )
       values (
-        ${Bun.randomUUIDv7()}, ${workspace.id}, ${username}, ${role},
-        ${actor.userId}
+        ${Bun.randomUUIDv7()}, ${workspace.id}, ${giteaUser.giteaId},
+        ${giteaUser.username}, ${role}, ${actor.userId}
       )
       on conflict do nothing
       returning created_at as "joinedAt"
     `;
 
     if (invited === undefined) {
-      throw new ApiError(409, "conflict", `@${username} is already invited`);
+      throw new ApiError(
+        409,
+        "conflict",
+        `@${giteaUser.username} is already invited`
+      );
     }
 
     return {
       avatarUrl: "",
-      displayName: username,
+      displayName: giteaUser.username,
       joinedAt: invited.joinedAt,
       pending: true,
       role,
       userId: null,
-      username,
+      username: giteaUser.username,
     };
   });
 
@@ -162,43 +280,42 @@ export const updateMember = async (
 ) => {
   const workspace = await requireWorkspace(actor, slug, "admin");
 
-  await db.begin(async (tx) => {
+  const target = await db.begin(async (tx) => {
     await lockUsers(tx);
 
     const admins = await lockAdmins(tx, workspace.id);
-    const member = await findMembership(tx, workspace.id, username);
+    const found = await findTarget(tx, workspace.id, username);
 
-    if (member === undefined) {
-      const invites = await tx<{ id: string }[]>`
-        update invites set role = ${role}
-        where workspace_id = ${workspace.id}
-          and lower(gitea_username) = lower(${username})
-        returning id
-      `;
-
-      if (invites.length === 0) {
-        throw notFound("Member");
-      }
-
-      return;
+    if (found === undefined) {
+      throw notFound("Member");
     }
 
-    if (member.role === "admin" && role === "member" && admins === 1) {
+    if (found.userId === null) {
+      await tx`update invites set role = ${role} where id = ${found.inviteId}`;
+
+      return found;
+    }
+
+    if (found.role === "admin" && role === "member" && admins === 1) {
       throw lastAdmin();
     }
 
     await tx`
       update workspace_members set role = ${role}
-      where workspace_id = ${workspace.id} and user_id = ${member.userId}
+      where workspace_id = ${workspace.id} and user_id = ${found.userId}
     `;
+
+    return found;
   });
 
   memberChanged(workspace.id, username);
 
   const members = await listMembers(actor, slug);
 
-  const updated = members.find(
-    (member) => member.username.toLowerCase() === username.toLowerCase()
+  const updated = members.find((member) =>
+    target.userId === null
+      ? member.username.toLowerCase() === username.toLowerCase()
+      : member.userId === target.userId
   );
 
   if (updated === undefined) {
@@ -219,23 +336,18 @@ export const removeMember = async (
     await lockUsers(tx);
 
     const admins = await lockAdmins(tx, workspace.id);
-    const member = await findMembership(tx, workspace.id, username);
+    const member = await findTarget(tx, workspace.id, username);
 
     if (member?.userId !== actor.userId) {
       requireRole(workspace.role, "admin");
     }
 
     if (member === undefined) {
-      const invites = await tx<{ id: string }[]>`
-        delete from invites
-        where workspace_id = ${workspace.id}
-          and lower(gitea_username) = lower(${username})
-        returning id
-      `;
+      throw notFound("Member");
+    }
 
-      if (invites.length === 0) {
-        throw notFound("Member");
-      }
+    if (member.userId === null) {
+      await tx`delete from invites where id = ${member.inviteId}`;
 
       return null;
     }

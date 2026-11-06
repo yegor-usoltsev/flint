@@ -113,7 +113,6 @@ const Projects = () => {
         setCreating(true);
       }}
       ref={opener}
-      size="pill"
     >
       Create project
     </Button>
@@ -136,7 +135,6 @@ const Projects = () => {
       }
       description="Each project has its own key, issues and board. Keys never change."
       title="Projects"
-      wide
     >
       <div className="flex flex-col gap-2">
         {projects.data?.length === 0 ? null : (
@@ -157,7 +155,7 @@ const Projects = () => {
               >
                 Name
               </span>
-              <span className={tableNumber}>Open issues</span>
+              <span className={tableNumber}>Open</span>
               <span className={tableDate}>Created</span>
               <span className="w-4" />
             </div>

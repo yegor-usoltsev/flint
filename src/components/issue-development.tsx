@@ -190,6 +190,10 @@ export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
   const hidden = commits.length - shownCommits;
   const manyRepos = new Set(issue.links.map((link) => link.repo)).size > 1;
 
+  if (issue.links.length === 0) {
+    return null;
+  }
+
   return (
     <section aria-labelledby={heading} className="flex flex-col">
       <h2
@@ -198,12 +202,6 @@ export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
       >
         Development
       </h2>
-      {issue.links.length === 0 ? (
-        <p className="text-muted-foreground text-xs">
-          Mention {issue.key} in a branch name, commit message or pull request
-          to link it here.
-        </p>
-      ) : null}
       {pulls.length > 0 ? (
         <Group title="Pull requests">
           {pulls.map((link) => (

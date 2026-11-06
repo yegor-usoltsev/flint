@@ -1,4 +1,6 @@
 // oxlint-disable sonarjs/no-duplicate-string -- Demo content repeats names and statuses.
+import { createHmac } from "node:crypto";
+
 import { generateNKeysBetween } from "fractional-indexing";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
@@ -414,6 +416,9 @@ Wireframe and notes: [Checkout redesign](/doc/${pageIds.checkout})`,
   {
     assignee: "carol",
     days: 6,
+    description:
+      "In the order list, customers can't tell *Shipped* from *Delivered* at a glance. Draw one icon per status (placed, paid, shipped, delivered, returned) at 16 and 24 px, with the stroke of the existing set.",
+    labels: ["Improvement"],
     priority: 3,
     status: "Todo",
     title: "Icons for order statuses",
@@ -430,6 +435,8 @@ Wireframe and notes: [Checkout redesign](/doc/${pageIds.checkout})`,
   },
   {
     days: 31,
+    description:
+      "Banners for the home page, the category pages and the newsletter. Text on the banners keeps a 4.5:1 contrast ratio.",
     priority: 4,
     status: "Backlog",
     title: "Holiday campaign palette and banners",
@@ -437,13 +444,26 @@ Wireframe and notes: [Checkout redesign](/doc/${pageIds.checkout})`,
   {
     assignee: "carol",
     days: 14,
+    description:
+      "An empty search suggests popular categories, and an empty cart links back to the last product the customer viewed.",
+    labels: ["Feature"],
     priority: 3,
     status: "Done",
     title: "Empty states for search and the cart",
   },
   {
     assignee: "carol",
+    comments: [
+      [
+        "bob",
+        "Looks good. Can the names follow Tailwind's (`space-4`, `text-lg`) so the storefront maps them one to one?",
+      ],
+      ["carol", "Done, renamed in the second revision of the tokens file."],
+    ],
     days: 3,
+    description:
+      "- [x] Spacing scale on a 4 px base\n- [x] Type scale for headings and body\n- [ ] Review with engineering",
+    labels: ["Improvement"],
     priority: 3,
     status: "In Review",
     title: "Design tokens for spacing and type",
@@ -570,6 +590,16 @@ Usability test: five of five customers finished without help, median time 1 min 
     "Replaced by the checklist on the welcome page.",
   ],
 ];
+
+const pageDays = {
+  "design/checkout": 9,
+  "engineering/architecture": 21,
+  "engineering/releases": 16,
+  "engineering/runbooks/payments-outage": 11,
+  "handbook/how-we-work": 38,
+  "handbook/onboarding-2025": 300,
+  "handbook/welcome": 45,
+} satisfies Record<string, number>;
 
 const fileChanges = (files: Record<string, string>) =>
   Object.entries(files).map(([path, content]) => ({
@@ -855,6 +885,9 @@ const seedWorkspace = async () => {
     "uuid"
   );
 
+  const pagePaths = db.array(Object.keys(pageDays), "text");
+  const pageAges = db.array(Object.values(pageDays), "float8");
+
   await db.begin(async (tx) => {
     await tx`
       update issues i set
@@ -880,6 +913,21 @@ const seedWorkspace = async () => {
       from unnest(${ids}, ${days}) a (id, days)
       where e.kind = 'comment_created' and e.to_value = to_jsonb(a.id::text)
         or e.kind <> 'comment_created' and e.issue_id = a.id
+    `;
+    await tx`
+      with aged as (
+        update wiki_pages p set
+          created_at = p.created_at - a.days * interval '1 day',
+          updated_at = p.updated_at - a.days * interval '1 day'
+        from unnest(${pagePaths}, ${pageAges}) a (path, days), workspaces w
+        where w.slug = ${draftSlug} and p.workspace_id = w.id and p.path = a.path
+        returning p.id, a.days
+      )
+      update wiki_revisions r set
+        created_at = r.created_at - aged.days * interval '1 day',
+        updated_at = r.updated_at - aged.days * interval '1 day'
+      from aged
+      where r.page_id = aged.id
     `;
     await tx`update workspaces set slug = 'acme' where slug = ${draftSlug}`;
   });
@@ -955,6 +1003,149 @@ const seedRepository = async () => {
   console.info(`Gitea repository ${repo} is ready`);
 };
 
+const deliver = async (event: string, body: string) => {
+  const response = await fetch(new URL("/api/webhooks/gitea", healthUrl), {
+    body,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Gitea-Delivery": Bun.randomUUIDv7(),
+      "X-Gitea-Event": event,
+      "X-Gitea-Signature": createHmac("sha256", env.GITEA_WEBHOOK_SECRET)
+        .update(body)
+        .digest("hex"),
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Flint rejected the ${event} webhook: ${response.status} ${await response.text()}`
+    );
+  }
+};
+
+const RepositorySchema = v.object({
+  full_name: v.string(),
+  html_url: v.string(),
+});
+
+const PullSchema = v.looseObject({
+  head: v.object({ ref: v.string(), sha: v.string() }),
+  number: v.number(),
+  updated_at: v.string(),
+});
+
+const CommitSchema = v.object({
+  author: v.nullish(v.object({ login: v.string() })),
+  commit: v.object({
+    author: v.object({ date: v.string(), name: v.string() }),
+    message: v.string(),
+  }),
+  html_url: v.string(),
+  sha: v.string(),
+});
+
+const CommitStatusSchema = v.object({
+  context: v.string(),
+  description: v.nullish(v.string()),
+  id: v.number(),
+  status: v.string(),
+  target_url: v.nullish(v.string()),
+  updated_at: v.string(),
+});
+
+const finishedStatuses = async (
+  sha: string,
+  deadline = Date.now() + 180_000
+): Promise<v.InferOutput<typeof CommitStatusSchema>[]> => {
+  const history = await gitea(
+    v.array(CommitStatusSchema),
+    `/repos/${repo}/statuses/${sha}`
+  );
+
+  const statuses = [
+    ...new Map(
+      history
+        .toSorted((a, b) => a.id - b.id)
+        .map((status) => [status.context, status])
+    ).values(),
+  ];
+
+  const done =
+    statuses.length > 0 && statuses.every(({ status }) => status !== "pending");
+
+  if (done) {
+    return statuses;
+  }
+
+  if (Date.now() > deadline) {
+    console.warn("Gitea CI has not finished; replaying its current state");
+
+    return statuses;
+  }
+
+  await Bun.sleep(2000);
+
+  return await finishedStatuses(sha, deadline);
+};
+
+const linkPullRequest = async () => {
+  const repository = await gitea(RepositorySchema, `/repos/${repo}`);
+
+  const pulls = await gitea(
+    v.array(PullSchema),
+    `/repos/${repo}/pulls?state=all`
+  );
+
+  const pull = pulls.find((item) => item.head.ref === prBranch);
+
+  if (pull === undefined) {
+    throw new Error(`Gitea has no pull request from ${prBranch}`);
+  }
+
+  const { sha } = pull.head;
+
+  const commit = await gitea(CommitSchema, `/repos/${repo}/git/commits/${sha}`);
+  const statuses = await finishedStatuses(sha);
+
+  await deliver(
+    "push",
+    JSON.stringify({
+      after: sha,
+      commits: [
+        {
+          author: {
+            name: commit.commit.author.name,
+            username: commit.author?.login ?? "",
+          },
+          id: sha,
+          message: commit.commit.message,
+          timestamp: commit.commit.author.date,
+          url: commit.html_url,
+        },
+      ],
+      pusher: { login: "alice" },
+      ref: `refs/heads/${prBranch}`,
+      repository,
+      total_commits: 1,
+    })
+  );
+
+  await deliver(
+    "pull_request",
+    JSON.stringify({ number: pull.number, pull_request: pull, repository })
+  );
+
+  await Promise.all(
+    statuses.map(async (status) => {
+      await deliver(
+        "status",
+        JSON.stringify({ ...status, repository, sha, state: status.status })
+      );
+    })
+  );
+};
+
 const [existing] = await db<
   unknown[]
 >`select 1 from workspaces where slug = 'acme'`;
@@ -966,6 +1157,8 @@ if (existing === undefined) {
 }
 
 await seedRepository();
+
+await linkPullRequest();
 
 await setExternalTracker(gitea, env.APP_URL, repo);
 

@@ -70,6 +70,7 @@ Object.assign(process.env, {
   GITEA_PUBLIC_URL: "http://gitea-public.test",
   GITEA_URL: "http://gitea.test",
   GITEA_WEBHOOK_SECRET: "test-webhook-secret",
+  INSTANCE_ADMINS: "",
   MAX_UPLOAD_BYTES: "1048576",
   S3_ACCESS_KEY_ID: process.env["S3_ACCESS_KEY_ID"] ?? "flint",
   S3_BUCKET: process.env["S3_BUCKET"] ?? "flint",
