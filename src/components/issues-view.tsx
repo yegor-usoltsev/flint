@@ -104,6 +104,7 @@ import {
   labelsQuery,
   membersQuery,
 } from "~/lib/queries";
+import { useRemoteFlash } from "~/lib/remote-flash";
 import { useCommands } from "~/lib/use-hotkey";
 import { useUpdateIssue } from "~/lib/use-update-issue";
 import type { IssuePatch } from "~/lib/use-update-issue";
@@ -197,10 +198,11 @@ const Sortable = ({
 
   const selected = useSelected(id);
   const current = usePanelShows(issue.key);
+  const remote = useRemoteFlash(id);
 
   return (
     <button
-      className={cn(className, isDragSource && "opacity-40")}
+      className={cn(className, isDragSource && "opacity-40", remote)}
       data-current={current ? "true" : undefined}
       data-issue={id}
       data-selected={selected ? "true" : undefined}

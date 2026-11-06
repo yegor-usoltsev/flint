@@ -120,6 +120,7 @@
   --group-header-hover: oklch(0.928 0.002 282.7);
   --row-selected: oklch(0.95 0.025 277);
   --row-selected-hover: oklch(0.925 0.04 277);
+  --remote-change: oklch(0.955 0.035 210);
   --priority-urgent: oklch(0.62 0.2 40);
   --diff-added: oklch(0.9 0.09 150);
   --diff-removed: oklch(0.9 0.06 25);
@@ -176,6 +177,7 @@
   --group-header-hover: oklch(0.255 0.003 270.9);
   --row-selected: oklch(0.28 0.049 278.5);
   --row-selected-hover: oklch(0.315 0.06 278.5);
+  --remote-change: oklch(0.32 0.045 210);
   --priority-urgent: oklch(0.7 0.18 40);
   --diff-added: oklch(0.36 0.08 150);
   --diff-removed: oklch(0.36 0.09 25);
@@ -236,6 +238,36 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 32;
+}
+
+@keyframes remote-flash {
+  0%,
+  40% {
+    background-color: var(--remote-change);
+  }
+}
+
+@keyframes remote-flash-again {
+  0%,
+  40% {
+    background-color: var(--remote-change);
+  }
+}
+
+@utility remote-flash {
+  animation: remote-flash 2.4s var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    background-color: var(--remote-change) !important;
+  }
+}
+
+@utility remote-flash-again {
+  animation: remote-flash-again 2.4s var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    background-color: var(--remote-change) !important;
+  }
 }
 
 @utility border-hairline {

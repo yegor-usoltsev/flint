@@ -108,6 +108,7 @@ export const createComment = async (
   });
 
   publish(issue.workspaceId, {
+    actorId: actor.userId,
     entity: "comment",
     id,
     issueId: issue.id,
@@ -197,6 +198,7 @@ const changeComment = async (
   });
 
   publish(comment.workspaceId, {
+    actorId: actor.userId,
     entity: "comment",
     id,
     issueId: comment.issueId,
