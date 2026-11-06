@@ -117,7 +117,6 @@ export const AttachmentList = ({
   body,
   compact = false,
   editable,
-  hint,
   id,
   label = "Attachments",
   path,
@@ -125,7 +124,6 @@ export const AttachmentList = ({
   body?: string;
   compact?: boolean;
   editable: boolean;
-  hint: string;
   id: string;
   label?: string;
   path: string;
@@ -149,11 +147,7 @@ export const AttachmentList = ({
             {attachments.length}
           </span>
         ) : null}
-        {editable ? (
-          <span className="ml-auto">
-            <AttachButton onFiles={upload} />
-          </span>
-        ) : null}
+        {editable ? <AttachButton onFiles={upload} /> : null}
       </header>
       {failed ? (
         <p className="text-destructive flex items-center gap-2 text-xs">
@@ -164,9 +158,6 @@ export const AttachmentList = ({
             Retry
           </Button>
         </p>
-      ) : null}
-      {loaded && empty ? (
-        <p className="text-muted-foreground text-xs">{hint}</p>
       ) : null}
       <ul className="flex flex-col">
         {attachments.map((attachment) => (
@@ -279,7 +270,6 @@ export const IssueAttachments = ({
   <AttachmentList
     compact={compact}
     editable={editable}
-    hint="Paste or drop files into the description, or attach them here."
     id={issue.id}
     label={`${issue.key} attachments`}
     path={`/issues/${issue.key}/attachments`}

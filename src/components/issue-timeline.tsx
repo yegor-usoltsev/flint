@@ -264,7 +264,7 @@ const EventRow = ({
   const names = useNames(project);
 
   return (
-    <li className="relative flex items-start gap-3 py-1.5 pl-2.5 text-xs">
+    <li className="relative flex items-start gap-3 py-1.5 pl-4.5 text-xs">
       <span className="bg-background relative flex h-4 w-3.5 shrink-0 items-center justify-center">
         <EventIcon item={item} project={project} />
       </span>
@@ -715,7 +715,7 @@ export const IssueTimeline = ({
           {feed.map((entry) =>
             Array.isArray(entry) ? (
               <li key={entry[0]?.id}>
-                <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-4.25 before:w-px">
+                <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-6.25 before:w-px">
                   {entry.map((item) => (
                     <EventRow item={item} key={item.id} project={project} />
                   ))}

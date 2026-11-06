@@ -181,13 +181,7 @@ const Group = ({ children, title }: { children: ReactNode; title: string }) => (
   </div>
 );
 
-export const IssueDevelopment = ({
-  compact = false,
-  issue,
-}: {
-  compact?: boolean;
-  issue: Issue;
-}) => {
+export const IssueDevelopment = ({ issue }: { issue: Issue }) => {
   const heading = useId();
   const [allCommits, setAllCommits] = useState(false);
   const pulls = issue.links.filter((link) => link.kind === "pull_request");
@@ -196,7 +190,7 @@ export const IssueDevelopment = ({
   const hidden = commits.length - shownCommits;
   const manyRepos = new Set(issue.links.map((link) => link.repo)).size > 1;
 
-  if (compact && issue.links.length === 0) {
+  if (issue.links.length === 0) {
     return null;
   }
 
@@ -208,12 +202,6 @@ export const IssueDevelopment = ({
       >
         Development
       </h2>
-      {issue.links.length === 0 ? (
-        <p className="text-muted-foreground text-xs">
-          Mention {issue.key} in a branch name, commit message or pull request
-          to link it here.
-        </p>
-      ) : null}
       {pulls.length > 0 ? (
         <Group title="Pull requests">
           {pulls.map((link) => (
