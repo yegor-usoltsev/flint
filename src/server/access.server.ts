@@ -5,6 +5,7 @@ import type { Role, Workspace } from "~/lib/api-types";
 import { ApiError } from "~/server/api.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
+import { env } from "~/server/env.server";
 
 export const notFound = (what: string) =>
   new ApiError(404, "not_found", `${what} not found`);
@@ -27,6 +28,12 @@ export const userRef = db`
   )
 `;
 
+// oxlint-disable-next-line typescript/promise-function-async -- Returns an unexecuted Bun SQL fragment, which is thenable.
+export const isInstanceAdmin = () =>
+  env.INSTANCE_ADMINS.length === 0
+    ? db`u.is_instance_admin`
+    : db`lower(u.username) = any(${db.array(env.INSTANCE_ADMINS, "text")})`;
+
 export const requireRole = (role: Role, required: Role) => {
   if (required === "admin" && role !== "admin") {
     throw new ApiError(403, "forbidden", "Only workspace admins can do this");
@@ -42,7 +49,7 @@ export const workspaceRole = async (actor: Actor, workspaceId: string) => {
   }
 
   const [row] = await db<{ role: Role | null }[]>`
-    select case when u.is_instance_admin then 'admin' else m.role end as role
+    select case when ${isInstanceAdmin()} then 'admin' else m.role end as role
     from users u
     left join workspace_members m
       on m.user_id = u.id and m.workspace_id = ${workspaceId}

@@ -102,7 +102,7 @@ const LogoSetting = ({
   const input = useRef<HTMLInputElement>(null);
 
   return (
-    <SettingsRow description="Recommended size is 256×256 px" label="Logo">
+    <SettingsRow description="Square, at least 256 px" label="Logo">
       <div className="flex items-center gap-2">
         {disabled ? null : (
           <>
@@ -257,14 +257,16 @@ const General = () => {
           description="Without a logo the initial shows on this color"
           label="Color"
         >
-          <ColorSwatches
-            disabled={!isAdmin}
-            label="Workspace color"
-            onChange={(color) => {
-              update.mutate({ color });
-            }}
-            value={workspace.color}
-          />
+          <div className="max-sm:w-full">
+            <ColorSwatches
+              disabled={!isAdmin}
+              label="Workspace color"
+              onChange={(color) => {
+                update.mutate({ color });
+              }}
+              value={workspace.color}
+            />
+          </div>
         </SettingsRow>
       </SettingsSection>
       {isAdmin ? (

@@ -97,10 +97,12 @@ const isDeleted = (issue: IssueSummary) =>
 
 const findCached = (
   queryClient: QueryClient,
-  match: (issue: IssueSummary) => boolean
+  match: (issue: IssueSummary) => boolean,
+  active = false
 ) => {
   for (const [, data] of queryClient.getQueriesData<IssueData>({
     queryKey: ["issues"],
+    type: active ? "active" : "all",
   })) {
     const issue = issuesOf(data).find(
       (item) => match(item) && !isDeleted(item)
@@ -116,6 +118,9 @@ const findCached = (
 
 export const findIssue = (queryClient: QueryClient, id: string) =>
   findCached(queryClient, (item) => item.id === id);
+
+export const findShownIssue = (queryClient: QueryClient, id: string) =>
+  findCached(queryClient, (item) => item.id === id, true);
 
 export const findIssueByKey = (queryClient: QueryClient, key: string) =>
   findCached(queryClient, (item) => item.key === key);

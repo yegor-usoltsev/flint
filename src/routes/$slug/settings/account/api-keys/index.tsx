@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { cn } from "cn";
 
 import { LoadFailed } from "~/components/load-failed";
 import {
@@ -22,7 +21,6 @@ import {
 import { Button, buttonVariants } from "~/components/ui/button";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
@@ -87,9 +85,12 @@ const RevokeToken = ({ token }: { token: ApiToken }) => {
   );
 };
 
+const inlineCode =
+  "bg-surface-2 border-hairline rounded px-1 py-px font-mono text-xs";
+
 const NewKey = ({ slug }: { slug: string }) => (
   <Link
-    className={cn(buttonVariants({ size: "pill" }))}
+    className={buttonVariants()}
     params={{ slug }}
     to="/$slug/settings/account/api-keys/new"
   >
@@ -97,7 +98,7 @@ const NewKey = ({ slug }: { slug: string }) => (
   </Link>
 );
 
-const TokenRows = ({ slug }: { slug: string }) => {
+const TokenRows = () => {
   const tokens = useQuery(tokensQuery);
 
   if (tokens.isPending) {
@@ -124,13 +125,11 @@ const TokenRows = ({ slug }: { slug: string }) => {
         <EmptyHeader>
           <EmptyTitle>No API keys yet</EmptyTitle>
           <EmptyDescription>
-            Sign in the flint CLI with <code>flint login</code>, or set a key as{" "}
-            <code>FLINT_TOKEN</code> in your scripts.
+            Sign in the flint CLI with{" "}
+            <code className={inlineCode}>flint login</code>, or set a key as{" "}
+            <code className={inlineCode}>FLINT_TOKEN</code> in your scripts.
           </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent>
-          <NewKey slug={slug} />
-        </EmptyContent>
       </Empty>
     );
   }
@@ -160,12 +159,13 @@ const ApiKeys = () => {
   const { slug } = useWorkspace();
 
   return (
-    <SettingsPage actions={<NewKey slug={slug} />} title="API keys">
-      <SettingsSection
-        description="The flint CLI and your scripts use the API as you with these keys."
-        title="Personal API keys"
-      >
-        <TokenRows slug={slug} />
+    <SettingsPage
+      actions={<NewKey slug={slug} />}
+      description="The flint CLI and your scripts use the API as you with these keys."
+      title="API keys"
+    >
+      <SettingsSection>
+        <TokenRows />
       </SettingsSection>
     </SettingsPage>
   );

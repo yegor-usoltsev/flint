@@ -1,6 +1,5 @@
 import { createWriteStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import path from "node:path";
 import { pipeline } from "node:stream/promises";
 
 import { Option } from "commander";
@@ -693,6 +692,38 @@ const registerTokens = (program: Command) => {
 const attachmentRows = (attachments: Attachment[]) =>
   table(attachments.map((item) => [item.id, item.filename, item.url]));
 
+const keepsName = (name: string) =>
+  !name.startsWith(".") &&
+  /\.(?:avif|gif|heic|jpe?g|m4a|mov|mp3|mp4|ogg|opus|pdf|png|wav|webm|webp)$/iu.test(
+    name
+  ) &&
+  !/^(?:aux|con|conin\$|conout\$|nul|prn|(?:com|lpt)[\d¹²³]) *(?:\.|$)/iu.test(
+    name
+  );
+
+const downloadName = (filename: string) => {
+  const name = (filename.split(/[\\/]/u).at(-1) ?? "")
+    .replaceAll(/[\p{Cc}\p{Cf}]/gu, "")
+    .replaceAll(/[<>:"|?*]/gu, "_");
+
+  if (keepsName(name)) {
+    return name;
+  }
+
+  const encoder = new TextEncoder();
+
+  const characters = Array.from(
+    new Intl.Segmenter().segment(name),
+    ({ segment }) => segment
+  );
+
+  while (encoder.encode(`flint-${characters.join("")}.download`).length > 255) {
+    characters.pop();
+  }
+
+  return `flint-${characters.join("")}.download`;
+};
+
 const registerAttachments = (program: Command) => {
   const attachment = program
     .command("attachment")
@@ -763,12 +794,12 @@ const registerAttachments = (program: Command) => {
     .argument("<id>", "attachment id")
     .option(
       "-o, --output <path>",
-      "file to write (default: the attachment's name, never overwritten)"
+      "file to write (default: the attachment's name, saved as flint-<name>.download unless it is an image, video, audio or PDF; never overwritten)"
     )
     .action(
       action(async (id: string, options: { output?: string }) => {
         const file = await download(await readConfig(), id);
-        const target = options.output ?? path.basename(file.filename);
+        const target = options.output ?? downloadName(file.filename);
 
         try {
           await pipeline(

@@ -19,6 +19,7 @@ import { useBackToApp } from "~/lib/back-to-app";
 import { build } from "~/lib/build";
 import { settingsGroups } from "~/lib/settings-groups";
 import { useCommands } from "~/lib/use-hotkey";
+import { useWorkspace } from "~/lib/use-workspace";
 
 export const BackToApp = ({
   children,
@@ -68,6 +69,8 @@ export const SettingsSidebar = ({ slug }: { slug: string }) => {
     },
   ]);
 
+  const workspace = useWorkspace();
+
   return (
     <Sidebar variant="inset">
       <nav aria-label="Settings" className="flex min-h-0 flex-1 flex-col">
@@ -92,7 +95,9 @@ export const SettingsSidebar = ({ slug }: { slug: string }) => {
         <SidebarContent>
           {settingsGroups.map((group) => (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupLabel>
+                {group.label === "Workspace" ? workspace.name : group.label}
+              </SidebarGroupLabel>
               <SidebarMenu>
                 {group.items.map((item) => (
                   <SidebarMenuItem key={item.to}>

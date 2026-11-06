@@ -3,8 +3,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
 
-const sessionCookie = "flint_session";
-const secure = env.APP_URL.startsWith("https:");
+const isSecure = () => env.APP_URL.startsWith("https:");
+const legacyCookie = "flint_session";
+
+export const hostCookie = (name: string) =>
+  isSecure() ? `__Host-${name}` : name;
+
+const sessionCookie = () => hostCookie(legacyCookie);
 
 export const newSecret = () => randomBytes(32).toString("base64url");
 
@@ -22,7 +27,7 @@ export const serializeCookie = (
   new Bun.Cookie(name, value, {
     httpOnly: true,
     sameSite: "lax",
-    secure,
+    secure: isSecure(),
     ...options,
   }).serialize();
 
@@ -39,15 +44,16 @@ export const createSession = async (userId: string) => {
     )
   `;
 
-  return serializeCookie(sessionCookie, token, {
+  return serializeCookie(sessionCookie(), token, {
     maxAge: env.SESSION_LIFETIME_DAYS * 24 * 60 * 60,
     path: "/",
   });
 };
 
-export const findSessionUser = async (request: Request) => {
-  const token = readCookie(request, sessionCookie);
+const legacyToken = (request: Request) =>
+  isSecure() ? readCookie(request, legacyCookie) : null;
 
+const sessionUser = async (token: string | null, legacy: boolean) => {
   if (token === null) {
     return null;
   }
@@ -55,17 +61,35 @@ export const findSessionUser = async (request: Request) => {
   const rows: { userId: string }[] = await db`
     select user_id as "userId" from sessions
     where token_hash = ${hashToken(token)} and expires_at > now()
+      and (${!legacy} or legacy_cookie)
   `;
 
   return rows[0]?.userId ?? null;
 };
 
+export const findSessionUser = async (request: Request) => {
+  const token = readCookie(request, sessionCookie());
+
+  return token === null
+    ? await sessionUser(legacyToken(request), true)
+    : await sessionUser(token, false);
+};
+
+export const clearLegacySession = () =>
+  isSecure()
+    ? [serializeCookie(legacyCookie, "", { maxAge: 0, path: "/" })]
+    : [];
+
 export const deleteSession = async (request: Request) => {
-  const token = readCookie(request, sessionCookie);
+  const hashes = [
+    readCookie(request, sessionCookie()),
+    legacyToken(request),
+  ].flatMap((token) => (token === null ? [] : [hashToken(token)]));
 
-  if (token !== null) {
-    await db`delete from sessions where token_hash = ${hashToken(token)}`;
-  }
+  await db`delete from sessions where token_hash = any(${db.array(hashes, "text")})`;
 
-  return serializeCookie(sessionCookie, "", { maxAge: 0, path: "/" });
+  return [
+    serializeCookie(sessionCookie(), "", { maxAge: 0, path: "/" }),
+    ...clearLegacySession(),
+  ];
 };

@@ -88,7 +88,9 @@ const IssueChip = ({ node }: ReactNodeViewProps) => {
             <span className="text-muted-foreground">{key}</span>
           </span>
           {issue === null ? null : (
-            <span className="truncate">{issue.title}</span>
+            <span className="truncate max-md:whitespace-normal">
+              {issue.title}
+            </span>
           )}
         </Link>
       )}
@@ -117,7 +119,9 @@ const PageChip = ({ node }: ReactNodeViewProps) => {
           : wikiTarget(workspace, page.path))}
       >
         <FileTextIcon />
-        <span className="truncate">{page?.title ?? label}</span>
+        <span className="truncate max-md:whitespace-normal">
+          {page?.title ?? label}
+        </span>
       </Link>
     </NodeViewWrapper>
   );

@@ -59,6 +59,7 @@ import { notifyError } from "~/lib/notify";
 import { priorities } from "~/lib/priorities";
 import type { Priority } from "~/lib/priorities";
 import { labelsQuery, membersQuery, timelineQuery } from "~/lib/queries";
+import { useRemoteFlash } from "~/lib/remote-flash";
 import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -71,7 +72,7 @@ interface Timeline {
 type EventItem = Extract<ActivityItem, { type: "event" }>;
 
 const cardClass =
-  "bg-card shadow-raised -mx-2 flex flex-col gap-1.5 rounded-md border p-4";
+  "bg-card shadow-raised flex flex-col gap-1.5 rounded-md border p-4";
 
 const Time = ({ at }: { at: string }) => (
   <time
@@ -264,7 +265,7 @@ const EventRow = ({
   const names = useNames(project);
 
   return (
-    <li className="relative flex items-start gap-3 py-1.5 pl-2.5 text-xs">
+    <li className="relative flex items-start gap-3 py-1.5 pl-4.5 text-xs">
       <span className="bg-background relative flex h-4 w-3.5 shrink-0 items-center justify-center">
         <EventIcon item={item} project={project} />
       </span>
@@ -308,6 +309,7 @@ const CommentItem = ({
   own: boolean;
 }) => {
   const cache = useTimelineCache(issue);
+  const remote = useRemoteFlash(comment.id);
 
   const [editing, setEditing, readEditing] = useStoredText(
     `comment:${comment.id}`
@@ -406,7 +408,7 @@ const CommentItem = ({
   };
 
   return (
-    <li className={cardClass}>
+    <li className={cn(cardClass, remote)}>
       <header className="flex min-h-6 items-center gap-2">
         <UserAvatar
           avatarUrl={comment.author.avatarUrl}
@@ -715,7 +717,7 @@ export const IssueTimeline = ({
           {feed.map((entry) =>
             Array.isArray(entry) ? (
               <li key={entry[0]?.id}>
-                <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-4.25 before:w-px">
+                <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-6.25 before:w-px">
                   {entry.map((item) => (
                     <EventRow item={item} key={item.id} project={project} />
                   ))}

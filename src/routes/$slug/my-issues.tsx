@@ -11,9 +11,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useCreateIssue } from "~/components/create-issue";
 import { IssueContextMenu } from "~/components/issue-menu";
 import type { IssueLookup } from "~/components/issue-parts";
 import { listClass, RowContent, rowClass } from "~/components/issues-view";
+import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
 import { ProjectDialog } from "~/components/project-dialog";
 import { StatusIcon } from "~/components/status-icon";
@@ -36,6 +38,7 @@ import { useSelected, useSelectionScope } from "~/lib/issue-selection";
 import { useMyIssues } from "~/lib/my-issues";
 import { loadMyIssues, preload } from "~/lib/preload";
 import { labelsQuery, membersQuery, projectsQuery } from "~/lib/queries";
+import { useRemoteFlash } from "~/lib/remote-flash";
 import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
@@ -111,10 +114,11 @@ const IssueRow = ({
 }) => {
   const selected = useSelected(issue.id);
   const current = usePanelShows(issue.key);
+  const remote = useRemoteFlash(issue.id);
 
   return (
     <Link
-      className={rowClass}
+      className={cn(rowClass, remote)}
       data-current={current ? "true" : undefined}
       data-issue={issue.id}
       data-selected={selected ? "true" : undefined}
@@ -237,6 +241,25 @@ const AssignedIssues = ({ slug }: { slug: string }) => {
   );
 };
 
+const PhoneNewIssue = () => {
+  const createIssue = useCreateIssue();
+
+  return (
+    <Button
+      aria-keyshortcuts="C"
+      aria-label="New issue"
+      className="md:hidden"
+      onClick={() => {
+        createIssue();
+      }}
+      size="icon-round"
+      variant="ghost"
+    >
+      <PlusIcon />
+    </Button>
+  );
+};
+
 const MyIssues = () => {
   const workspace = useWorkspace();
   const meId = useMe().data?.id;
@@ -254,6 +277,8 @@ const MyIssues = () => {
           short: workspace.name,
         },
       ]}
+      actions={<PhoneNewIssue />}
+      switcher={<NavSwitcher place={{ kind: "mine" }} />}
       title="My issues"
     >
       {projects.isPending ? (

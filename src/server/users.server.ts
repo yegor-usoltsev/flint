@@ -1,6 +1,7 @@
 import type { TransactionSQL } from "bun";
 
 import type { Me } from "~/lib/api-types";
+import { isInstanceAdmin } from "~/server/access.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
@@ -33,7 +34,8 @@ export const signIn = async (profile: GiteaProfile) =>
         ${profile.name},
         ${profile.email},
         ${profile.avatarUrl},
-        not exists (select 1 from users)
+        ${env.INSTANCE_ADMINS.length === 0}
+          and not exists (select 1 from users)
       )
       on conflict (gitea_id) do update set
         username = excluded.username,
@@ -51,13 +53,10 @@ export const signIn = async (profile: GiteaProfile) =>
     await tx`
       insert into workspace_members (workspace_id, user_id, role)
       select workspace_id, ${user.id}, role from invites
-      where lower(gitea_username) = lower(${profile.username})
+      where gitea_id = ${profile.giteaId}
       on conflict do nothing
     `;
-    await tx`
-      delete from invites
-      where lower(gitea_username) = lower(${profile.username})
-    `;
+    await tx`delete from invites where gitea_id = ${profile.giteaId}`;
 
     return user.id;
   });
@@ -65,10 +64,10 @@ export const signIn = async (profile: GiteaProfile) =>
 export const getMe = async (actor: Actor): Promise<Me> => {
   const [[user], workspaces] = await Promise.all([
     db<Omit<Me, "giteaUrl" | "trashDays" | "workspaces">[]>`
-      select id, username, display_name as "displayName", email,
-        avatar_url as "avatarUrl",
-        is_instance_admin as "isInstanceAdmin"
-      from users where id = ${actor.userId}
+      select u.id, u.username, u.display_name as "displayName", u.email,
+        u.avatar_url as "avatarUrl",
+        ${isInstanceAdmin()} as "isInstanceAdmin"
+      from users u where u.id = ${actor.userId}
     `,
     listWorkspaces(actor),
   ]);

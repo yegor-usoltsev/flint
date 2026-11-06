@@ -4,7 +4,11 @@ import { db } from "~/server/db.server";
 import { createSession } from "~/server/sessions.server";
 import { signIn } from "~/server/users.server";
 
+const giteaIds = new Map<string, number>();
+
 export const resetDatabase = async () => {
+  giteaIds.clear();
+
   const tables = await db<{ tablename: string }[]>`
     select tablename from pg_tables
     where schemaname = 'public' and tablename <> 'schema_migrations'
@@ -15,9 +19,7 @@ export const resetDatabase = async () => {
   );
 };
 
-const giteaIds = new Map<string, number>();
-
-const giteaIdOf = (username: string) => {
+export const addGiteaUser = (username: string) => {
   const key = username.toLowerCase();
   const id = giteaIds.get(key) ?? 1000 + giteaIds.size;
 
@@ -26,10 +28,23 @@ const giteaIdOf = (username: string) => {
   return id;
 };
 
-const fakeGiteaUsers = async () =>
-  await Promise.resolve(
-    Response.json({ message: "not found" }, { status: 404 })
+const fakeGiteaUsers = async (input: RequestInfo | URL) => {
+  const url = new URL(input instanceof Request ? input.url : input);
+
+  const name = /^\/api\/v1\/users\/(?<name>[^/]+)$/u.exec(url.pathname)
+    ?.groups?.["name"];
+
+  const login = decodeURIComponent(name ?? "").toLowerCase();
+
+  const id =
+    url.origin === "http://gitea.test" ? giteaIds.get(login) : undefined;
+
+  return await Promise.resolve(
+    id === undefined
+      ? Response.json({ message: "not found" }, { status: 404 })
+      : Response.json({ id, login })
   );
+};
 
 export const stubGiteaUsers = () =>
   spyOn(globalThis, "fetch").mockImplementation(
@@ -40,7 +55,7 @@ export const createUser = async (username: string) =>
   await signIn({
     avatarUrl: "",
     email: `${username}@example.test`,
-    giteaId: String(giteaIdOf(username)),
+    giteaId: String(addGiteaUser(username)),
     name: username,
     username,
   });

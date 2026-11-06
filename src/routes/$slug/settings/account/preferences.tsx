@@ -5,50 +5,39 @@ import {
   SettingsRow,
   SettingsSection,
 } from "~/components/settings-page";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+import { Button } from "~/components/ui/button";
 import { pageHead } from "~/lib/site";
-import { isTheme, setTheme, themeItems, useTheme } from "~/lib/theme";
+import { setTheme, themeItems, useTheme } from "~/lib/theme";
 
 const Preferences = () => {
   const theme = useTheme();
 
   return (
-    <SettingsPage title="Preferences">
-      <SettingsSection title="Interface and theme">
+    <SettingsPage
+      description="These settings apply to this browser."
+      title="Preferences"
+    >
+      <SettingsSection>
         <SettingsRow
           description="Follow the system setting or pick light or dark"
-          htmlFor="interface-theme"
-          label="Interface theme"
+          label="Theme"
         >
-          <Select
-            items={themeItems}
-            onValueChange={(value) => {
-              if (isTheme(value)) {
-                setTheme(value);
-              }
-            }}
-            value={theme}
-          >
-            <SelectTrigger id="interface-theme">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {themeItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <div className="bg-surface-3 flex rounded-lg p-0.5 max-sm:w-full">
+            {themeItems.map((item) => (
+              <Button
+                aria-pressed={theme === item.value}
+                className="max-sm:flex-1"
+                key={item.value}
+                onClick={() => {
+                  setTheme(item.value);
+                }}
+                size="sm"
+                variant={theme === item.value ? "default" : "ghost"}
+              >
+                {item.short}
+              </Button>
+            ))}
+          </div>
         </SettingsRow>
       </SettingsSection>
     </SettingsPage>
