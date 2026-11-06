@@ -16,8 +16,8 @@ import {
   TriangleAlertIcon,
   TypeIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { ComponentProps, ReactElement } from "react";
+import { createContext, use, useEffect, useRef, useState } from "react";
+import type { ComponentProps, ReactElement, ReactNode, RefObject } from "react";
 
 import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
@@ -72,6 +72,7 @@ import { copyText } from "~/lib/copy";
 import { newId } from "~/lib/ids";
 import { formatRelative } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
+import { PagePane, twoPaneQuery } from "~/lib/page-pane";
 import { usePageTitle } from "~/lib/site";
 import { discardDraft, useDraft, useHasDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
@@ -148,12 +149,31 @@ const NodeMenu = ({
   );
 };
 
+const WikiShown = createContext<string | null>(null);
+
 const RowFrame = (props: ComponentProps<"div">) => (
   <div
     {...props}
     className="data-popup-open:bg-row-focus data-[drop=inside]:bg-row-focus data-[drop=inside]:ring-ring relative rounded-md data-dragging:opacity-50 data-[drop=inside]:ring-1"
   />
 );
+
+const countPages = (node: WikiNode): number =>
+  node.children.reduce(
+    (total, child) =>
+      total + (child.page?.kind === "page" ? 1 : 0) + countPages(child),
+    0
+  );
+
+const pageCount = (node: WikiNode) => {
+  const count = countPages(node);
+
+  if (count === 1) {
+    return "1 page";
+  }
+
+  return count === 0 ? "No pages" : `${count} pages`;
+};
 
 const RowLink = ({
   node,
@@ -163,19 +183,20 @@ const RowLink = ({
   <Link
     {...props}
     {...wikiTarget(wiki, node.path)}
-    className="hover:bg-row-focus focus-visible:bg-row-focus flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    className="group/row hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus data-shown:shadow-focus-bar flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    data-shown={use(WikiShown) === node.path ? "" : undefined}
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle without an explicit role the button role.
     role="link"
   >
     <NodeIcon kind={node.page?.kind} />
     <span className="truncate">{node.title}</span>
-    <span className="text-muted-foreground hidden truncate font-mono text-xs sm:inline">
+    <span className="text-muted-foreground hidden w-0 flex-1 truncate font-mono text-xs opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
       {node.path}
     </span>
     <span className="text-muted-foreground ml-auto shrink-0 text-xs">
       {node.page?.kind === "page"
         ? formatRelative(node.page.updatedAt)
-        : "Folder"}
+        : pageCount(node)}
     </span>
   </Link>
 );
@@ -376,11 +397,19 @@ const useCreate = (wiki: Wiki, parent: string) => {
   };
 };
 
+const latestPages = (pages: WikiPageSummary[], shown: boolean) => {
+  const all = recentPages(pages, "");
+
+  return shown && all.length > 15 ? all.slice(0, 8) : [];
+};
+
 const NodeList = ({
+  compact = false,
   create,
   folder,
   wiki,
 }: {
+  compact?: boolean;
   create: () => void;
   folder: string;
   wiki: Wiki;
@@ -418,15 +447,14 @@ const NodeList = ({
 
   if (recent.length > 0) {
     return (
-      <div className="mx-auto w-full max-w-240">
+      <div className="mx-auto w-full max-w-3xl">
         <RecentRows pages={recent} wiki={wiki} />
       </div>
     );
   }
 
   if (nodes.length > 0) {
-    const all = recentPages(pages.data ?? [], "");
-    const latest = folder === "" && all.length > 15 ? all.slice(0, 8) : [];
+    const latest = latestPages(pages.data ?? [], folder === "" && !compact);
 
     const tree = (
       <WikiDragDrop tree={pagesTree} wiki={wiki}>
@@ -435,11 +463,11 @@ const NodeList = ({
     );
 
     if (latest.length === 0) {
-      return <div className="mx-auto w-full max-w-240">{tree}</div>;
+      return <div className="mx-auto w-full max-w-3xl">{tree}</div>;
     }
 
     return (
-      <div className="mx-auto w-full max-w-240 xl:grid xl:max-w-7xl xl:grid-cols-2 xl:items-start xl:gap-6">
+      <div className="mx-auto w-full max-w-3xl xl:grid xl:max-w-7xl xl:grid-cols-2 xl:items-start xl:gap-6">
         <section aria-labelledby="wiki-all" className="min-w-0 xl:pt-2">
           <h2
             className="text-muted-foreground hidden px-4 text-xs font-medium xl:block"
@@ -490,12 +518,20 @@ const NodeList = ({
   );
 };
 
-const WikiIndex = ({ crumbs, wiki }: { crumbs: Crumb[]; wiki: Wiki }) => {
+const WikiIndex = ({
+  compact = false,
+  crumbs,
+  wiki,
+}: {
+  compact?: boolean;
+  crumbs: Crumb[];
+  wiki: Wiki;
+}) => {
   const { buttons, create } = useCreate(wiki, "");
 
   return (
-    <Page actions={buttons} crumbs={crumbs} title="Wiki">
-      <NodeList create={create} folder="" wiki={wiki} />
+    <Page actions={buttons} className="@container" crumbs={crumbs} title="Wiki">
+      <NodeList compact={compact} create={create} folder="" wiki={wiki} />
     </Page>
   );
 };
@@ -522,6 +558,7 @@ const FolderView = ({
           <PageMenu actions={actions} />
         </>
       }
+      className="@container"
       crumbs={crumbs}
       title={folder.title}
     >
@@ -532,11 +569,104 @@ const FolderView = ({
 
 const headingIndent = ["pl-2", "pl-2", "pl-5", "pl-8"];
 
+const headingSelector = ".markdown :is(h1, h2, h3)";
+
+const activeLine = 96;
+
+const sameElements = (current: Element[], next: Element[]) =>
+  current.length === next.length &&
+  current.every((element, index) => element === next[index]);
+
+const useHeadingElements = (body: RefObject<HTMLDivElement | null>) => {
+  const [elements, setElements] = useState<Element[]>([]);
+
+  useEffect(() => {
+    const content = body.current;
+
+    const read = () => {
+      const next = [
+        ...(content?.querySelectorAll(headingSelector) ?? []),
+      ].filter((heading) => heading.textContent.trim() !== "");
+
+      setElements((current) => (sameElements(current, next) ? current : next));
+    };
+
+    const mutations = new MutationObserver(read);
+
+    if (content !== null) {
+      read();
+      mutations.observe(content, { childList: true, subtree: true });
+    }
+
+    return () => {
+      mutations.disconnect();
+    };
+  }, [body]);
+
+  return elements;
+};
+
+const useActiveHeading = (
+  scroller: RefObject<HTMLDivElement | null>,
+  body: RefObject<HTMLDivElement | null>
+) => {
+  const [active, setActive] = useState(0);
+  const elements = useHeadingElements(body);
+
+  useEffect(() => {
+    const root = scroller.current;
+
+    const update = () => {
+      const line = (root?.getBoundingClientRect().top ?? 0) + activeLine;
+
+      setActive(
+        Math.max(
+          elements.findLastIndex(
+            (heading) => heading.getBoundingClientRect().top <= line
+          ),
+          0
+        )
+      );
+    };
+
+    const intersections = new IntersectionObserver(update, {
+      root,
+      rootMargin: `-${activeLine}px 0px 0px 0px`,
+    });
+
+    for (const heading of elements) {
+      intersections.observe(heading);
+    }
+
+    let frame = 0;
+
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+
+    // oxlint-disable-next-line github/prefer-observers -- the observer only fires when a heading leaves the band below the line, not when its top crosses the line
+    root?.addEventListener("scroll", schedule);
+
+    update();
+
+    return () => {
+      intersections.disconnect();
+      root?.removeEventListener("scroll", schedule);
+      cancelAnimationFrame(frame);
+    };
+  }, [elements, scroller]);
+
+  return active;
+};
+
 const Contents = ({
+  active,
   headings,
   onJump,
   title = true,
 }: {
+  active?: number;
   headings: Heading[];
   onJump: (index: number) => void;
   title?: boolean;
@@ -551,8 +681,9 @@ const Contents = ({
       {headings.map((heading, index) => (
         <li key={heading.id}>
           <button
+            aria-current={index === active ? "location" : undefined}
             className={cn(
-              "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring w-full rounded-md py-1 pr-2 text-left text-pretty wrap-anywhere outline-none focus-visible:ring-2",
+              "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring aria-[current=location]:text-foreground w-full rounded-md py-1 pr-2 text-left text-pretty wrap-anywhere outline-none focus-visible:ring-2",
               headingIndent[heading.level]
             )}
             onClick={() => {
@@ -566,6 +697,73 @@ const Contents = ({
       ))}
     </ul>
   </nav>
+);
+
+const PageGrid = ({
+  children,
+  scroller,
+}: {
+  children: ReactNode;
+  scroller: RefObject<HTMLDivElement | null>;
+}) => (
+  <div
+    className={cn(
+      "min-w-0 flex-1 overflow-y-auto xl:grid xl:items-start",
+      use(PagePane) === "detail"
+        ? "xl:grid-cols-[2rem_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)]"
+        : "xl:grid-cols-[minmax(6rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)]"
+    )}
+    ref={scroller}
+  >
+    {children}
+  </div>
+);
+
+const ContentsRail = ({
+  body,
+  headings,
+  onJump,
+  scroller,
+  source,
+}: {
+  body: RefObject<HTMLDivElement | null>;
+  headings: Heading[];
+  onJump: (index: number) => void;
+  scroller: RefObject<HTMLDivElement | null>;
+  source: boolean;
+}) => {
+  const reading = useActiveHeading(scroller, body);
+  const active = source ? -1 : reading;
+
+  return (
+    <aside
+      aria-label="Page details"
+      className="sticky top-0 col-start-3 row-start-1 flex max-h-[calc(100svh-2.75rem)] max-w-72 flex-col gap-6 overflow-y-auto py-8 pr-6"
+    >
+      <Contents active={active} headings={headings} onJump={onJump} />
+    </aside>
+  );
+};
+
+const DraftConflict = ({
+  draft,
+  field,
+}: {
+  draft: {
+    conflict: string | null;
+    handleDiscard: () => void;
+    handleKeepMine: () => void;
+    value: string;
+  };
+  field: string;
+}) => (
+  <ConflictDialog
+    field={field}
+    mine={draft.value}
+    onKeepMine={draft.handleKeepMine}
+    onUseTheirs={draft.handleDiscard}
+    saved={draft.conflict}
+  />
 );
 
 const ContentsDisclosure = ({
@@ -795,6 +993,9 @@ const CopyLinkButton = ({ id }: { id: string }) => (
   </Hint>
 );
 
+const focusEmpty = (page: WikiPage, preview: boolean) =>
+  !preview && page.body === "";
+
 const PageEditor = ({
   crumbs,
   deleted,
@@ -802,6 +1003,7 @@ const PageEditor = ({
   onRelease,
   onRetryLookup,
   page,
+  preview,
   replacement,
   wiki,
 }: {
@@ -811,6 +1013,7 @@ const PageEditor = ({
   onRelease: () => void;
   onRetryLookup: () => void;
   page: WikiPage;
+  preview: boolean;
   replacement: WikiPage | null;
   wiki: Wiki;
 }) => {
@@ -821,6 +1024,7 @@ const PageEditor = ({
   const actions = useNodeActions(wiki, page, { shortcuts: true });
   const editor = useRef<MarkdownEditorHandle>(null);
   const bodyBox = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
 
   const write =
     (field: "body" | "title") =>
@@ -880,9 +1084,9 @@ const PageEditor = ({
   ]);
 
   const headingElements = () =>
-    [
-      ...(bodyBox.current?.querySelectorAll(".markdown :is(h1, h2, h3)") ?? []),
-    ].filter((element) => element.textContent.trim() !== "");
+    [...(bodyBox.current?.querySelectorAll(headingSelector) ?? [])].filter(
+      (element) => element.textContent.trim() !== ""
+    );
 
   const headings = headingsOf(body.value);
 
@@ -974,7 +1178,7 @@ const PageEditor = ({
       crumbs={crumbs}
       title={title.value.trim() || page.title}
     >
-      <div className="min-w-0 flex-1 overflow-y-auto xl:grid xl:grid-cols-[minmax(10rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(10rem,1fr)] xl:items-start">
+      <PageGrid scroller={scroller}>
         <article className="max-w-document mx-auto box-content flex flex-col gap-2 px-4 pt-5 pb-16 md:px-8 md:pt-8 xl:col-start-2 xl:row-start-1 xl:mx-0 xl:px-12">
           {lookupError === null ? null : (
             <LoadFailed
@@ -1013,9 +1217,6 @@ const PageEditor = ({
               pending={recreate.isPending}
             />
           ) : null}
-          <p className="text-muted-foreground truncate font-mono text-xs">
-            {page.path}
-          </p>
           <PageTitle
             autosave={!deleted}
             draft={title}
@@ -1033,7 +1234,7 @@ const PageEditor = ({
           )}
           <div className="[&_.ProseMirror]:min-h-[50vh]" ref={bodyBox}>
             <MarkdownEditor
-              autoFocus={page.body === ""}
+              autoFocus={focusEmpty(page, preview)}
               className="text-prose"
               editable={!(recreate.isPending || copy.isPending)}
               draft={body.draft}
@@ -1061,28 +1262,17 @@ const PageEditor = ({
           </div>
         </article>
         {rail && headings.length > 1 ? (
-          <aside
-            aria-label="Page details"
-            className="sticky top-0 col-start-3 row-start-1 flex max-h-[calc(100svh-2.75rem)] max-w-72 flex-col gap-6 overflow-y-auto py-8 pr-6"
-          >
-            <Contents headings={headings} onJump={jump} />
-          </aside>
+          <ContentsRail
+            body={bodyBox}
+            headings={headings}
+            onJump={jump}
+            scroller={scroller}
+            source={source}
+          />
         ) : null}
-      </div>
-      <ConflictDialog
-        field="title"
-        mine={title.value}
-        onKeepMine={title.handleKeepMine}
-        onUseTheirs={title.handleDiscard}
-        saved={title.conflict}
-      />
-      <ConflictDialog
-        field="page"
-        mine={body.value}
-        onKeepMine={body.handleKeepMine}
-        onUseTheirs={body.handleDiscard}
-        saved={body.conflict}
-      />
+      </PageGrid>
+      <DraftConflict draft={title} field="title" />
+      <DraftConflict draft={body} field="page" />
     </Page>
   );
 };
@@ -1210,10 +1400,12 @@ const useKeptPage = (
 const WikiPageScreen = ({
   crumbs,
   path,
+  preview = false,
   wiki,
 }: {
   crumbs: Crumb[];
   path: string;
+  preview?: boolean;
   wiki: Wiki;
 }) => {
   const page = useQuery(wikiPageQuery(wiki, path));
@@ -1242,6 +1434,7 @@ const WikiPageScreen = ({
           void moved.refetch();
         }}
         page={kept}
+        preview={preview}
         replacement={page.data ?? null}
         wiki={wiki}
       />
@@ -1262,6 +1455,7 @@ const WikiPageScreen = ({
             void moved.refetch();
           }}
           page={page.data}
+          preview={preview}
           replacement={null}
           wiki={wiki}
         />
@@ -1306,6 +1500,47 @@ const WikiPageScreen = ({
   );
 };
 
+const firstPage = (nodes: WikiNode[]): string | undefined => {
+  for (const node of nodes) {
+    const found =
+      node.page?.kind === "page" ? node.path : firstPage(node.children);
+
+    if (found !== undefined) {
+      return found;
+    }
+  }
+
+  return undefined;
+};
+
+const useShownPage = (wiki: Wiki, path: string, split: boolean) => {
+  const pages = useQuery(wikiPagesQuery(wiki));
+  const sort = useWikiSort();
+
+  const [kept, setKept] = useState<{ key: string; path: string } | null>(null);
+
+  const held = kept?.key === wiki.key ? kept.path : undefined;
+
+  const preview =
+    sort === "edited"
+      ? recentPages(pages.data ?? [], "")[0]?.path
+      : firstPage(buildTree(pages.data ?? []));
+
+  if (path !== "" && kept !== null) {
+    setKept(null);
+  }
+
+  if (split && path === "" && held === undefined && preview !== undefined) {
+    setKept({ key: wiki.key, path: preview });
+  }
+
+  if (path !== "") {
+    return path;
+  }
+
+  return split ? (held ?? preview) : undefined;
+};
+
 const WikiScreen = ({
   crumbs,
   path: rawPath,
@@ -1316,30 +1551,56 @@ const WikiScreen = ({
   wiki: Wiki;
 }) => {
   const pages = useQuery(wikiPagesQuery(wiki));
+  const split = useMediaQuery(twoPaneQuery);
   const path = rawPath.toLowerCase().split("/").filter(Boolean).join("/");
 
   usePageTitle(pages.data?.find((page) => page.path === path)?.title);
 
-  if (path === "") {
-    return <WikiIndex crumbs={crumbs} wiki={wiki} />;
-  }
-
   const titleOf = (target: string) =>
     pages.data?.find((page) => page.path === target)?.title ?? humanize(target);
 
+  const pathCrumbs = (target: string) =>
+    ancestors(target).map((ancestor) => ({
+      label: titleOf(ancestor),
+      link: <Link {...wikiTarget(wiki, ancestor)} />,
+    }));
+
+  const shown = useShownPage(wiki, path, split);
+
+  const fullCrumbs = [
+    ...crumbs.map(({ label, link }) => ({ label, link })),
+    { label: "Wiki", link: <Link {...wikiTarget(wiki, "")} /> },
+  ];
+
+  const pageCrumbs = split ? [] : fullCrumbs;
+  const index = split ? null : <WikiIndex crumbs={crumbs} wiki={wiki} />;
+
   return (
-    <WikiPageScreen
-      crumbs={[
-        ...crumbs.map(({ label, link }) => ({ label, link })),
-        { label: "Wiki", link: <Link {...wikiTarget(wiki, "")} /> },
-        ...ancestors(path).map((target) => ({
-          label: titleOf(target),
-          link: <Link {...wikiTarget(wiki, target)} />,
-        })),
-      ]}
-      path={path}
-      wiki={wiki}
-    />
+    <WikiShown value={split ? (shown ?? null) : null}>
+      <div className="flex min-h-0 flex-1">
+        {split ? (
+          <div className="flex w-96 shrink-0 flex-col border-r">
+            <PagePane value="list">
+              <WikiIndex compact crumbs={crumbs} wiki={wiki} />
+            </PagePane>
+          </div>
+        ) : null}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {shown === undefined ? (
+            index
+          ) : (
+            <PagePane value={split ? "detail" : null}>
+              <WikiPageScreen
+                crumbs={[...pageCrumbs, ...pathCrumbs(shown)]}
+                path={shown}
+                preview={path === ""}
+                wiki={wiki}
+              />
+            </PagePane>
+          )}
+        </div>
+      </div>
+    </WikiShown>
   );
 };
 

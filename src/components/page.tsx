@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { CloudOffIcon, SearchIcon } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, use } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 import { useOpenPalette } from "~/components/command-palette";
@@ -22,6 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
+import { PagePane } from "~/lib/page-pane";
 import { useRealtimeConnected } from "~/lib/realtime";
 
 export interface Crumb {
@@ -99,17 +100,25 @@ export const Page = ({
   title: string;
 }) => {
   const connected = useRealtimeConnected();
+  const pane = use(PagePane);
   const scope = crumbs.findLast((crumb) => crumb.short !== undefined);
 
   return (
     <>
       <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-        <SidebarTrigger className="-ml-1" />
-        <Separator
-          className="mr-1 data-vertical:h-4 data-vertical:self-center"
-          orientation="vertical"
-        />
-        <Breadcrumb className="@container min-w-0 flex-1">
+        {pane === "detail" ? null : (
+          <>
+            <SidebarTrigger className="-ml-1" />
+            <Separator
+              className="mr-1 data-vertical:h-4 data-vertical:self-center"
+              orientation="vertical"
+            />
+          </>
+        )}
+        <Breadcrumb
+          aria-label={pane === "detail" ? "Page breadcrumb" : "breadcrumb"}
+          className="@container min-w-0 flex-1"
+        >
           <BreadcrumbList className="flex-nowrap">
             {crumbs.map((crumb, index) => {
               const hidden = cn(
@@ -152,7 +161,7 @@ export const Page = ({
             {actions}
           </div>
         )}
-        <PanelToggle />
+        {pane === "list" ? null : <PanelToggle />}
       </header>
       <div className={cn("min-h-0 flex-1 overflow-y-auto", className)}>
         {children}
