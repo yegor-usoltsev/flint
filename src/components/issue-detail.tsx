@@ -158,6 +158,7 @@ const originCrumb = (
   origin.view === "mine"
     ? {
         label: "My issues",
+        short: "My issues",
         link: (
           <Link
             params={{ slug }}
@@ -168,6 +169,8 @@ const originCrumb = (
       }
     : {
         label:
+          origin.projectKey === project.key ? project.name : origin.projectKey,
+        short:
           origin.projectKey === project.key ? project.name : origin.projectKey,
         link: (
           <Link
@@ -716,8 +719,16 @@ const IssueScreen = ({
         </>
       }
       className="@container"
-      crumbs={[originCrumb(origin, project, workspace.slug)]}
-      title={data === undefined ? issueKey : `${issueKey} ${data.title}`}
+      crumbs={[
+        {
+          label: workspace.name,
+          link: (
+            <Link params={{ slug: workspace.slug }} to="/$slug/my-issues" />
+          ),
+        },
+        originCrumb(origin, project, workspace.slug),
+      ]}
+      title={issueKey}
     >
       <IssueBody
         data={data}

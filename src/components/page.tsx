@@ -1,11 +1,10 @@
 import { cn } from "cn";
-import { CloudOffIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, CloudOffIcon, SearchIcon } from "lucide-react";
 import { Fragment } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 import { useOpenPalette } from "~/components/command-palette";
 import { PanelToggle } from "~/components/panel-toggle";
-import { Keys } from "~/components/shortcuts-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,14 +13,14 @@ import {
   BreadcrumbSeparator,
 } from "~/components/ui/breadcrumb";
 import { Button } from "~/components/ui/button";
-import { Separator } from "~/components/ui/separator";
-import { SidebarTrigger } from "~/components/ui/sidebar";
-import { Skeleton } from "~/components/ui/skeleton";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { Separator } from "~/components/ui/separator";
+import { SidebarTrigger, useSidebar } from "~/components/ui/sidebar";
+import { Skeleton } from "~/components/ui/skeleton";
 import { useRealtimeConnected } from "~/lib/realtime";
 
 export interface Crumb {
@@ -48,25 +47,68 @@ const SearchButton = () => {
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            aria-label="Search"
-            className="md:hidden"
-            onClick={openPalette}
-            size="icon"
-            variant="ghost"
+    <Button
+      aria-keyshortcuts="Control+K Meta+K"
+      aria-label="Search"
+      className="md:hidden"
+      onClick={openPalette}
+      size="icon"
+      variant="ghost"
+    >
+      <SearchIcon />
+    </Button>
+  );
+};
+
+const TitleText = ({ short, title }: { short?: string; title: string }) => {
+  if (short === undefined) {
+    return <span className="truncate">{title}</span>;
+  }
+
+  return (
+    <>
+      <span className="truncate md:hidden">{short}</span>
+      <span className="truncate max-md:sr-only">{title}</span>
+    </>
+  );
+};
+
+const PageTitle = ({
+  short,
+  switcher,
+  title,
+}: {
+  short?: string;
+  switcher?: ReactNode;
+  title: string;
+}) => {
+  const { isMobile, open } = useSidebar();
+
+  if (switcher === undefined || (open && !isMobile)) {
+    return (
+      <h1 className="text-foreground flex min-w-0 font-medium">
+        <TitleText short={short} title={title} />
+      </h1>
+    );
+  }
+
+  return (
+    <h1 className="text-foreground flex min-w-0 font-medium">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button className="-ml-2.5 min-w-0 shrink" variant="ghost" />}
+        >
+          <TitleText short={short} title={title} />
+          <ChevronDownIcon
+            className="text-muted-foreground"
+            data-icon="inline-end"
           />
-        }
-      >
-        <SearchIcon />
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        Search
-        <Keys hotkey={{ keys: "k", mod: true }} />
-      </TooltipContent>
-    </Tooltip>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-96 w-64">
+          {switcher}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </h1>
   );
 };
 
@@ -90,12 +132,16 @@ export const Page = ({
   children,
   className,
   crumbs = noCrumbs,
+  short,
+  switcher,
   title,
 }: {
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
   crumbs?: Crumb[];
+  short?: string;
+  switcher?: ReactNode;
   title: string;
 }) => {
   const connected = useRealtimeConnected();
@@ -113,7 +159,7 @@ export const Page = ({
           <BreadcrumbList className="flex-nowrap">
             {crumbs.map((crumb, index) => {
               const hidden = cn(
-                crumb !== scope && "max-md:hidden",
+                (crumb !== scope || switcher !== undefined) && "max-md:hidden",
                 index === crumbs.length - 1
                   ? "md:@max-3xs:hidden"
                   : "md:@max-lg:hidden"
@@ -141,7 +187,7 @@ export const Page = ({
               );
             })}
             <BreadcrumbItem className="min-w-24">
-              <h1 className="text-foreground truncate font-medium">{title}</h1>
+              <PageTitle short={short} switcher={switcher} title={title} />
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>

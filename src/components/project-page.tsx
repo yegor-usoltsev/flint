@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { LoadFailed } from "~/components/load-failed";
+import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
 import { RouteNotFound } from "~/components/route-not-found";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -64,6 +65,9 @@ export const ProjectPage = ({
           ),
         },
       ]}
+      switcher={
+        <NavSwitcher place={{ key: key.toUpperCase(), kind: "project" }} />
+      }
       title={project.data?.name ?? name}
     >
       {project.data === undefined ? null : children(project.data)}
