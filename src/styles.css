@@ -291,6 +291,10 @@
   border-width: 0.5px;
 }
 
+@utility fade-bottom {
+  mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent);
+}
+
 @utility issue-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

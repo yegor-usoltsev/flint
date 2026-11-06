@@ -1,8 +1,10 @@
-import { DeleteIcon } from "lucide-react";
+import { DeleteIcon, XIcon } from "lucide-react";
 import { Fragment } from "react";
 
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -161,15 +163,25 @@ export const ShortcutsDialog = ({
   open: boolean;
 }) => (
   <Dialog onOpenChange={onOpenChange} open={open}>
-    <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl">
-      <DialogHeader>
-        <DialogTitle>Keyboard shortcuts</DialogTitle>
-        <DialogDescription>
-          Single keys work when focus is outside a text field. Press G, then a
-          letter, to go somewhere.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+    <DialogContent
+      className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl lg:max-w-5xl"
+      showCloseButton={false}
+    >
+      <div className="bg-popover sticky top-0 z-10 -mx-4 -mt-4 flex items-start gap-2 px-4 pt-4 pb-2">
+        <DialogHeader className="flex-1">
+          <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogDescription>
+            Single keys work when focus is outside a text field. Press G, then a
+            letter, to go somewhere.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogClose
+          render={<Button aria-label="Close" size="icon-sm" variant="ghost" />}
+        >
+          <XIcon />
+        </DialogClose>
+      </div>
+      <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
         {sections.map((section) => (
           <section key={section.title}>
             <h3 className="text-muted-foreground mb-1.5 text-xs font-medium">
@@ -178,10 +190,10 @@ export const ShortcutsDialog = ({
             <dl>
               {section.rows.map((row) => (
                 <div
-                  className="border-border/60 flex h-8 items-center justify-between gap-4 border-b last:border-b-0"
+                  className="border-border/60 flex min-h-8 items-center justify-between gap-4 border-b py-1 last:border-b-0"
                   key={row.label}
                 >
-                  <dt className="truncate">{row.label}</dt>
+                  <dt className="min-w-0 text-pretty">{row.label}</dt>
                   <dd className="flex shrink-0 items-center gap-1">
                     {row.hotkeys.map((hotkey, index) => (
                       <Fragment key={hotkey.keys}>

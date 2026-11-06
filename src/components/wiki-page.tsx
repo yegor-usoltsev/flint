@@ -74,6 +74,7 @@ import { newId } from "~/lib/ids";
 import { formatRelative } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
 import { PagePane, twoPaneQuery } from "~/lib/page-pane";
+import { forgetRecent, useRememberRecent } from "~/lib/recent";
 import { usePageTitle } from "~/lib/site";
 import { discardDraft, useDraft, useHasDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
@@ -1002,6 +1003,26 @@ const CopyLinkButton = ({ id }: { id: string }) => (
   </Hint>
 );
 
+const useRememberPage = (wiki: Wiki, page: WikiPage, deleted: boolean) => {
+  useEffect(() => {
+    if (deleted) {
+      forgetRecent(wiki.slug, (item) => item.href === `/doc/${page.id}`);
+    }
+  }, [deleted, page.id, wiki.slug]);
+
+  useRememberRecent(
+    wiki.slug,
+    deleted
+      ? undefined
+      : {
+          href: `/doc/${page.id}`,
+          kind: "page",
+          label: page.path,
+          title: page.title,
+        }
+  );
+};
+
 const focusEmpty = (page: WikiPage, preview: boolean) =>
   !preview && page.body === "";
 
@@ -1036,6 +1057,8 @@ const PageEditor = ({
   const editor = useRef<MarkdownEditorHandle>(null);
   const bodyBox = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
+
+  useRememberPage(wiki, page, deleted);
 
   const write =
     (field: "body" | "title") =>

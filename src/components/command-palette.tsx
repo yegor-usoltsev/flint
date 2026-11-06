@@ -4,20 +4,57 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useRouter,
+} from "@tanstack/react-router";
+import {
+  ArrowLeftIcon,
   BookOpenIcon,
+  BoxIcon,
+  BuildingIcon,
   CheckIcon,
+  CircleDashedIcon,
+  CircleDotIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  CodeXmlIcon,
+  CopyIcon,
   DeleteIcon,
   FileTextIcon,
+  GitBranchIcon,
+  KeyboardIcon,
+  KeyRoundIcon,
+  LinkIcon,
+  ListChecksIcon,
+  ListFilterIcon,
+  ListIcon,
+  LogOutIcon,
+  Maximize2Icon,
+  MessageSquareIcon,
+  PanelLeftIcon,
+  PanelRightIcon,
   PlusIcon,
   RotateCwIcon,
+  SaveIcon,
+  SettingsIcon,
+  SignalHighIcon,
+  SquareCheckIcon,
+  SquareKanbanIcon,
+  SunMoonIcon,
+  TagIcon,
+  Trash2Icon,
+  TypeIcon,
+  UserRoundCheckIcon,
+  UserRoundIcon,
+  XIcon,
 } from "lucide-react";
 import { createContext, use, useCallback, useEffect, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 
+import { ProjectIcon } from "~/components/project-icon";
 import { Keys, ShortcutsDialog } from "~/components/shortcuts-dialog";
 import { StatusIcon } from "~/components/status-icon";
 import {
@@ -32,6 +69,7 @@ import {
 } from "~/components/ui/command";
 import { useSidebar } from "~/components/ui/sidebar";
 import { WikiCreateCommands } from "~/components/wiki-actions";
+import { useMediaQuery } from "~/hooks/use-media-query";
 import { api, signOut, useMe } from "~/lib/api";
 import type {
   IssueSummary,
@@ -73,6 +111,7 @@ import {
   panelAvailable,
   peekFocused,
   togglePanel,
+  usePanel,
   usePanelOpen,
 } from "~/lib/issue-panel";
 import {
@@ -87,6 +126,8 @@ import {
 import { rememberView } from "~/lib/issue-view";
 import type { ViewKind } from "~/lib/issue-view";
 import { projectQuery, projectsQuery } from "~/lib/queries";
+import { useRecent } from "~/lib/recent";
+import type { RecentItem } from "~/lib/recent";
 import { resultGroups } from "~/lib/search-groups";
 import type { GroupKind, ResultGroup } from "~/lib/search-groups";
 import { setTheme } from "~/lib/theme";
@@ -144,6 +185,65 @@ const groupOrder = [
   "Theme",
   "Account",
 ];
+
+const commandIcons = new Map(
+  Object.entries({
+    "api-keys": <KeyRoundIcon />,
+    "assign-me": <UserRoundCheckIcon />,
+    assignee: <UserRoundIcon />,
+    board: <SquareKanbanIcon />,
+    "back-to-app": <ArrowLeftIcon />,
+    "clear-selection": <XIcon />,
+    comment: <MessageSquareIcon />,
+    "copy-branch": <GitBranchIcon />,
+    "copy-id": <CopyIcon />,
+    "copy-link": <LinkIcon />,
+    "copy-title": <TypeIcon />,
+    "copy-url": <LinkIcon />,
+    delete: <Trash2Icon />,
+    filter: <ListFilterIcon />,
+    "issue-panel": <PanelRightIcon />,
+    labels: <TagIcon />,
+    "labels-settings": <TagIcon />,
+    list: <ListIcon />,
+    "my-issues": <CircleDotIcon />,
+    open: <Maximize2Icon />,
+    priority: <SignalHighIcon />,
+    projects: <BoxIcon />,
+    select: <SquareCheckIcon />,
+    settings: <SettingsIcon />,
+    "select-all": <ListChecksIcon />,
+    shortcuts: <KeyboardIcon />,
+    sidebar: <PanelLeftIcon />,
+    "sign-out": <LogOutIcon />,
+    status: <CircleDashedIcon />,
+    "toggle-view": <SquareKanbanIcon />,
+    trash: <Trash2Icon />,
+    wiki: <BookOpenIcon />,
+    "wiki-save": <SaveIcon />,
+    "wiki-source": <CodeXmlIcon />,
+  })
+);
+
+const prefixIcons = new Map(
+  Object.entries({
+    theme: <SunMoonIcon />,
+    workspace: <BuildingIcon />,
+  })
+);
+
+const CommandIcon = ({ command }: { command: PaletteCommand }) => {
+  const [prefix = ""] = command.id.split("-");
+
+  const icon =
+    command.icon ?? commandIcons.get(command.id) ?? prefixIcons.get(prefix);
+
+  if (icon !== undefined) {
+    return icon;
+  }
+
+  return <span aria-hidden className="size-4 shrink-0" />;
+};
 
 const OpenPalette = createContext<(() => void) | null>(null);
 
@@ -345,6 +445,7 @@ const PickerList = ({
           setQuery(value);
           setSelected(null);
         }}
+        className="max-md:mr-8"
         placeholder={pickerTitles[picker]}
         value={query}
       />
@@ -423,13 +524,20 @@ const IssueResult = ({
     onSelect={onSelect}
     value={hitValue("issues", issue.id)}
   >
-    {status === undefined ? null : (
-      <StatusIcon category={status.category} color={status.color} />
+    {status === undefined ? (
+      <FileTextIcon />
+    ) : (
+      <span className="flex size-4 shrink-0 items-center justify-center">
+        <StatusIcon category={status.category} color={status.color} />
+      </span>
     )}
-    <span className="text-muted-foreground w-16 shrink-0 text-xs tabular-nums">
+    <span className="min-w-0 flex-1 truncate">{issue.title}</span>
+    <span
+      className="text-muted-foreground shrink-0 text-xs tabular-nums max-md:hidden"
+      data-slot="command-shortcut"
+    >
       {issue.key}
     </span>
-    <span className="min-w-0 flex-1 truncate">{issue.title}</span>
   </CommandItem>
 );
 
@@ -449,11 +557,49 @@ const PageResult = ({
   >
     <BookOpenIcon />
     <span className="min-w-0 flex-1 truncate">{page.title}</span>
-    <span className="text-muted-foreground max-w-1/3 truncate text-xs">
+    <span
+      className="text-muted-foreground max-w-1/3 truncate text-xs max-md:hidden"
+      data-slot="command-shortcut"
+    >
       {page.path}
     </span>
   </CommandItem>
 );
+
+const isCurrent = (
+  item: RecentItem,
+  pathname: string,
+  slug: string,
+  panel: string | null
+) => {
+  if (item.href === pathname) {
+    return true;
+  }
+
+  return item.kind === "issue"
+    ? item.label === panel
+    : pathname === `/${slug}/wiki/${item.label}`;
+};
+
+const RecentIcon = ({
+  item,
+  status,
+}: {
+  item: RecentItem;
+  status: Status | undefined;
+}) => {
+  if (item.kind === "page") {
+    return <BookOpenIcon />;
+  }
+
+  return status === undefined ? (
+    <FileTextIcon />
+  ) : (
+    <span className="flex size-4 shrink-0 items-center justify-center">
+      <StatusIcon category={status.category} color={status.color} />
+    </span>
+  );
+};
 
 const RootList = ({
   commands: own,
@@ -468,6 +614,12 @@ const RootList = ({
 }) => {
   const workspace = useWorkspace();
   const navigate = useNavigate();
+
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const inWiki = /^\/[^/]+\/wiki(?:\/|$)/u.test(pathname);
+  const visited = useRecent(workspace.slug);
+  const recentLimit = useMediaQuery("(max-width: 767px)") ? 2 : 3;
+
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<GroupKind[]>([]);
@@ -485,7 +637,14 @@ const RootList = ({
       matchesQuery(trimmed, command.label, command.keywords)
   );
 
-  const groups = Map.groupBy(commands, (command) => command.group ?? "View");
+  const first = inWiki ? "wiki-create-page" : "create-issue";
+
+  const groups = Map.groupBy(
+    commands.toSorted(
+      (a, b) => Number(b.id === first) - Number(a.id === first)
+    ),
+    (command) => command.group ?? "View"
+  );
 
   const sortedGroups = [...groups].toSorted(
     ([a], [b]) =>
@@ -526,8 +685,23 @@ const RootList = ({
     );
   };
 
+  const panelState = usePanel();
+
+  const panelShows =
+    panelState.open && panelState.available ? panelState.issue : null;
+
+  const recent =
+    trimmed === ""
+      ? visited
+          .filter(
+            (item) => !isCurrent(item, pathname, workspace.slug, panelShows)
+          )
+          .slice(0, recentLimit)
+      : [];
+
   const options = [
     jump === null ? [] : [`jump-${jump}`],
+    recent.map((item) => `recent-${item.href}`),
     sortedGroups.flatMap(([, items]) => items.map((command) => command.id)),
     current ? hits.flatMap(groupValues) : [],
     failed ? ["search-retry"] : [],
@@ -552,10 +726,11 @@ const RootList = ({
           setSelected(null);
           setExpanded([]);
         }}
+        className="max-md:mr-8"
         placeholder="Type a command or search…"
         value={query}
       />
-      <CommandList className="max-h-104">
+      <CommandList className="fade-bottom max-h-104 scroll-pb-8">
         <CommandEmpty>
           {trimmed.length >= 2 && results === null
             ? "Searching…"
@@ -569,6 +744,35 @@ const RootList = ({
             </CommandItem>
           </CommandGroup>
         )}
+        {recent.length === 0 ? null : (
+          <CommandGroup heading="Recent">
+            {recent.map((item) => (
+              <CommandItem
+                key={item.href}
+                onSelect={run(() => {
+                  void navigate({ href: item.href });
+                })}
+                value={`recent-${item.href}`}
+              >
+                <RecentIcon
+                  item={item}
+                  status={
+                    item.statusId === undefined
+                      ? undefined
+                      : statuses.get(item.statusId)
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                <span
+                  className="text-muted-foreground max-w-1/3 shrink-0 truncate text-xs tabular-nums max-md:hidden"
+                  data-slot="command-shortcut"
+                >
+                  {item.label}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
         {sortedGroups.map(([group, items]) => (
           <CommandGroup heading={group} key={group}>
             {items.map((command) => (
@@ -577,6 +781,7 @@ const RootList = ({
                 onSelect={run(command.run)}
                 value={command.id}
               >
+                <CommandIcon command={command} />
                 <span className="min-w-0 flex-1 truncate">{command.label}</span>
                 {command.hotkey === undefined ? null : (
                   <span
@@ -638,6 +843,7 @@ const RootList = ({
             </CommandItem>
           </CommandGroup>
         ) : null}
+        <div aria-hidden className="h-8" />
       </CommandList>
     </Command>
   );
@@ -926,6 +1132,11 @@ const useLayerCommands = ({
     }),
     ...(projects.data ?? []).map((item): PaletteCommand => ({
       group: "Projects",
+      icon: (
+        <span className="flex size-4 shrink-0 items-center justify-center">
+          <ProjectIcon color={item.color} icon={item.icon} />
+        </span>
+      ),
       id: `project-${item.id}`,
       keywords: item.key,
       label: `Open ${item.name}`,
@@ -1125,7 +1336,7 @@ export const CommandLayer = ({ children }: { children: ReactNode }) => {
     <OpenPalette value={openRoot}>
       <OpenHelp value={showHelp}>{children}</OpenHelp>
       <CommandDialog
-        className="flex max-h-[calc(100dvh-1.5rem)] flex-col max-sm:top-3 sm:top-32.5 sm:max-h-112.5 sm:max-w-180"
+        className="flex max-h-[calc(100dvh-1.5rem)] flex-col max-sm:top-3 sm:top-32.5 sm:max-h-112.5 sm:max-w-180 [&>[data-slot=dialog-close]]:top-2.5 md:[&>[data-slot=dialog-close]]:hidden"
         description="Run a command, jump to a page or search issues"
         finalFocus={() => {
           const [issue] = palette.issues;
@@ -1149,6 +1360,7 @@ export const CommandLayer = ({ children }: { children: ReactNode }) => {
           }
         }}
         open={palette.open}
+        showCloseButton
         title="Command menu"
       >
         {palette.picker !== null && palette.issues.length > 0 ? (

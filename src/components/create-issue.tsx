@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, SquarePenIcon } from "lucide-react";
 import { createContext, use, useCallback, useRef, useState } from "react";
 import type { RefObject, ReactNode } from "react";
 
@@ -536,11 +536,10 @@ const CreateDialog = ({
     >
       <DialogContent
         // oxlint-disable-next-line shadcn/no-restyle -- The form lays out its own padded sections and footer.
-        className="top-[12vh] flex max-h-[80vh] translate-y-0 flex-col gap-0 p-0 sm:max-w-2xl"
+        className="top-[12vh] flex max-h-[80vh] translate-y-0 flex-col gap-0 p-0 sm:max-w-2xl md:[&>[data-slot=dialog-close]]:hidden"
         finalFocus={() =>
           opener.current?.isConnected === true ? opener.current : true
         }
-        showCloseButton={false}
       >
         {project.data === undefined ? (
           <div className="p-4">
@@ -596,6 +595,7 @@ export const CreateIssueProvider = ({ children }: { children: ReactNode }) => {
     {
       group: "Create",
       hotkey: { keys: "c" },
+      icon: <SquarePenIcon />,
       id: "create-issue",
       label: "Create issue",
       run: () => {

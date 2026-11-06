@@ -72,6 +72,8 @@ import {
   issuesQuery,
   projectQuery,
 } from "~/lib/queries";
+import { useRememberRecent } from "~/lib/recent";
+import type { RecentItem } from "~/lib/recent";
 import { usePageTitle } from "~/lib/site";
 import { useIssueDraft } from "~/lib/use-draft";
 import { useHotkey } from "~/lib/use-hotkey";
@@ -568,6 +570,26 @@ const useIssueQuery = (project: ProjectDetail, issueKey: string) => {
   });
 };
 
+const recentIssue = (slug: string, issue: Issue): RecentItem => ({
+  href: `/${slug}/issue/${issue.key}`,
+  kind: "issue",
+  label: issue.key,
+  statusId: issue.statusId,
+  title: issue.title,
+});
+
+const useOpenIssue = (
+  slug: string,
+  issue: Issue | undefined,
+  active: boolean
+) => {
+  useContextIssue(issue, active);
+  useRememberRecent(
+    slug,
+    active && issue !== undefined ? recentIssue(slug, issue) : undefined
+  );
+};
+
 const IssueBody = ({
   data,
   placeholder,
@@ -713,7 +735,7 @@ const IssueScreen = ({
     step(-1);
   });
   useHotkey("escape", back);
-  useContextIssue(data, editable);
+  useOpenIssue(workspace.slug, data, editable);
   usePageTitle(data && `${data.key} ${data.title}`);
   useHotkey("backspace", remove, { mod: true });
 
@@ -855,7 +877,7 @@ const PanelScreen = ({
   const editable = ready && data.deletedAt === null;
   const { picked } = usePanel();
 
-  useContextIssue(data, editable && !picked);
+  useOpenIssue(workspace.slug, data, editable && !picked);
 
   return (
     <>

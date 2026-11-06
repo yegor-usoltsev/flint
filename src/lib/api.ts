@@ -7,6 +7,7 @@ import { clearStoredDrafts } from "~/lib/draft-storage";
 import { endpointPath } from "~/lib/endpoints";
 import type { Endpoint, RequestOptions, ResponseOf } from "~/lib/endpoints";
 import { notifyError } from "~/lib/notify";
+import { clearRecent } from "~/lib/recent";
 
 const ErrorBodySchema = v.object({
   error: v.object({
@@ -141,5 +142,6 @@ export const signOut = async () => {
   }
 
   clearStoredDrafts();
+  clearRecent();
   window.location.assign("/");
 };
