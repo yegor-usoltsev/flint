@@ -1,42 +1,42 @@
 # Flint
 
-Issue tracker and Markdown wiki on TanStack Start and Bun, with sign-in through Gitea. [README.md](README.md) covers setup and configuration, [docs/](docs) self-hosting and development details.
+Issue tracker and Markdown wiki on TanStack Start and Bun with Gitea sign-in. [README.md](README.md) covers setup, [docs/](docs) self-hosting and development.
 
 ## Workflow
 
-- Track deferred work as Flint issues in Backlog with appropriate labels; do not create `.backlog/` files.
-- Run `docker compose up -d --wait` and `bun run dev` (port 4700) only in the main checkout; worktrees link its `.env` and `.env.local` and run a dev server on another port ([docs/development.md](docs/development.md)). Gitea users `alice` (admin), `bob` and `carol` have the password `password`; `bun run demo` fills the Acme Corp workspace.
-- Browser URLs come from `PUBLIC_HOST` in `.env`; the app and Gitea listen on `PUBLIC_HOST_BIND`, so `localhost` may not answer.
-- `bun run lint` (tsc and Ultracite; `lint:fix` fixes) runs in the prek pre-commit hook over the whole working tree, so each parallel writer needs its own worktree.
-- `bun test` needs the compose Postgres and gives each checkout its own test database. Call `resetDatabase` in `beforeEach`, test a route with `callRoute(Route, request)` from `test/helpers.ts`, and stub Gitea by spying on `fetch`.
-- `bun run cli:smoke` drives every CLI command group against the running app after `bun run demo` (it signs in as alice and uses `acme/ENG`).
-- `.devcontainer/` runs the compose `app` profile and `bun run demo` in GitHub Codespaces on private ports 4700 and 4701; the demo probes `DEMO_HEALTH_URL` there, because a private port's public URL needs GitHub sign-in.
+- Track deferred work as Flint issues in Backlog with fitting labels, not `.backlog/` files.
+- Only the main checkout runs `docker compose up -d --wait` and `bun run dev` (port 4700); worktrees link its `.env` and `.env.local` and use another port ([how](docs/development.md#worktrees)). Gitea users `alice` (admin), `bob` and `carol` have the password `password`; `bun run demo` fills the Acme Corp workspace.
+- Browser URLs use `PUBLIC_HOST` from `.env` (default `localhost`); Gitea listens only on `PUBLIC_HOST_BIND`.
+- The pre-commit hook runs `bun run lint` (tsc and Ultracite; `bun run lint:fix` fixes) on the whole working tree, so parallel writers need separate worktrees.
+- `bun test` needs the compose Postgres and makes a database per checkout. Call `resetDatabase` in `beforeEach`, test routes with `callRoute(Route, request)` from `test/helpers.ts`, and stub Gitea by spying on `fetch`.
+- A new endpoint in `src/lib/endpoints.ts` needs an entry in the outsider matrix of `src/server/access.test.ts` (`tsc` enforces it), so every route answers 404 outside the caller's workspaces; add routes outside that map, such as the stream and file routes, to `allCalls` by hand.
+- `bun run cli:smoke` drives every CLI command group as alice in `acme/ENG`, against the running app after `bun run demo`.
 
 ## Pull requests
 
-- CodeRabbit, cubic and Greptile review every non-draft PR except Renovate's within minutes of each push (`.coderabbit.yaml`, `cubic.yaml`, `.greptile/config.json`); CodeRabbit allows about 10 reviews an hour, so a pending CodeRabbit check may lag. After opening or pushing, wait for CI and the reviewers, then read their inline comments with `gh api --paginate repos/{owner}/{repo}/pulls/<n>/comments`.
-- Verify each finding against the code before acting. Fix real defects in one commit per round; reply in the thread with one line of evidence to decline the rest (nits, style, rules the code already follows, speculative cases) and resolve it. The bots answer replies, so do not argue twice.
-- Stop after two fix rounds: open nits do not block a merge. Merge with `gh pr merge --squash` once CI is green and no comment points at a real defect.
+- CodeRabbit, cubic and Greptile review every non-draft PR except Renovate's within minutes of each push; CodeRabbit allows about 10 reviews an hour. Wait for CI and the reviews, then read their comments with `gh api --paginate repos/{owner}/{repo}/pulls/<n>/comments`.
+- Verify each finding against the code. Fix real defects in one commit per round; decline the rest (nits, style, rules the code already follows, speculation) with one line of evidence and resolve the thread. The bots answer replies, so do not argue twice.
+- Stop after two fix rounds, as open nits do not block a merge. Merge with `gh pr merge --squash` once CI is green and no comment shows a real defect.
 
 ## Code
 
-- Every product feature is a REST endpoint under `src/routes/api/v1/`, so the CLI can do what the UI does. Add it to the type map `src/lib/endpoints.ts` first, declare the handler with `endpoint<"METHOD /path">` from `src/server/api.server.ts`, and give the route `ANY: methodNotAllowed`, because an unhandled method falls through to the HTML app.
-- Server-only code lives in `*.server.ts`. Services take the `Actor` and own validation and authorization through `src/server/access.server.ts`; a resource outside the caller's workspaces answers 404, never 403, so its existence does not leak.
-- Add a migration as a new `migrations/NNNN_name.sql`; never edit an applied one. Add an env variable to `src/server/env.server.ts`, `.env.example`, the compose `app` service and the configuration table in `docs/self-hosting.md`.
-- Call `publish` from `realtime.server.ts` after the transaction commits. Give a new issue-derived query a key under `["issues", projectId]`, so SSE events refresh it.
-- The CLI in `cli/` imports only `node:*`, types and pure helpers from `src/lib`; `cli/guide.md` is the agent guide `flint skill` prints, so update it with the commands.
-- Bun SQL: a `${value}::jsonb` parameter takes the raw JS value, because Bun encodes it; pass arrays as `any(${tx.array(ids, "uuid")})`; detect unique violations with `UniqueViolationSchema`.
-- Keep Tiptap's ordered-list tokenizer in `src/lib/markdown.ts`: it recognizes letter/Roman markers, start values and mixed `.`/`)` delimiters (normalized to `.`). Re-lex block-first content and continuation blocks through the wrapper at the full marker-prefix width; preserve initial paragraph text and reuse tokenized nested ordered lists to avoid exponential parsing. Bare markers merge into previous items.
+- Every product feature is a REST endpoint under `src/routes/api/v1/`, so the CLI can do what the UI does. Add it to `src/lib/endpoints.ts` first, declare the handler with `endpoint<"METHOD /path">` from `src/server/api.server.ts`, and set `ANY: methodNotAllowed`, or other methods fall through to the HTML app.
+- Server-only code lives in `*.server.ts`. Services take the `Actor` and validate and authorize through `src/server/access.server.ts`; anything outside the caller's workspaces answers 404, never 403, so its existence does not leak.
+- Migrations are new `migrations/NNNN_name.sql` files; never edit an applied one. Env variables go in `src/server/env.server.ts`, `.env.example`, the compose `app` service and the table in `docs/self-hosting.md`.
+- Call `publish` from `realtime.server.ts` after the transaction commits, and key issue-derived queries under `["issues", projectId]` so SSE events refresh them.
+- `cli/` imports only `node:*`, types and pure helpers from `src/lib`. Keep `cli/guide.md`, which `flint skill` prints, in step with the commands.
+- Bun SQL encodes `${value}::jsonb` itself, so pass the raw value; pass arrays as `any(${tx.array(ids, "uuid")})`; detect unique violations with `UniqueViolationSchema`.
+- `src/lib/markdown.ts` wraps Tiptap's ordered-list tokenizer for letter and Roman markers, start values and mixed `.`/`)` delimiters (normalized to `.`). Keep it re-lexing block-first content and continuation blocks at the full marker-prefix width, keeping initial paragraph text, reusing tokenized nested lists (re-parsing them is exponential) and merging bare markers into the previous item.
 - `src/routeTree.gen.ts` is generated.
-- Realtime transports deliver `open` through `useRealtime`; keep draft retry and full query catch-up there so SharedWorker joins and direct fallback behave alike.
+- Realtime transports deliver `open` through `useRealtime`; keep draft retry and full query catch-up there, so SharedWorker joins and the direct fallback behave alike.
 
 ## Style
 
-- Code carries no comments except lint suppressions with reasons (`oxlint-disable-next-line <rule> -- <reason>`) and behavior-changing directives. Fix a diagnostic before suppressing it; a config override is the last resort. Write components and helpers as arrow functions defined above their first use.
-- UI comes from shadcn `base-nova` on Base UI (compose with `render`, add with `bunx --bun shadcn@latest add`); keep edits to `src/components/ui/` small. Use the theme tokens and sizes in `src/styles.css`; add a token or a `Button` size instead of arbitrary values, which lint rejects.
-- Change issues only through `useUpdateIssue()` or `writeIssue` in `src/lib/use-update-issue.ts`, whose per-issue queue keeps optimistic edits and conflicts consistent.
-- Read module state or the query cache in render through a hook such as `useSyncExternalStore`, because the React Compiler memoizes plain reads.
+- No code comments except lint suppressions with reasons (`oxlint-disable-next-line <rule> -- <reason>`) and directives that change behavior. Fix a diagnostic before suppressing it; a config override is the last resort. Write components and helpers as arrow functions above their first use.
+- UI is shadcn `base-nova` on Base UI: compose with `render`, add with `bunx --bun shadcn@latest add`, and keep edits to `src/components/ui/` small. Lint rejects arbitrary values, so use the tokens and sizes in `src/styles.css` or add a token or `Button` size.
+- Change issues only through `useUpdateIssue()` or `writeIssue` from `src/lib/use-update-issue.ts`, whose per-issue queue keeps optimistic edits and conflicts consistent.
+- In render, read module state or the query cache through a hook such as `useSyncExternalStore`, because the React Compiler memoizes plain reads.
 - Anything the workspace layout mounts imports `LazyMarkdownEditor`, not `MarkdownEditor`, to keep Tiptap out of the main chunk.
-- Register shortcuts with `useCommands` or `useHotkey` in `src/lib/use-hotkey.ts` and list new keys in `src/components/shortcuts-dialog.tsx`.
+- Register shortcuts with `useCommands` or `useHotkey` from `src/lib/use-hotkey.ts` and list new keys in `src/components/shortcuts-dialog.tsx`.
 - Every page has zero axe violations (`agent-browser a11y`) in both themes and fits a 393 px phone without horizontal scrolling.
-- agent-browser's headless Chrome reports `hover: none`, so `hover:` styles never render there; reload the page after editing route loaders, because HMR keeps the old ones.
+- agent-browser's headless Chrome reports `hover: none`, so `hover:` styles never show there. Reload after editing a route loader, because HMR keeps the old one.

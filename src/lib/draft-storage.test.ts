@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, jest, test } from "bun:test";
 
 import { clearStoredDrafts, readStoredDrafts } from "~/lib/draft-storage";
 import {
@@ -37,6 +37,11 @@ afterAll(() => {
 
 beforeEach(() => {
   items.clear();
+  jest.useFakeTimers();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 interface RawEntry {
@@ -51,8 +56,8 @@ const store = (key: string, entry: RawEntry) => {
   items.set(`flint-draft:${key}`, JSON.stringify({ rev: "r1", ...entry }));
 };
 
-const settle = async () => {
-  await Bun.sleep(350);
+const settle = () => {
+  jest.advanceTimersByTime(350);
 };
 
 test("only the signed-in user's recent drafts come back", () => {
@@ -67,7 +72,7 @@ test("only the signed-in user's recent drafts come back", () => {
   expect([...items.keys()]).toEqual(["flint-draft:new-comment:1"]);
 });
 
-test("adopted drafts restore unsent text and unsaved edits, and later edits persist", async () => {
+test("adopted drafts restore unsent text and unsaved edits, and later edits persist", () => {
   store("new-comment:5", { at: Date.now(), text: "hello", user: "carol" });
   store("issue:5:description", {
     at: Date.now(),
@@ -87,7 +92,7 @@ test("adopted drafts restore unsent text and unsaved edits, and later edits pers
 
   setStoredText("new-comment:5", "\n");
   editDraft("issue:5:title", "Title", "");
-  await settle();
+  settle();
 
   expect(readStoredDrafts("carol")).toEqual(
     new Map([
@@ -98,13 +103,13 @@ test("adopted drafts restore unsent text and unsaved edits, and later edits pers
 
   discardDraft("issue:5:title");
   discardDraft("issue:5:description");
-  await settle();
+  settle();
   expect(items.size).toBe(0);
 });
 
-test("submitting a stale composer keeps the text another tab stored since", async () => {
+test("submitting a stale composer keeps the text another tab stored since", () => {
   setStoredText("new-comment:8", "mine");
-  await settle();
+  settle();
   store("new-comment:8", {
     at: Date.now(),
     rev: "other-tab",
@@ -112,16 +117,16 @@ test("submitting a stale composer keeps the text another tab stored since", asyn
     user: "carol",
   });
   setStoredText("new-comment:8", null);
-  await settle();
+  settle();
 
   expect(readStoredDrafts("carol").get("new-comment:8")).toEqual({
     text: "newer",
   });
 });
 
-test("a status change does not rewrite text another tab stored since", async () => {
+test("a status change does not rewrite text another tab stored since", () => {
   editDraft("issue:11:description", "mine", "");
-  await settle();
+  settle();
   store("issue:11:description", {
     at: Date.now(),
     base: "",
@@ -130,7 +135,7 @@ test("a status change does not rewrite text another tab stored since", async () 
     user: "carol",
   });
   editDraft("issue:11:description", "mine", "");
-  await settle();
+  settle();
 
   expect(readStoredDrafts("carol").get("issue:11:description")).toEqual({
     base: "",
@@ -138,7 +143,7 @@ test("a status change does not rewrite text another tab stored since", async () 
   });
 
   discardDraft("issue:11:description");
-  await settle();
+  settle();
 });
 
 test("entries stored before revisions existed still come back", () => {
@@ -152,10 +157,10 @@ test("entries stored before revisions existed still come back", () => {
   });
 });
 
-test("signing out forgets drafts in memory and stops pending writes", async () => {
+test("signing out forgets drafts in memory and stops pending writes", () => {
   setStoredText("new-comment:9", "secret");
   clearStoredDrafts();
-  await settle();
+  settle();
 
   expect(readStoredText("new-comment:9")).toBeNull();
   expect(items.size).toBe(0);
@@ -164,6 +169,7 @@ test("signing out forgets drafts in memory and stops pending writes", async () =
 });
 
 test("another account in the same tab starts without the previous drafts", () => {
+  adoptDrafts("carol");
   setStoredText("new-comment:10", "carol's");
   adoptDrafts("dave");
 

@@ -14,6 +14,7 @@ import type {
 } from "~/lib/api-types";
 import { countChecklist } from "~/lib/checklist";
 import {
+  isInstanceAdmin,
   notFound,
   requireWorkspace,
   userRef,
@@ -55,11 +56,13 @@ export const SortKeySchema = v.pipe(
   v.check(isSortKey, "Invalid sort key")
 );
 
+const LabelIdsSchema = v.pipe(v.array(UuidSchema), v.maxLength(100));
+
 export const CreateIssueSchema = v.object({
   assigneeId: v.optional(v.nullable(UuidSchema), null),
   description: v.optional(DescriptionSchema, ""),
   id: v.optional(UuidSchema),
-  labelIds: v.optional(v.array(UuidSchema), []),
+  labelIds: v.optional(LabelIdsSchema, []),
   priority: v.optional(PrioritySchema, 0),
   sortKey: v.optional(SortKeySchema),
   statusId: v.optional(UuidSchema),
@@ -69,10 +72,10 @@ export const CreateIssueSchema = v.object({
 export const UpdateIssueSchema = v.object({
   assigneeId: v.optional(v.nullable(UuidSchema)),
   description: v.optional(DescriptionSchema),
-  addLabelIds: v.optional(v.array(UuidSchema)),
-  labelIds: v.optional(v.array(UuidSchema)),
+  addLabelIds: v.optional(LabelIdsSchema),
+  labelIds: v.optional(LabelIdsSchema),
   priority: v.optional(PrioritySchema),
-  removeLabelIds: v.optional(v.array(UuidSchema)),
+  removeLabelIds: v.optional(LabelIdsSchema),
   sortKey: v.optional(SortKeySchema),
   statusId: v.optional(UuidSchema),
   title: v.optional(TitleSchema),
@@ -81,10 +84,15 @@ export const UpdateIssueSchema = v.object({
 
 const priorityNames = ["none", "urgent", "high", "medium", "low"];
 
+const FilterSchema = v.pipe(
+  v.array(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+  v.maxLength(100)
+);
+
 const ListQuerySchema = v.object({
-  assignee: v.array(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+  assignee: FilterSchema,
   closed: v.optional(v.picklist(["true", "false"]), "false"),
-  label: v.array(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+  label: FilterSchema,
   limit: v.optional(
     v.pipe(
       v.string(),
@@ -99,20 +107,23 @@ const ListQuerySchema = v.object({
     v.pipe(v.string(), v.digits(), v.transform(Number), v.maxValue(1_000_000)),
     "0"
   ),
-  priority: v.array(
-    v.pipe(
-      v.string(),
-      v.toLowerCase(),
-      v.transform((value) =>
-        priorityNames.includes(value)
-          ? priorityNames.indexOf(value)
-          : Number(value)
-      ),
-      PrioritySchema
-    )
+  priority: v.pipe(
+    v.array(
+      v.pipe(
+        v.string(),
+        v.toLowerCase(),
+        v.transform((value) =>
+          priorityNames.includes(value)
+            ? priorityNames.indexOf(value)
+            : Number(value)
+        ),
+        PrioritySchema
+      )
+    ),
+    v.maxLength(100)
   ),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ""),
-  status: v.array(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+  status: FilterSchema,
 });
 
 export type IssueQuery = v.InferOutput<typeof ListQuerySchema>;
@@ -300,7 +311,7 @@ const checkAssignee = async (
   const rows = await tx<{ id: string }[]>`
     select u.id from users u
     where u.id = ${assigneeId}
-      and (u.is_instance_admin or exists (
+      and (${isInstanceAdmin()} or exists (
         select 1 from workspace_members m
         where m.user_id = u.id and m.workspace_id = ${workspaceId}
       ))
@@ -509,7 +520,12 @@ export const createIssue = async (
     await recordEvents(tx, actor, id, [{ kind: "created" }]);
   });
 
-  publish(workspaceId, { entity: "issue", id, projectId: project.id });
+  publish(workspaceId, {
+    actorId: actor.userId,
+    entity: "issue",
+    id,
+    projectId: project.id,
+  });
   void refreshEmbedding("issue", id);
 
   return await selectIssue(db, id);
@@ -694,6 +710,7 @@ export const updateIssue = async (
 
   if (changed) {
     publish(issue.workspaceId, {
+      actorId: actor.userId,
       entity: "issue",
       id: issue.id,
       projectId: issue.projectId,

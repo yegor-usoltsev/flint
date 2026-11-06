@@ -5,9 +5,9 @@ export const themes = ["light", "dark", "system"] as const;
 export type Theme = (typeof themes)[number];
 
 export const themeItems = [
-  { label: "System preference", value: "system" },
-  { label: "Light", value: "light" },
-  { label: "Dark", value: "dark" },
+  { label: "System preference", short: "System", value: "system" },
+  { label: "Light", short: "Light", value: "light" },
+  { label: "Dark", short: "Dark", value: "dark" },
 ] as const;
 
 export const isTheme = (value: unknown): value is Theme =>

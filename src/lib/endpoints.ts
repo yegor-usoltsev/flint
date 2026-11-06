@@ -246,6 +246,14 @@ export type RequestOptions<E extends Endpoint> = (ParamNames<
   (Body<E> extends undefined ? { body?: undefined } : { body: Body<E> }) &
   (Query<E> extends undefined ? { query?: undefined } : { query?: Query<E> });
 
+const encodeSegment = (value: string) => {
+  if (value === "." || value === "..") {
+    throw new Error(`“${value}” cannot be part of a request path`);
+  }
+
+  return encodeURIComponent(value);
+};
+
 export const endpointPath = (
   endpoint: Endpoint,
   params?: Record<string, string>,
@@ -260,12 +268,12 @@ export const endpointPath = (
       if (segment === "*") {
         return (params?.["_splat"] ?? "")
           .split("/")
-          .map(encodeURIComponent)
+          .map(encodeSegment)
           .join("/");
       }
 
       return segment.startsWith(":")
-        ? encodeURIComponent(params?.[segment.slice(1)] ?? "")
+        ? encodeSegment(params?.[segment.slice(1)] ?? "")
         : segment;
     })
     .join("/");

@@ -208,6 +208,17 @@ const Section = ({
   </section>
 );
 
+const AssigneeName = ({ name, short }: { name: string; short: boolean }) => {
+  const [first = name] = name.split(" ");
+
+  return (
+    <span className="truncate">
+      <span className="max-sm:hidden">{name}</span>
+      <span className="sm:hidden">{short ? first : name}</span>
+    </span>
+  );
+};
+
 const Text = ({
   children,
   compact,
@@ -349,11 +360,11 @@ export const IssueProperties = ({
             <PriorityIcon priority={issue.priority} />
           </IconSlot>
           {issue.priority === 0 ? (
-            <Text compact={pills} muted>
+            <Text compact={false} muted>
               {pills ? "Priority" : "Set priority"}
             </Text>
           ) : (
-            <Text compact={pills}>{priorities[issue.priority]}</Text>
+            <Text compact={false}>{priorities[issue.priority]}</Text>
           )}
         </>
       )}
@@ -374,14 +385,14 @@ export const IssueProperties = ({
         assignee === undefined ? (
           <>
             <UserRoundIcon className="text-muted-foreground size-4 shrink-0" />
-            <Text compact={pills} muted>
+            <Text compact={false} muted>
               {issue.assigneeId === null && !pills ? "Assign" : "Assignee"}
             </Text>
           </>
         ) : (
           <>
             <MemberAvatar member={assignee} />
-            <Text compact={pills}>{assignee.displayName}</Text>
+            <AssigneeName name={assignee.displayName} short={pills} />
           </>
         )
       )}

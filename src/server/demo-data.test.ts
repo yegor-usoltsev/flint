@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 
 import { Route as workspacesRoute } from "~/routes/api/v1/workspaces/index";
 import { db } from "~/server/db.server";
+import { insertDemoProject } from "~/server/demo-data.server";
 import { s3 } from "~/server/s3.server";
 
 import {
@@ -143,15 +144,18 @@ test("workspaces with the same name get distinct keys, even when created at once
 test("the key keeps five characters and falls back when the name has no letters", async () => {
   const alice = await sessionCookieFor(await createUser("alice"));
 
-  await create(alice, "a", "Alpha Beta Gamma Delta Echo");
-  await create(alice, "b", "Alpha Beta Gamma Delta Echo");
-  await create(alice, "c", "42");
+  await create(alice, "acme", "Acme Corp", null);
 
-  const keys = await db<
-    { key: string }[]
-  >`select key from projects order by key`;
+  const [workspace] = await db<{ id: string }[]>`select id from workspaces`;
+  const id = workspace?.id ?? "";
 
-  expect(keys.map(({ key }) => key)).toEqual(["ABGD2", "ABGDE", "START"]);
+  const keys = await db.begin(async (tx) => [
+    await insertDemoProject(tx, id, "Alpha Beta Gamma Delta Echo"),
+    await insertDemoProject(tx, id, "Alpha Beta Gamma Delta Echo"),
+    await insertDemoProject(tx, id, "42"),
+  ]);
+
+  expect(keys).toEqual(["ABGDE", "ABGD2", "START"]);
 });
 
 test("a taken slug creates nothing more, and a failed seed leaves no workspace", async () => {

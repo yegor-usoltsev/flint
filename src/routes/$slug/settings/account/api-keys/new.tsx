@@ -1,15 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import { ChevronLeftIcon, CopyIcon } from "lucide-react";
+import { CopyIcon } from "lucide-react";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
-import {
-  backLink,
-  SettingsPage,
-  SettingsSection,
-} from "~/components/settings-page";
+import { SettingsPage, SettingsSection } from "~/components/settings-page";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
@@ -102,16 +98,15 @@ const NewApiKey = () => {
 
   return (
     <SettingsPage
-      back={
-        <Link
-          className={backLink}
-          params={{ slug: workspace.slug }}
-          to="/$slug/settings/account/api-keys"
-        >
-          <ChevronLeftIcon aria-hidden className="size-4" />
-          API keys
-        </Link>
-      }
+      parent={{
+        label: "API keys",
+        link: (
+          <Link
+            params={{ slug: workspace.slug }}
+            to="/$slug/settings/account/api-keys"
+          />
+        ),
+      }}
       description="Everything done with the key is attributed to you."
       title="Create API key"
     >

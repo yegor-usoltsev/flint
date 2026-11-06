@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -61,7 +61,20 @@ const flint = async (...argv: string[]) => {
   return await main(argv);
 };
 
+const terminals = [process.stdin, process.stdout];
+
+const terminalModes = terminals.map((stream) =>
+  Object.getOwnPropertyDescriptor(stream, "isTTY")
+);
+
 beforeEach(() => {
+  for (const stream of terminals) {
+    Object.defineProperty(stream, "isTTY", {
+      configurable: true,
+      value: false,
+    });
+  }
+
   requests = [];
   printed = [];
   spyOn(console, "log").mockImplementation((line: string) => {
@@ -77,6 +90,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const [index, stream] of terminals.entries()) {
+    const mode = terminalModes[index];
+
+    if (mode === undefined) {
+      Reflect.deleteProperty(stream, "isTTY");
+    } else {
+      Object.defineProperty(stream, "isTTY", mode);
+    }
+  }
+
   mock.restore();
   delete process.env["FLINT_TOKEN"];
   delete process.env["FLINT_URL"];
@@ -255,10 +278,10 @@ test("login reads the token from stdin, so it never appears in argv", async () =
 
   try {
     for (const [argv, input, code] of [
-      [["login", "--url", "http://flint.test/x"], " piped\n", 0],
-      [["login", "--url", "http://flint.test", "--token", "-"], "dash", 0],
-      [["login", "--url", "http://flint.test"], "\n", 2],
-      [["login", "--url", "http://flint.test", "--token", " "], "", 2],
+      [["login", "--url", "https://flint.test/x"], " piped\n", 0],
+      [["login", "--url", "https://flint.test", "--token", "-"], "dash", 0],
+      [["login", "--url", "https://flint.test"], "\n", 2],
+      [["login", "--url", "https://flint.test", "--token", " "], "", 2],
     ] as const) {
       Object.defineProperty(process, "stdin", {
         configurable: true,
@@ -274,10 +297,52 @@ test("login reads the token from stdin, so it never appears in argv", async () =
     });
     expect(await Bun.file(config).json()).toEqual({
       token: "dash",
-      url: "http://flint.test",
+      url: "https://flint.test",
     });
   } finally {
     Object.defineProperty(process, "stdin", stdin ?? {});
+    delete process.env["FLINT_CONFIG"];
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
+test("login refuses http:// on another host than localhost unless --insecure", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "flint-login-"));
+  const hosts: string[] = [];
+
+  process.env["FLINT_CONFIG"] = path.join(directory, "config.json");
+  stubApi({
+    "GET /me": (request) => {
+      hosts.push(new URL(request.url).host);
+
+      return Response.json({ username: "alice" });
+    },
+  });
+
+  try {
+    for (const [url, flags, code] of [
+      ["http://flint.test", [], 2],
+      ["ftp://flint.test", ["--insecure"], 2],
+      ["http://flint.test", ["--insecure"], 0],
+      ["http://localhost:4700", [], 0],
+      ["http://flint.localhost", [], 0],
+      ["http://127.0.0.1:4700", [], 0],
+      ["http://[::1]:4700", [], 0],
+    ] as const) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- The cases share the stubbed API and config file.
+      expect(await flint("login", "--url", url, "--token", "t", ...flags)).toBe(
+        code
+      );
+    }
+
+    expect(hosts).toEqual([
+      "flint.test",
+      "localhost:4700",
+      "flint.localhost",
+      "127.0.0.1:4700",
+      "[::1]:4700",
+    ]);
+  } finally {
     delete process.env["FLINT_CONFIG"];
     await rm(directory, { force: true, recursive: true });
   }
@@ -405,6 +470,67 @@ test("deleting an issue that is already deleted fails with the API's deleted err
   expect(JSON.parse(printed.join(""))).toMatchObject({
     error: { code: "deleted", message: "ENG-1 is already deleted" },
   });
+});
+
+const setTty = (value: boolean) => {
+  Object.defineProperty(process.stdout, "isTTY", {
+    configurable: true,
+    value,
+  });
+};
+
+test("text from the server cannot steer the terminal", async () => {
+  const title = "Fix \u001B]0;pwned\u0007\u001B[1A\u009B2J\r\nnext";
+  const body = "a\u001B[2Kb\r\nc";
+
+  stubApi({
+    "DELETE /issues/ENG-2": reply(
+      { error: { code: "conflict", message: "Label “\u001B[2Kx” exists" } },
+      409
+    ),
+    "GET /issues/ENG-1": reply({ ...issue("ENG-1"), title }),
+    "GET /projects/ENG": project,
+    "GET /workspaces/acme/labels": labels,
+    "GET /workspaces/acme/members": reply([]),
+    "GET /workspaces/acme/wiki/guides/old": reply({ body, id: "p1" }),
+  });
+
+  const { argv } = process;
+  const tty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+
+  try {
+    process.argv = [...argv, "--human"];
+    expect(await flint("issue", "view", "ENG-1")).toBe(0);
+    expect(printed.join("\n")).toContain("Fix \uFFFD]0;pwned\uFFFD");
+    expect(printed.join("\n")).not.toMatch(/[^\P{Cc}\n\t]/u);
+    expect(await flint("issue", "delete", "ENG-2", "--yes", "--human")).toBe(1);
+    expect(printed.join("\n")).toContain("Label “\uFFFD[2Kx” exists");
+
+    process.argv = [...argv, "--json"];
+    expect(await flint("issue", "view", "ENG-1")).toBe(0);
+    expect(printed.join("")).not.toMatch(/\p{Cc}/u);
+    expect(JSON.parse(printed.join(""))).toMatchObject({ title });
+
+    setTty(true);
+    expect(
+      await flint("wiki", "get", "guides/old", "-w", "acme", "--raw")
+    ).toBe(0);
+    expect(printed).toEqual(["a\uFFFD[2Kb\nc"]);
+
+    setTty(false);
+    expect(
+      await flint("wiki", "get", "guides/old", "-w", "acme", "--raw")
+    ).toBe(0);
+    expect(printed).toEqual([body]);
+  } finally {
+    process.argv = argv;
+
+    if (tty === undefined) {
+      Reflect.deleteProperty(process.stdout, "isTTY");
+    } else {
+      Object.defineProperty(process.stdout, "isTTY", tty);
+    }
+  }
 });
 
 test("usage errors exit 2 before any request", async () => {
@@ -822,6 +948,82 @@ test("a failed wiki append still reports the uploaded attachments", async () => 
   });
 });
 
+test("attachment download keeps media names and wraps every other name in flint-….download, so no tool loads the file", async () => {
+  await withFiles(async (directory) => {
+    const saved = [
+      [".npmrc", "flint-.npmrc.download"],
+      ["..", "flint-...download"],
+      [".\u2028/tmp/flint-elsewhere/.yarnrc", "flint-.yarnrc.download"],
+      ["C:package.json", "flint-C_package.json.download"],
+      ["NUL.png", "flint-NUL.png.download"],
+      ["COM1 .jpg", "flint-COM1 .jpg.download"],
+      ["Screenshot 1.PNG", "Screenshot 1.PNG"],
+      ['a<b>c"d|e?f*g:h.png', "a_b_c_d_e_f_g_h.png"],
+      ["compose.override.yaml", "flint-compose.override.yaml.download"],
+      ["noxfile.py", "flint-noxfile.py.download"],
+      ["package.json", "flint-package.json.download"],
+      ["settings.gradle", "flint-settings.gradle.download"],
+      ["tox.ini", "flint-tox.ini.download"],
+      ["\u200C.png", "flint-.png.download"],
+      ["report.test.ts", "flint-report.test.ts.download"],
+      [
+        "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé.txt",
+        "flint-éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé.download",
+      ],
+    ] as const;
+
+    stubApi(
+      Object.fromEntries(
+        saved.map(([name], index) => [
+          `GET /files/f${index}`,
+          () =>
+            new Response("registry=https://evil.test", {
+              headers: {
+                "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+              },
+            }),
+        ])
+      )
+    );
+
+    const cwd = process.cwd();
+
+    process.chdir(directory);
+
+    try {
+      for (const [index, [, target]] of saved.entries()) {
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Each case reads the output of its own run.
+        expect(await flint("attachment", "download", `f${index}`)).toBe(0);
+        expect(JSON.parse(printed.join(""))).toMatchObject({
+          path: target,
+        });
+      }
+
+      expect(
+        await flint(
+          "attachment",
+          "download",
+          `f${saved.findIndex(([name]) => name === "package.json")}`,
+          "-o",
+          "package.json"
+        )
+      ).toBe(0);
+      const files = await readdir(directory);
+
+      expect(files.toSorted()).toEqual(
+        [
+          "a.txt",
+          "b.txt",
+          "package.json",
+          ...saved.map(([, target]) => target),
+        ].toSorted()
+      );
+    } finally {
+      process.chdir(cwd);
+    }
+  });
+});
+
 test("removing a workspace logo needs --yes outside a terminal", async () => {
   stubApi({
     "DELETE /workspaces/acme/logo": () => new Response(null, { status: 204 }),
@@ -841,7 +1043,7 @@ test("attachment download saves the file under its name and never overwrites it"
       "GET /files/f1": () =>
         new Response("hello", {
           headers: {
-            "content-disposition": `attachment; filename="_.txt"; filename*=UTF-8''${encodeURIComponent("../Заметка.txt")}`,
+            "content-disposition": `attachment; filename="_.txt"; filename*=UTF-8''${encodeURIComponent("../Скриншот.png")}`,
           },
         }),
     });
@@ -852,12 +1054,12 @@ test("attachment download saves the file under its name and never overwrites it"
 
     try {
       expect(await flint("attachment", "download", "f1")).toBe(0);
-      expect(await Bun.file(path.join(directory, "Заметка.txt")).text()).toBe(
+      expect(await Bun.file(path.join(directory, "Скриншот.png")).text()).toBe(
         "hello"
       );
       expect(await flint("attachment", "download", "f1")).toBe(1);
       expect(JSON.parse(printed.join(""))).toMatchObject({
-        error: { message: "Заметка.txt exists; pass -o <path>" },
+        error: { message: "Скриншот.png exists; pass -o <path>" },
       });
       expect(await flint("attachment", "download", "f1", "-o", "a.txt")).toBe(
         0
@@ -873,4 +1075,132 @@ test("attachment download saves the file under its name and never overwrites it"
       process.chdir(cwd);
     }
   });
+});
+
+test("trash commands tell an issue key from a page id and list both kinds", async () => {
+  const pageId = "0193a1b2-0000-7000-8000-000000000000";
+  const at = "2026-01-01T00:00:00Z";
+
+  stubApi({
+    [`DELETE /trash/wiki/${pageId}`]: () => new Response(null, { status: 204 }),
+    "DELETE /trash/issues/ENG-3": () => new Response(null, { status: 204 }),
+    "GET /workspaces/acme/trash": reply({
+      issues: [
+        {
+          deletedAt: at,
+          deletedBy: { username: "alice" },
+          id: "i",
+          key: "ENG-3",
+          projectId: "p",
+          purgeAt: at,
+          title: "Old bug",
+        },
+      ],
+      pages: [
+        {
+          deletedAt: at,
+          deletedBy: null,
+          descendants: 2,
+          id: pageId,
+          kind: "folder",
+          path: "guides",
+          purgeAt: at,
+          title: "Guides",
+        },
+      ],
+    }),
+    "POST /issues/ENG-3/restore": reply(issue("ENG-3")),
+    [`POST /wiki/${pageId}/restore`]: reply({ path: "guides" }),
+  });
+
+  const { argv } = process;
+
+  process.argv = [...argv, "--human"];
+
+  try {
+    expect(await flint("trash", "list", "-w", "acme")).toBe(0);
+
+    const [, issueRow, pageRow] = printed.join("").split("\n");
+
+    expect(issueRow).toStartWith("ENG-3");
+    expect(issueRow).toContain("Old bug");
+    expect(issueRow).toContain("@alice");
+    expect(pageRow).toStartWith(pageId);
+    expect(pageRow).toContain("Guides · guides/ (+2)");
+    expect(await flint("trash", "restore", "ENG-3")).toBe(0);
+    expect(printed).toEqual(["Restored ENG-3"]);
+    expect(await flint("trash", "restore", pageId)).toBe(0);
+    expect(printed).toEqual(["Restored guides"]);
+  } finally {
+    process.argv = argv;
+  }
+
+  requests = [];
+
+  expect(await flint("trash", "restore", "guides")).toBe(2);
+  expect(JSON.parse(printed.join(""))).toMatchObject({
+    error: { message: "guides is neither an issue key nor a wiki page id" },
+  });
+  expect(await flint("trash", "delete", "ENG-3")).toBe(2);
+  expect(requests).toEqual([]);
+  expect(await flint("trash", "delete", "ENG-3", "--yes")).toBe(0);
+  expect(await flint("trash", "delete", pageId, "-y")).toBe(0);
+  expect(requests).toEqual([
+    "DELETE /trash/issues/ENG-3",
+    `DELETE /trash/wiki/${pageId}`,
+  ]);
+});
+
+test("wiki commands normalize the path, act on the page id and pass a conflict through", async () => {
+  const setup = {
+    body: "old",
+    id: "p1",
+    path: "guides/setup",
+    revision: 3,
+    title: "Setup",
+  };
+
+  const conflict = {
+    current: setup,
+    error: { code: "conflict", message: "The page changed since revision 2" },
+  };
+
+  stubApi({
+    "GET /workspaces/acme/wiki/guides/setup": reply(setup),
+    "POST /wiki/p1/move": reply({ ...setup, path: "howto" }),
+    "POST /wiki/p1/revisions/2/restore": reply({ ...setup, revision: 4 }),
+    "PUT /workspaces/acme/wiki/guides/setup": reply(conflict, 409),
+  });
+
+  expect(
+    await flint(
+      "wiki",
+      "put",
+      "/guides//setup/",
+      "-w",
+      "acme",
+      "-d",
+      "new",
+      "--base-revision",
+      "2"
+    )
+  ).toBe(1);
+  expect(JSON.parse(printed.join(""))).toEqual(conflict);
+  expect(
+    await flint("wiki", "move", "guides/setup", "howto", "-w", "acme")
+  ).toBe(0);
+  expect(
+    await flint("wiki", "restore", "guides/setup", "2", "-w", "acme")
+  ).toBe(0);
+  expect(requests).toEqual([
+    'PUT /workspaces/acme/wiki/guides/setup {"baseRevision":2,"body":"new"}',
+    "GET /workspaces/acme/wiki/guides/setup",
+    'POST /wiki/p1/move {"path":"howto"}',
+    "GET /workspaces/acme/wiki/guides/setup",
+    "POST /wiki/p1/revisions/2/restore",
+  ]);
+  expect(
+    await flint("wiki", "restore", "guides/setup", "two", "-w", "acme")
+  ).toBe(2);
+  expect(requests).toHaveLength(5);
 });

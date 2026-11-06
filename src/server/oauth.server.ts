@@ -7,16 +7,17 @@ import { errorResponse, isSameOrigin } from "~/server/api.server";
 import { env } from "~/server/env.server";
 import { log } from "~/server/log.server";
 import {
+  clearLegacySession,
   createSession,
   deleteSession,
+  hostCookie,
   newSecret,
   readCookie,
   serializeCookie,
 } from "~/server/sessions.server";
 import { signIn } from "~/server/users.server";
 
-const attemptCookie = "flint_oauth";
-const attemptPath = "/api/auth";
+const attemptCookie = () => hostCookie("flint_oauth");
 const redirectUri = new URL("/api/auth/callback", env.APP_URL).href;
 const giteaOrigin = new URL(env.GITEA_URL).origin;
 const giteaPublicOrigin = new URL(env.GITEA_PUBLIC_URL).origin;
@@ -84,11 +85,11 @@ export const startLogin = ({ request }: { request: Request }) => {
 
   return redirect(authorize.href, [
     serializeCookie(
-      attemptCookie,
+      attemptCookie(),
       `${state}.${verifier}.${Buffer.from(returnTo).toString("base64url")}`,
       {
         maxAge: 600,
-        path: attemptPath,
+        path: "/",
       }
     ),
   ]);
@@ -143,15 +144,15 @@ const fetchProfile = async (code: string, verifier: string) => {
 };
 
 export const finishLogin = async ({ request }: { request: Request }) => {
-  const clearAttempt = serializeCookie(attemptCookie, "", {
+  const clearAttempt = serializeCookie(attemptCookie(), "", {
     maxAge: 0,
-    path: attemptPath,
+    path: "/",
   });
 
   const params = new URL(request.url).searchParams;
 
   const [state, verifier, returnTo] =
-    readCookie(request, attemptCookie)?.split(".") ?? [];
+    readCookie(request, attemptCookie())?.split(".") ?? [];
 
   const code = params.get("code");
   const returnedState = params.get("state");
@@ -172,7 +173,7 @@ export const finishLogin = async ({ request }: { request: Request }) => {
 
     return redirect(
       safeReturnTo(Buffer.from(returnTo ?? "", "base64url").toString()),
-      [clearAttempt, await createSession(userId)]
+      [clearAttempt, ...clearLegacySession(), await createSession(userId)]
     );
   } catch (error) {
     log.warn({ err: error }, "Gitea login failed");
@@ -186,11 +187,11 @@ export const logout = async ({ request }: { request: Request }) => {
     return errorResponse(403, "forbidden", "Cross-site request rejected");
   }
 
-  return new Response(null, {
-    headers: {
-      "Cache-Control": "no-store",
-      "Set-Cookie": await deleteSession(request),
-    },
-    status: 204,
-  });
+  const headers = new Headers({ "Cache-Control": "no-store" });
+
+  for (const cookie of await deleteSession(request)) {
+    headers.append("Set-Cookie", cookie);
+  }
+
+  return new Response(null, { headers, status: 204 });
 };

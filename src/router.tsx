@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 
 import { PagePending } from "~/components/page";
@@ -34,6 +35,7 @@ export const getRouter = () => {
     defaultPreloadStaleTime: 0,
     routeTree,
     scrollRestoration: true,
+    ssr: { nonce: getGlobalStartContext()?.nonce },
     Wrap: QueryProvider,
   });
 };
@@ -41,6 +43,7 @@ export const getRouter = () => {
 declare module "@tanstack/react-router" {
   interface HistoryState {
     from?: IssueOrigin;
+    full?: boolean;
     walk?: string[];
   }
 

@@ -17,6 +17,7 @@ services:
       EMBEDDING_API_URL: ${EMBEDDING_API_URL:-https://openrouter.ai/api/v1}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-perplexity/pplx-embed-v1-0.6b}
       EMBEDDING_TIMEOUT_MS: ${EMBEDDING_TIMEOUT_MS:-30000}
+      INSTANCE_ADMINS: ${INSTANCE_ADMINS:-}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
       PORT: "4700"
       S3_ACCESS_KEY_ID: flint
@@ -24,10 +25,13 @@ services:
       S3_ENDPOINT: http://silo:9000
       S3_SECRET_ACCESS_KEY: flint-silo-secret
       SEARCH_EMBEDDING_TIMEOUT_MS: ${SEARCH_EMBEDDING_TIMEOUT_MS:-1500}
+      SEARCH_EMBEDDINGS_PER_MINUTE: ${SEARCH_EMBEDDINGS_PER_MINUTE:-300}
       SESSION_LIFETIME_DAYS: ${SESSION_LIFETIME_DAYS:-30}
       STORAGE_SWEEP_CRON: ${STORAGE_SWEEP_CRON:-1 0 * * 0}
+      STREAMS_PER_USER: ${STREAMS_PER_USER:-20}
       TRASH_PURGE_CRON: ${TRASH_PURGE_CRON:-0 0 * * *}
       TRASH_RETENTION_DAYS: ${TRASH_RETENTION_DAYS:-30}
+      UPLOADS_PER_USER: ${UPLOADS_PER_USER:-8}
     volumes:
       # Bun loads GITEA_CLIENT_ID and GITEA_CLIENT_SECRET from it.
       - ./.env.local:/app/.env.local:ro
@@ -178,12 +182,14 @@ services:
 
 configs:
   runner.yaml:
-    # Jobs join the compose network, because the runner hands them http://gitea:3000.
+    # Jobs join the compose network, because the runner hands them http://gitea:3000. "-" keeps
+    # the host's Docker socket out of job containers, so a workflow cannot take over the host.
     content: |
       runner:
         labels: ["ubuntu-latest:docker://node:24-alpine"]
       container:
         network: flint
+        docker_host: "-"
 
 networks:
   default:

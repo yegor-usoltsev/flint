@@ -115,15 +115,15 @@ const useAttachments = (ownerId: string, path: string) => {
 
 export const AttachmentList = ({
   body,
+  compact = false,
   editable,
-  hint,
   id,
   label = "Attachments",
   path,
 }: {
   body?: string;
+  compact?: boolean;
   editable: boolean;
-  hint: string;
   id: string;
   label?: string;
   path: string;
@@ -132,8 +132,9 @@ export const AttachmentList = ({
     useAttachments(id, path);
 
   const [deleting, setDeleting] = useState<Attachment | null>(null);
+  const empty = attachments.length === 0 && uploads.length === 0;
 
-  if (!editable && !failed && attachments.length === 0) {
+  if ((compact || !editable) && !failed && empty) {
     return null;
   }
 
@@ -146,11 +147,7 @@ export const AttachmentList = ({
             {attachments.length}
           </span>
         ) : null}
-        {editable ? (
-          <span className="ml-auto">
-            <AttachButton onFiles={upload} />
-          </span>
-        ) : null}
+        {editable ? <AttachButton onFiles={upload} /> : null}
       </header>
       {failed ? (
         <p className="text-destructive flex items-center gap-2 text-xs">
@@ -161,9 +158,6 @@ export const AttachmentList = ({
             Retry
           </Button>
         </p>
-      ) : null}
-      {loaded && attachments.length === 0 && uploads.length === 0 ? (
-        <p className="text-muted-foreground text-xs">{hint}</p>
       ) : null}
       <ul className="flex flex-col">
         {attachments.map((attachment) => (
@@ -265,15 +259,17 @@ export const AttachmentList = ({
 };
 
 export const IssueAttachments = ({
+  compact = false,
   editable,
   issue,
 }: {
+  compact?: boolean;
   editable: boolean;
   issue: Issue;
 }) => (
   <AttachmentList
+    compact={compact}
     editable={editable}
-    hint="Paste or drop files into the description, or attach them here."
     id={issue.id}
     label={`${issue.key} attachments`}
     path={`/issues/${issue.key}/attachments`}

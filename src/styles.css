@@ -8,7 +8,8 @@
 
 @theme inline {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --container-document: 833px;
+  --container-document: 52.0625rem;
+  --container-list: 90rem;
   --shadow-focus-bar: inset 2px 0 0 var(--primary);
   --font-sans:
     "Inter Variable", "SF Pro Display", -apple-system, system-ui, "Segoe UI",
@@ -116,10 +117,11 @@
   --surface-2: oklch(0.952 0.001 282.7);
   --surface-3: oklch(0.935 0.001 282.7);
   --row-focus: oklch(0.967 0.001 282.7);
-  --group-header: oklch(0.945 0.001 282.7);
-  --group-header-hover: oklch(0.928 0.002 282.7);
+  --group-header: oklch(0.958 0.001 282.7);
+  --group-header-hover: oklch(0.94 0.002 282.7);
   --row-selected: oklch(0.95 0.025 277);
   --row-selected-hover: oklch(0.925 0.04 277);
+  --remote-change: oklch(0.955 0.035 210);
   --priority-urgent: oklch(0.62 0.2 40);
   --diff-added: oklch(0.9 0.09 150);
   --diff-removed: oklch(0.9 0.06 25);
@@ -172,10 +174,11 @@
   --surface-2: oklch(0.218 0.002 271.1);
   --surface-3: oklch(0.233 0.003 270.9);
   --row-focus: oklch(0.21 0.003 270.8);
-  --group-header: oklch(0.235 0.003 270.9);
-  --group-header-hover: oklch(0.255 0.003 270.9);
+  --group-header: oklch(0.222 0.003 270.9);
+  --group-header-hover: oklch(0.245 0.003 270.9);
   --row-selected: oklch(0.28 0.049 278.5);
   --row-selected-hover: oklch(0.315 0.06 278.5);
+  --remote-change: oklch(0.32 0.045 210);
   --priority-urgent: oklch(0.7 0.18 40);
   --diff-added: oklch(0.36 0.08 150);
   --diff-removed: oklch(0.36 0.09 25);
@@ -231,11 +234,57 @@
 }
 
 @utility text-title {
-  font-size: 1.5rem;
-  line-height: 2rem;
+  font-size: var(--title-size, 1.5rem);
+  line-height: var(--title-leading, 2rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 32;
+}
+
+@utility pane-text {
+  --title-size: 1.25rem;
+  --title-leading: 1.75rem;
+
+  & .text-prose {
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+  }
+
+  @container (width >= 820px) {
+    & .issue-layout {
+      grid-template-columns: 0 minmax(0, 60rem) minmax(17.5rem, 25rem) 1fr;
+    }
+  }
+}
+
+@keyframes remote-flash {
+  0%,
+  40% {
+    background-color: var(--remote-change);
+  }
+}
+
+@keyframes remote-flash-again {
+  0%,
+  40% {
+    background-color: var(--remote-change);
+  }
+}
+
+@utility remote-flash {
+  animation: remote-flash 2.4s var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    background-color: var(--remote-change) !important;
+  }
+}
+
+@utility remote-flash-again {
+  animation: remote-flash-again 2.4s var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    background-color: var(--remote-change) !important;
+  }
 }
 
 @utility border-hairline {
@@ -252,10 +301,24 @@
 
   @container (width >= 820px) {
     grid-template-columns:
-      1fr minmax(0, 805px) minmax(0, clamp(280px, 26.087cqw + 66.087px, 400px))
-      1fr;
-    column-gap: clamp(16px, 8.696cqw - 55.304px, 56px);
+      1fr minmax(0, 50.3125rem)
+      minmax(0, clamp(17.5rem, 26.087cqw + 4.1304rem, 25rem)) 1fr;
+    column-gap: clamp(1rem, 8.696cqw - 3.4565rem, 3.5rem);
   }
+}
+
+@utility fade-right {
+  mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+}
+
+@utility fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 1rem,
+    black calc(100% - 1.5rem),
+    transparent
+  );
 }
 
 @utility mention {
@@ -295,6 +358,10 @@
   html {
     @apply font-sans;
     -webkit-tap-highlight-color: transparent;
+
+    @media (min-width: 200rem) and (min-height: 112.5rem) {
+      font-size: 125%;
+    }
   }
   body {
     @apply bg-background text-foreground text-sm font-normal antialiased;
@@ -354,13 +421,13 @@
       @apply font-semibold;
     }
     & code {
-      @apply bg-muted rounded px-1 py-px font-mono text-[0.9em];
+      @apply bg-surface-2 border-hairline rounded px-1 py-px font-mono text-[0.9em];
     }
     & pre {
       @apply bg-surface-2 overflow-x-auto rounded-lg border px-3 py-2.5 font-mono text-[12.5px] leading-5;
     }
     & pre code {
-      @apply bg-transparent p-0 text-inherit;
+      @apply border-0 bg-transparent p-0 text-inherit;
     }
     & :is(.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-doctag) {
       @apply text-[#cf222e] dark:text-[#ff7b72];

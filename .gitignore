@@ -2,6 +2,7 @@
 /node_modules
 
 # Build output and caches
+/coverage
 /.nitro
 /.output
 /.tanstack
