@@ -721,6 +721,7 @@ export const useNodeActions = (
   const commands = groups.flat().map((entry): Command => ({
     group: "Page",
     hotkey: entry.hotkey,
+    icon: <entry.icon />,
     id: `wiki-${entry.id}`,
     label: entry.command,
     run: () => {
@@ -739,6 +740,7 @@ export const WikiCreateCommands = () => {
   useCommands([
     {
       group: "Create",
+      icon: <FilePlusIcon />,
       id: "wiki-create-page",
       label: "Create wiki page",
       run: () => {
@@ -747,6 +749,7 @@ export const WikiCreateCommands = () => {
     },
     {
       group: "Create",
+      icon: <FolderPlusIcon />,
       id: "wiki-create-folder",
       label: "Create wiki folder",
       run: () => {
