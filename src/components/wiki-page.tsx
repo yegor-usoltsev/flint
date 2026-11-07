@@ -128,8 +128,6 @@ import {
   writePage,
 } from "~/lib/wiki";
 import type { KeptState, Wiki, WikiNode } from "~/lib/wiki";
-import { headingsOf } from "~/lib/wiki-headings";
-import type { Heading } from "~/lib/wiki-headings";
 
 const dateTime = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
@@ -874,29 +872,68 @@ const headingSelector = ".markdown :is(h1, h2, h3)";
 
 const activeLine = 96;
 
-const sameElements = (current: Element[], next: Element[]) =>
+interface Heading {
+  element: Element;
+  id: string;
+  level: number;
+  text: string;
+}
+
+const readHeadings = (content: HTMLElement) => {
+  const seen = new Map<string, number>();
+
+  return [...content.querySelectorAll(headingSelector)].flatMap(
+    (element): Heading[] => {
+      const text = element.textContent.trim();
+
+      if (text === "") {
+        return [];
+      }
+
+      const count = (seen.get(text) ?? 0) + 1;
+
+      seen.set(text, count);
+
+      return [
+        {
+          element,
+          id: `${text}#${count}`,
+          level: Number(element.tagName[1]),
+          text,
+        },
+      ];
+    }
+  );
+};
+
+const sameHeadings = (current: Heading[], next: Heading[]) =>
   current.length === next.length &&
-  current.every((element, index) => element === next[index]);
+  current.every(
+    (heading, index) =>
+      heading.element === next[index]?.element && heading.id === next[index].id
+  );
 
-const useHeadingElements = (body: RefObject<HTMLDivElement | null>) => {
-  const [elements, setElements] = useState<Element[]>([]);
+const useHeadings = (body: RefObject<HTMLDivElement | null>) => {
+  const [headings, setHeadings] = useState<Heading[]>([]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const content = body.current;
 
     const read = () => {
-      const next = [
-        ...(content?.querySelectorAll(headingSelector) ?? []),
-      ].filter((heading) => heading.textContent.trim() !== "");
+      const next = content === null ? [] : readHeadings(content);
 
-      setElements((current) => (sameElements(current, next) ? current : next));
+      setHeadings((current) => (sameHeadings(current, next) ? current : next));
     };
 
     const mutations = new MutationObserver(read);
 
     if (content !== null) {
       read();
-      mutations.observe(content, { childList: true, subtree: true });
+      mutations.observe(content, {
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
     }
 
     return () => {
@@ -904,17 +941,17 @@ const useHeadingElements = (body: RefObject<HTMLDivElement | null>) => {
     };
   }, [body]);
 
-  return elements;
+  return headings;
 };
 
 const useActiveHeading = (
   scroller: RefObject<HTMLDivElement | null>,
-  body: RefObject<HTMLDivElement | null>
+  headings: Heading[]
 ) => {
   const [active, setActive] = useState(0);
-  const elements = useHeadingElements(body);
 
   useEffect(() => {
+    const elements = headings.map((heading) => heading.element);
     const root = scroller.current;
 
     const update = () => {
@@ -956,7 +993,7 @@ const useActiveHeading = (
       root?.removeEventListener("scroll", schedule);
       cancelAnimationFrame(frame);
     };
-  }, [elements, scroller]);
+  }, [headings, scroller]);
 
   return active;
 };
@@ -1003,11 +1040,8 @@ const Contents = ({
 const useWideBlocks = (
   scroller: RefObject<HTMLDivElement | null>,
   body: RefObject<HTMLDivElement | null>,
-  rail: boolean,
-  headings: number
+  railShown: boolean
 ) => {
-  const railShown = rail && headings > 1;
-
   useLayoutEffect(() => {
     const element = scroller.current;
     const text = body.current;
@@ -1056,20 +1090,15 @@ const PageGrid = ({
 );
 
 const ContentsRail = ({
-  body,
   headings,
   onJump,
   scroller,
-  source,
 }: {
-  body: RefObject<HTMLDivElement | null>;
   headings: Heading[];
   onJump: (index: number) => void;
   scroller: RefObject<HTMLDivElement | null>;
-  source: boolean;
 }) => {
-  const reading = useActiveHeading(scroller, body);
-  const active = source ? -1 : reading;
+  const active = useActiveHeading(scroller, headings);
 
   return (
     <aside
@@ -1355,6 +1384,9 @@ const useRememberPage = (
   );
 };
 
+const showsRail = (rail: boolean, source: boolean, headings: Heading[]) =>
+  rail && !source && headings.length > 1;
+
 const focusEmpty = (page: WikiPage, preview: boolean) =>
   !preview && page.body === "";
 
@@ -1447,17 +1479,13 @@ const PageEditor = ({
     ...actions.commands,
   ]);
 
-  const headingElements = () =>
-    [...(bodyBox.current?.querySelectorAll(headingSelector) ?? [])].filter(
-      (element) => element.textContent.trim() !== ""
-    );
+  const headings = useHeadings(bodyBox);
+  const railShown = showsRail(rail, source, headings);
 
-  const headings = headingsOf(body.value);
-
-  useWideBlocks(scroller, bodyBox, rail, headings.length);
+  useWideBlocks(scroller, bodyBox, railShown);
 
   const jump = (index: number) => {
-    headingElements()[index]?.scrollIntoView({
+    headings[index]?.element.scrollIntoView({
       behavior: reducedMotion() ? "auto" : "smooth",
       block: "start",
     });
@@ -1629,14 +1657,8 @@ const PageEditor = ({
             />
           </div>
         </article>
-        {rail && headings.length > 1 ? (
-          <ContentsRail
-            body={bodyBox}
-            headings={headings}
-            onJump={jump}
-            scroller={scroller}
-            source={source}
-          />
+        {railShown ? (
+          <ContentsRail headings={headings} onJump={jump} scroller={scroller} />
         ) : null}
       </PageGrid>
       <DraftConflict draft={title} field="title" />
