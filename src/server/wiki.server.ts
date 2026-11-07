@@ -250,6 +250,13 @@ const saveRevision = async (
   }
 };
 
+const summaryOf = ({
+  body: _body,
+  createdAt: _createdAt,
+  workspaceSlug: _workspaceSlug,
+  ...summary
+}: WikiPage): WikiPageSummary => summary;
+
 const pageChanged = (workspaceId: string, id: string) => {
   publish(workspaceId, { entity: "wiki", id, projectId: null });
 };
@@ -375,12 +382,19 @@ const writePage = async (
     return { changed: true, id: page.id };
   });
 
+  const page = await selectPage(db, id);
+
   if (changed) {
-    pageChanged(workspace.id, id);
+    publish(workspace.id, {
+      entity: "wiki",
+      id,
+      page: summaryOf(page),
+      projectId: null,
+    });
     void refreshEmbedding("wiki", id);
   }
 
-  return await selectPage(db, id);
+  return page;
 };
 
 export const putPage = async (

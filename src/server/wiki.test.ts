@@ -608,13 +608,27 @@ test("writes and deletes publish wiki events; delete removes the history", async
   expect(await read()).toBe("retry: 3000\n\nevent: ping\ndata:\n\n");
 
   const { page } = await putPage(alice, "doc", { body: "x" });
-  const event = `data: ${JSON.stringify({ entity: "wiki", id: page.id, projectId: null })}\n\n`;
 
-  expect(await read()).toBe(event);
+  const chunk = await read();
+
+  const written = v.parse(
+    v.looseObject({ page: v.looseObject({}) }),
+    JSON.parse(chunk?.slice("data: ".length) ?? "null")
+  );
+
+  expect(written).toMatchObject({
+    entity: "wiki",
+    id: page.id,
+    page: { id: page.id, path: "doc", revision: 1, title: page.title },
+    projectId: null,
+  });
+  expect(written).not.toHaveProperty("page.body");
   expect(await wikiPage(alice, "DELETE", "doc")).toMatchObject({
     status: 204,
   });
-  expect(await read()).toBe(event);
+  expect(await read()).toBe(
+    `data: ${JSON.stringify({ entity: "wiki", id: page.id, projectId: null })}\n\n`
+  );
   expect(await wikiPage(alice, "GET", "doc")).toMatchObject({ status: 404 });
   expect(await revisions(alice, page.id)).toMatchObject({ status: 404 });
   controller.abort();

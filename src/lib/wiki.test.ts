@@ -30,6 +30,7 @@ import {
   moveNode,
   saveAsNewPage,
   pathProblem,
+  setPage,
   readKept,
   recentPages,
   revealPath,
@@ -40,6 +41,7 @@ import {
   wikiDraftId,
   wikiDraftText,
   wikiPageQuery,
+  wikiPagesQuery,
   writePage,
 } from "~/lib/wiki";
 import type { Wiki } from "~/lib/wiki";
@@ -810,4 +812,24 @@ test("two rescues of the same page each get a new id and a free path", async () 
     "guides/setup-copy-2",
   ]);
   expect(new Set([page.id, first.id, second.id]).size).toBe(3);
+});
+
+test("a saved page updates its tree row in place, while moved or new pages refetch the tree", () => {
+  const queryClient = new QueryClient();
+  const { queryKey } = wikiPagesQuery(wiki);
+
+  queryClient.setQueryData(queryKey, [page]);
+  setPage(queryClient, wiki, {
+    ...page,
+    revision: page.revision + 1,
+    title: "New",
+  });
+  expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(false);
+  expect(queryClient.getQueryData(queryKey)).toMatchObject([{ title: "New" }]);
+  setPage(queryClient, wiki, {
+    ...page,
+    path: "guides/moved",
+    revision: page.revision + 2,
+  });
+  expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
 });

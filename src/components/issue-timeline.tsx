@@ -395,8 +395,10 @@ const CommentItem = ({
 
       notifyError("Could not save the comment")(error);
     },
-    onSettled: async () => {
-      await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+    onSettled: async (_saved, error) => {
+      if (error !== null) {
+        await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+      }
     },
     onSuccess: (saved) => {
       cache.update((comments) =>
@@ -409,9 +411,14 @@ const CommentItem = ({
     mutationFn: async () => {
       await api(`/comments/${comment.id}`, { method: "DELETE" });
     },
-    onError: notifyError("Could not delete the comment"),
-    onSettled: async () => {
+    onError: async (error) => {
+      notifyError("Could not delete the comment")(error);
       await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+    },
+    onSuccess: () => {
+      cache.update((comments) =>
+        comments.filter((item) => item.id !== comment.id)
+      );
     },
   });
 
@@ -608,8 +615,10 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
 
       notifyError("Could not post the comment")(error);
     },
-    onSettled: async () => {
-      await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+    onSettled: async (_saved, error) => {
+      if (error !== null) {
+        await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+      }
     },
     onSuccess: (saved) => {
       cache.update((comments) =>

@@ -1,5 +1,6 @@
 import {
   heartbeatMs,
+  hiddenStreamMs,
   leaseMs,
   openStream,
   realtimeUrl,
@@ -12,6 +13,7 @@ import type {
 interface Link {
   close: () => void;
   reconnect: () => void;
+  shown?: (visible: boolean) => void;
 }
 
 interface WorkerTimers {
@@ -27,6 +29,7 @@ export const subscribeRealtime = (
   let link: Link | null = null;
   let direct = typeof SharedWorker === "undefined";
   let hidden = false;
+  let away: ReturnType<typeof setTimeout> | undefined;
 
   const connectDirect = (): Link => {
     const stream = openStream(realtimeUrl(slug, userId), receive);
@@ -68,18 +71,24 @@ export const subscribeRealtime = (
       close();
       direct = true;
       receive({ type: "error" });
-      link = connectDirect();
+      link = document.hidden ? null : connectDirect();
+    };
+
+    const beat = () => {
+      timers.heartbeat = setInterval(() => {
+        if (Date.now() - lastReply >= leaseMs) {
+          fallback();
+        } else {
+          post({ type: "ping" });
+        }
+      }, heartbeatMs);
     };
 
     timers.startup = setTimeout(fallback, 5000);
 
-    timers.heartbeat = setInterval(() => {
-      if (Date.now() - lastReply >= leaseMs) {
-        fallback();
-      } else {
-        post({ type: "ping" });
-      }
-    }, heartbeatMs);
+    if (!document.hidden) {
+      beat();
+    }
 
     worker.addEventListener("error", fallback, { signal: controller.signal });
     worker.port.addEventListener("messageerror", fallback, {
@@ -103,11 +112,29 @@ export const subscribeRealtime = (
     worker.port.start();
     post({ slug, type: "subscribe", userId });
 
+    if (document.hidden) {
+      post({ type: "hide" });
+    }
+
     return {
       close,
       reconnect: () => {
         if (!stopped) {
           post({ type: "reconnect" });
+        }
+      },
+      shown: (visible) => {
+        clearInterval(timers.heartbeat);
+
+        if (stopped) {
+          return;
+        }
+
+        lastReply = Date.now();
+        post({ type: visible ? "ping" : "hide" });
+
+        if (visible) {
+          beat();
         }
       },
     };
@@ -119,7 +146,7 @@ export const subscribeRealtime = (
   };
 
   const connect = () => {
-    if (hidden || document.hidden || link !== null) {
+    if (hidden || (direct && document.hidden) || link !== null) {
       return;
     }
 
@@ -134,8 +161,12 @@ export const subscribeRealtime = (
   };
 
   const visibility = () => {
-    if (document.hidden) {
-      disconnect();
+    clearTimeout(away);
+
+    if (link?.shown !== undefined) {
+      link.shown(!document.hidden);
+    } else if (document.hidden) {
+      away = setTimeout(disconnect, hiddenStreamMs);
     } else {
       connect();
     }
@@ -147,6 +178,7 @@ export const subscribeRealtime = (
 
   const pagehide = () => {
     hidden = true;
+    clearTimeout(away);
     disconnect();
   };
 
@@ -166,6 +198,7 @@ export const subscribeRealtime = (
     document.removeEventListener("visibilitychange", visibility);
     window.removeEventListener("pagehide", pagehide);
     window.removeEventListener("pageshow", pageshow);
+    clearTimeout(away);
     disconnect();
   };
 };

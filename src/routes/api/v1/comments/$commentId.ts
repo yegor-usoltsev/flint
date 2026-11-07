@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { endpoint, methodNotAllowed } from "~/server/api.server";
 import {
   deleteComment,
+  getComment,
   updateComment,
   UpdateCommentSchema,
 } from "~/server/comments.server";
@@ -15,6 +16,9 @@ export const Route = createFileRoute("/api/v1/comments/$commentId")({
         async ({ actor, params }) => {
           await deleteComment(actor, params.commentId);
         }
+      ),
+      GET: endpoint<"GET /comments/:commentId">(
+        async ({ actor, params }) => await getComment(actor, params.commentId)
       ),
       PATCH: endpoint<"PATCH /comments/:commentId">(
         async ({ actor, body, params }) =>

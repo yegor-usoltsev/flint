@@ -98,7 +98,7 @@ const byText = (a: string, b: string) => a.localeCompare(b);
 
 const anyString: unknown = expect.any(String);
 
-const RealtimeEventSchema = v.object({
+const RealtimeEventSchema = v.looseObject({
   entity: v.string(),
   id: v.string(),
   issueId: v.optional(v.string()),
@@ -892,6 +892,10 @@ test("comments: anyone in the workspace comments, only the author edits or delet
       }
     );
 
+  expect(await commentCall(root, "GET")).toMatchObject({
+    body: { author: { username: "alice" }, body: "    indented code\n" },
+    status: 200,
+  });
   expect(await commentCall(root, "PATCH", { body: "Hijack" })).toMatchObject({
     status: 403,
   });
@@ -912,6 +916,7 @@ test("comments: anyone in the workspace comments, only the author edits or delet
   });
   expect(await commentCall(alice, "DELETE")).toMatchObject({ status: 204 });
   expect(await commentCall(alice, "DELETE")).toMatchObject({ status: 404 });
+  expect(await commentCall(alice, "GET")).toMatchObject({ status: 404 });
   expect(
     await callApi(
       commentsRoute,
@@ -1269,9 +1274,18 @@ test("the stream delivers workspace events and drops removed members", async () 
   );
 
   await issueCall(root, "PATCH", issue.key, { priority: 2, title: "Live!" });
-  expect(await aliceStream.next()).toBe(
-    `data: ${JSON.stringify({ actorId: rootId, entity: "issue", fields: ["title", "priority"], id: issue.id, projectId: eng.id })}\n\n`
-  );
+
+  const patched = dataOf(await aliceStream.next());
+
+  expect(patched).toMatchObject({
+    actorId: rootId,
+    entity: "issue",
+    fields: ["title", "priority"],
+    id: issue.id,
+    issue: { id: issue.id, key: issue.key, priority: 2, title: "Live!" },
+    projectId: eng.id,
+  });
+  expect(patched).not.toHaveProperty("issue.description");
 
   const pending = bobStream.next();
 
