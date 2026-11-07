@@ -353,7 +353,7 @@
     black calc(100% - var(--fade-bottom)),
     transparent
   );
-  animation: fade-bottom linear;
+  animation: fade-bottom 1ms linear;
   animation-timeline: scroll(self);
 }
 
