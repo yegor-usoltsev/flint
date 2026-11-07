@@ -96,7 +96,7 @@ const EnvSchema = v.object({
   STREAMS_PER_USER: positive("20"),
   TRASH_PURGE_CRON: v.optional(Cron, "0 0 * * *"),
   TRASH_RETENTION_DAYS: positive("30"),
-  UPLOADS_PER_USER: positive("8"),
+  UPLOADS_PER_USER: positive("4"),
 });
 
 export const env = v.parse(EnvSchema, process.env);

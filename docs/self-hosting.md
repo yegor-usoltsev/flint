@@ -8,13 +8,15 @@ docker run -d --name flint -p 3000:3000 --env-file flint.env yusoltsev/flint:lat
 
 The image is also on `ghcr.io/yegor-usoltsev/flint`. Each start applies pending migrations (the first creates the `vector` extension), and `/api/health` answers 200 when PostgreSQL and the bucket are reachable, 503 otherwise. It checks them at most once every two seconds, so frequent probes do not run up bucket requests.
 
+Every `STORAGE_SWEEP_CRON`, Flint deletes bucket objects older than a day that no attachment references, looking only under the ids of the workspaces in its own database, so deployments with separate databases can share a bucket. A copy of the database has the same workspace ids and would delete the original's newer files, so point a restored or cloned copy at its own bucket.
+
 Put a reverse proxy in front that terminates TLS and serves HTTP/2, because browsers without SharedWorker open an event stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings. Have the proxy send `Strict-Transport-Security: max-age=31536000`, so browsers stop trying plain HTTP after the first visit; add `includeSubDomains` only when every subdomain serves HTTPS.
 
 Flint serves its scripts and styles precompressed with Brotli or gzip and gzips JSON API responses over 1 KB, so the proxy needs no compression of its own. If it compresses anyway, such as Caddy's `encode` or nginx's `gzip on`, it passes these through and compresses only the HTML pages; Caddy's `encode` flushes each event of the stream, and nginx's default `gzip_types` leaves the stream alone.
 
 With an `https` `APP_URL`, the session and sign-in cookies carry the `__Host-` prefix, so a page on a sibling subdomain, such as Gitea's, cannot plant its own session in Flint. A sign-in from before this change keeps working from its old cookie until it expires.
 
-Each account gets about `SEARCH_EMBEDDINGS_PER_MINUTE` query embeddings a minute, after which search falls back to full text until the allowance refills. It can run `UPLOADS_PER_USER` uploads at once, with images resized in turns between accounts, and hold `STREAMS_PER_USER` event streams open, after which new ones answer 429 and retry until one closes. JSON request bodies stop at 4 MB. Flint counts all of this in memory per container, so limit anonymous traffic at the reverse proxy.
+Each account gets about `SEARCH_EMBEDDINGS_PER_MINUTE` query embeddings a minute, after which search falls back to full text until the allowance refills. It can run `UPLOADS_PER_USER` uploads at once and hold `STREAMS_PER_USER` event streams open, after which new ones answer 429 and retry until one closes. Each container reads four upload bodies at a time, so further uploads wait their turn, and resizes images in turns between accounts. JSON request bodies stop at 4 MB. Flint counts all of this in memory per container, so limit anonymous traffic at the reverse proxy.
 
 Instance admins administer every workspace, including ones created later. Set `INSTANCE_ADMINS` to their Gitea usernames; nobody else becomes one. Flint compares each name with the username an account had at its latest sign-in, so update the list when an admin renames their Gitea account. Without `INSTANCE_ADMINS`, the first account to sign in becomes the only instance admin, so sign in right after deployment, before anyone else on your Gitea can.
 
@@ -76,7 +78,7 @@ APP_URL=https://flint.example.com bun run gitea:external-tracker acme alice/webs
 | `EMBEDDING_TIMEOUT_MS` | `30000` | Embeddings request timeout while indexing |
 | `SEARCH_EMBEDDING_TIMEOUT_MS` | `1500` | How long search waits for semantic results before returning full-text ones |
 | `SEARCH_EMBEDDINGS_PER_MINUTE` | `300` | Query embeddings per account and minute; the search box asks for one per typed character |
-| `UPLOADS_PER_USER` | `8` | Uploads an account can run at once; more answer 429 |
+| `UPLOADS_PER_USER` | `4` | Uploads an account can run at once; more answer 429 |
 | `STREAMS_PER_USER` | `20` | Live-update streams an account can hold open; more answer 429 |
 | `PORT` | `3000` | Listening port |
 

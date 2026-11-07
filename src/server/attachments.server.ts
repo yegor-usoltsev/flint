@@ -2,6 +2,7 @@
 import * as v from "valibot";
 
 import type { Attachment, RealtimeEvent } from "~/lib/api-types";
+import { createLimit } from "~/lib/limit";
 import {
   isUuid,
   notFound,
@@ -18,6 +19,7 @@ import {
   imageSides,
   normalizeImage,
   normalizedTypes,
+  thumbnailOf,
 } from "~/server/images.server";
 import { findIssue, selectIssue } from "~/server/issues.server";
 import { perKey, roundRobin } from "~/server/limits.server";
@@ -27,7 +29,7 @@ import { deleteObjects, s3 } from "~/server/s3.server";
 import { findPageById } from "~/server/wiki.server";
 
 const multipartOverhead = 64 * 1024;
-const bufferedBytes = 16 * 1024 * 1024;
+const cacheControl = "private, max-age=3600";
 
 const inlineTypes = new Set([
   "audio/aac",
@@ -174,6 +176,7 @@ const cleanContentType = (type: string) => {
 
 const images = roundRobin();
 const uploading = perKey(() => env.UPLOADS_PER_USER);
+const uploadSlots = createLimit(4);
 
 const withExtension = (filename: string, extensions: readonly string[]) => {
   const extension = /\.[^.]*$/u.exec(filename)?.[0] ?? "";
@@ -344,7 +347,9 @@ export const uploadAttachment = async (
   }
 
   try {
-    return await storeAttachment(actor, attachmentTarget, request);
+    return await uploadSlots(
+      async () => await storeAttachment(actor, attachmentTarget, request)
+    );
   } finally {
     uploading.release(actor.userId);
   }
@@ -380,6 +385,7 @@ interface StoredFile extends Target {
   filename: string;
   size: number;
   storageKey: string;
+  thumbnail: Uint8Array<ArrayBuffer> | null;
 }
 
 const findFile = async (actor: Actor, id: string) => {
@@ -389,7 +395,7 @@ const findFile = async (actor: Actor, id: string) => {
           i.project_id as "projectId",
           a.workspace_id as "workspaceId", a.content_type as "contentType",
           a.filename, a.size_bytes::float8 as size,
-          a.storage_key as "storageKey"
+          a.storage_key as "storageKey", a.thumbnail
         from attachments a
         left join issues i on i.id = a.issue_id
         where a.id = ${id}
@@ -444,17 +450,51 @@ const byteRange = (header: string | null, size: number) => {
   return start > end ? "unsatisfiable" : { end, start };
 };
 
+const storedThumbnail = async (
+  actor: Actor,
+  id: string,
+  { storageKey, thumbnail }: StoredFile
+) => {
+  if (thumbnail !== null) {
+    return thumbnail;
+  }
+
+  const created = await images(
+    actor.userId,
+    async () => await thumbnailOf(await s3.file(storageKey).bytes())
+  );
+
+  await db`
+    update attachments set thumbnail = ${created ?? new Uint8Array()}
+    where id = ${id}
+  `;
+
+  return created;
+};
+
 export const downloadFile = async (
   actor: Actor,
   id: string,
   request: Request
 ) => {
   const file = await findFile(actor, id);
-  const etag = `"${id}"`;
 
-  if (request.headers.get("if-none-match") === etag) {
+  const thumbnail =
+    new URL(request.url).searchParams.has("thumb") &&
+    normalizedTypes.has(file.contentType) &&
+    file.thumbnail?.byteLength !== 0;
+
+  const etag = `"${id}"`;
+  const thumbnailEtag = `"${id}.thumb"`;
+
+  if (
+    request.headers.get("if-none-match") === (thumbnail ? thumbnailEtag : etag)
+  ) {
     return new Response(null, {
-      headers: { "Cache-Control": "private, no-cache", ETag: etag },
+      headers: {
+        "Cache-Control": cacheControl,
+        ETag: thumbnail ? thumbnailEtag : etag,
+      },
       status: 304,
     });
   }
@@ -465,7 +505,7 @@ export const downloadFile = async (
 
   const headers = {
     "Accept-Ranges": "bytes",
-    "Cache-Control": "private, no-cache",
+    "Cache-Control": cacheControl,
     "Content-Disposition": `${disposition}; filename="${asciiFallback(file.filename)}"; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
     "Content-Security-Policy":
       "default-src 'none'; media-src 'self'; sandbox allow-same-origin",
@@ -473,6 +513,19 @@ export const downloadFile = async (
     ETag: etag,
     "X-Content-Type-Options": "nosniff",
   };
+
+  const bytes = thumbnail ? await storedThumbnail(actor, id, file) : null;
+
+  if (bytes !== null) {
+    return new Response(bytes, {
+      headers: {
+        ...headers,
+        "Content-Length": String(bytes.byteLength),
+        "Content-Type": "image/webp",
+        ETag: thumbnailEtag,
+      },
+    });
+  }
 
   const range = byteRange(request.headers.get("range"), file.size);
 
@@ -484,14 +537,14 @@ export const downloadFile = async (
   }
 
   const { end, start } = range ?? { end: file.size - 1, start: 0 };
-  const length = end - start + 1;
-  const object = s3.file(file.storageKey).slice(start, end + 1);
 
-  const body =
-    length <= bufferedBytes ? await object.arrayBuffer() : object.stream();
+  const body = s3
+    .file(file.storageKey)
+    .slice(start, end + 1)
+    .stream();
 
   const response = new Response(body, {
-    headers: { ...headers, "Content-Length": String(length) },
+    headers: { ...headers, "Content-Length": String(end - start + 1) },
     status: range === null ? 200 : 206,
   });
 

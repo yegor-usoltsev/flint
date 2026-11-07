@@ -66,27 +66,29 @@ const setup = async () => {
   return prefix;
 };
 
+const foreign = `${Bun.randomUUIDv7()}/`;
+
 test("the sweep keeps young objects and rows", async () => {
   const prefix = await setup();
 
   try {
-    expect(await sweepStorage({ prefix })).toEqual({ objects: 0, rows: 0 });
+    expect(await sweepStorage()).toEqual({ objects: 0, rows: 0 });
     expect(await stored(prefix)).toHaveLength(4);
   } finally {
     await deleteObjects(await stored(prefix));
   }
 });
 
-test("the sweep deletes objects without rows and unused logo rows", async () => {
+test("the sweep deletes objects without rows and unused logo rows, but only in its own workspaces", async () => {
   const prefix = await setup();
 
+  await s3.write(`${foreign}orphan`, "another deployment's file");
+
   try {
-    const result = await sweepStorage({
-      before: new Date(Date.now() + 60_000),
-      prefix,
-    });
+    const result = await sweepStorage(new Date(Date.now() + 60_000));
 
     expect(result).toEqual({ objects: 1, rows: 1 });
+    expect(await stored(foreign)).toEqual([`${foreign}orphan`]);
     expect(await stored(prefix)).toEqual([
       `${prefix}logo`,
       `${prefix}page-file`,
@@ -98,6 +100,9 @@ test("the sweep deletes objects without rows and unused logo rows", async () => 
 
     expect(rows.map(({ filename }) => filename)).toEqual(["logo", "page-file"]);
   } finally {
-    await deleteObjects(await stored(prefix));
+    await deleteObjects([
+      ...(await stored(prefix)),
+      ...(await stored(foreign)),
+    ]);
   }
 });

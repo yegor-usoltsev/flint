@@ -5,7 +5,11 @@ import { ApiError } from "~/server/api.server";
 
 export const maxImagePixels = 50_000_000;
 
-export const imageSides = { attachment: 2560, logo: 256 } as const;
+export const imageSides = {
+  attachment: 2560,
+  logo: 256,
+  thumbnail: 128,
+} as const;
 
 const encoders = {
   jpeg: {
@@ -136,3 +140,14 @@ export const normalizeImage = async (bytes: Uint8Array, maxSide: number) => {
     throw new ApiError(400, "invalid_request", "The image cannot be decoded");
   }
 };
+
+export const thumbnailOf = async (bytes: Uint8Array) =>
+  await new Bun.Image(bytes, { maxPixels: maxImagePixels })
+    .resize(imageSides.thumbnail, imageSides.thumbnail, {
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 75 })
+    .blob()
+    .then(async (blob) => await blob.bytes())
+    .catch(() => null);
