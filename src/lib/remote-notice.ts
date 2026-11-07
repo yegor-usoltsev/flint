@@ -202,30 +202,38 @@ const revealRow = (id: string) => {
   row?.focus({ preventScroll: true });
 };
 
-const show = (
+const openHidden = (
   queryClient: QueryClient,
-  { change, hidden, id }: Candidate,
+  { change, id }: Candidate,
   openIssue: (key: string) => void
 ) => {
-  if (hidden.kind === "offscreen") {
-    revealRow(id);
-
-    return;
-  }
-
-  if (hidden.kind === "collapsed") {
-    setStatusCollapsed(hidden.statusId, false);
-    requestAnimationFrame(() => {
-      revealRow(id);
-    });
-
-    return;
-  }
-
   const key = findShownIssue(queryClient, id)?.key ?? change.before?.key;
 
   if (key !== undefined && !openPanel(key)) {
     openIssue(key);
+  }
+};
+
+const show = (
+  queryClient: QueryClient,
+  candidate: Candidate,
+  openIssue: (key: string) => void
+) => {
+  const { hidden, id } = candidate;
+
+  if (hidden.kind === "offscreen") {
+    revealRow(id);
+  } else if (hidden.kind === "collapsed") {
+    setStatusCollapsed(hidden.statusId, false);
+    requestAnimationFrame(() => {
+      if (rowOf(id) === null) {
+        openHidden(queryClient, candidate, openIssue);
+      } else {
+        revealRow(id);
+      }
+    });
+  } else {
+    openHidden(queryClient, candidate, openIssue);
   }
 };
 

@@ -113,6 +113,8 @@ const before = (statusId: string, rendered = true) => ({
   statusId,
 });
 
+const opened: string[] = [];
+
 const change = (
   queryClient: QueryClient,
   id: string,
@@ -123,7 +125,9 @@ const change = (
   noticeOffscreen({
     actors: new Map([[id, new Set([actorId])]]),
     before: new Map([[id, before(status, rendered)]]),
-    openIssue: () => {},
+    openIssue: (key) => {
+      opened.push(key);
+    },
     queryClient,
     slug: "acme",
   });
@@ -134,6 +138,7 @@ beforeEach(() => {
   page.collapsed = false;
   page.row = true;
   browser.window.location.search = "";
+  opened.length = 0;
 
   for (const [name, value] of Object.entries(browser)) {
     descriptors.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
@@ -245,4 +250,23 @@ test("an issue that was not in the view stays quiet when it changes", () => {
 
   expect(add).not.toHaveBeenCalled();
   add.mockRestore();
+});
+
+test("Show opens the issue when expanding its group still leaves it filtered out", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+  const close = spyOn(toast, "close").mockReturnValue();
+
+  page.row = false;
+  page.collapsed = true;
+  moveToDone(queryClient);
+
+  const click: ((...args: never[]) => void) | undefined =
+    add.mock.calls[0]?.[0].actionProps?.onClick;
+
+  click?.();
+
+  expect(opened).toEqual(["ENG-1"]);
+  add.mockRestore();
+  close.mockRestore();
 });
