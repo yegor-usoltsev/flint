@@ -53,7 +53,7 @@ const TreeRow = (props: ComponentProps<"div">) => (
 const RowButton = (props: ComponentProps<"button">) => (
   <button
     {...props}
-    className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring hit-area absolute top-1 right-1 flex size-5 items-center justify-center rounded-sm opacity-0 outline-none peer-focus-within/row:opacity-100 peer-hover/row:opacity-100 hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 data-popup-open:opacity-100 max-md:top-3 max-md:opacity-100"
+    className="text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring hit-area absolute top-1 right-1 flex size-5 items-center justify-center rounded-sm opacity-0 outline-none peer-focus-within/row:opacity-100 peer-hover/row:opacity-100 hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 data-popup-open:opacity-100 max-md:top-3 max-md:opacity-100"
     type="button"
   />
 );
@@ -176,7 +176,7 @@ const TreeItem = ({
             <button
               aria-expanded={open}
               aria-label={`${open ? "Collapse" : "Expand"} ${node.title}`}
-              className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring hit-area absolute top-1 left-1.5 flex size-5 items-center justify-center rounded-sm outline-none focus-visible:ring-2 max-md:top-3"
+              className="text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring hit-area absolute top-1 left-1.5 flex size-5 items-center justify-center rounded-sm outline-none focus-visible:ring-2 max-md:top-3"
               onClick={() => {
                 setFolderOpen(wiki, node.path, !open);
               }}

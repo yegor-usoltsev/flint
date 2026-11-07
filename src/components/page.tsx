@@ -52,27 +52,14 @@ const SearchButton = () => {
   );
 };
 
-const TitleText = ({ short, title }: { short?: string; title: string }) => {
-  if (short === undefined) {
-    return <span className="truncate">{title}</span>;
-  }
-
-  return (
-    <>
-      <span className="truncate md:hidden">{short}</span>
-      <span className="truncate max-md:sr-only">{title}</span>
-    </>
-  );
-};
-
 const PageTitle = ({
+  context,
   header,
-  short,
   switcher,
   title,
 }: {
+  context?: string;
   header: RefObject<HTMLElement | null>;
-  short?: string;
   switcher?: ReactNode;
   title: string;
 }) => {
@@ -81,7 +68,7 @@ const PageTitle = ({
   if (switcher === undefined || (open && !isMobile)) {
     return (
       <h1 className="text-foreground flex min-w-0 font-medium">
-        <TitleText short={short} title={title} />
+        <span className="truncate">{title}</span>
       </h1>
     );
   }
@@ -90,9 +77,21 @@ const PageTitle = ({
     <h1 className="text-foreground flex min-w-0 font-medium">
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button className="-ml-2.5 min-w-0 shrink" variant="ghost" />}
+          render={
+            <Button
+              className="-ml-2.5 min-w-0 shrink max-md:h-10"
+              variant="ghost"
+            />
+          }
         >
-          <TitleText short={short} title={title} />
+          <span className="flex min-w-0 flex-col items-start">
+            {context === undefined ? null : (
+              <span className="text-muted-foreground max-w-full truncate text-xs font-normal md:hidden">
+                {context}
+              </span>
+            )}
+            <span className="max-w-full truncate">{title}</span>
+          </span>
           <ChevronDownIcon
             className="text-muted-foreground"
             data-icon="inline-end"
@@ -133,7 +132,6 @@ export const Page = ({
   children,
   className,
   crumbs = noCrumbs,
-  short,
   switcher,
   title,
 }: {
@@ -142,13 +140,12 @@ export const Page = ({
   children: ReactNode;
   className?: string;
   crumbs?: Crumb[];
-  short?: string;
   switcher?: ReactNode;
   title: string;
 }) => {
   const pane = use(PagePane);
   const header = useRef<HTMLElement>(null);
-  const scope = crumbs.findLast((crumb) => crumb.short !== undefined);
+  const context = crumbs.at(-1);
 
   return (
     <>
@@ -172,11 +169,10 @@ export const Page = ({
             aria-label={pane === "detail" ? "Page breadcrumb" : "breadcrumb"}
             className="@container min-w-0 flex-1"
           >
-            <BreadcrumbList className="flex-nowrap">
+            <BreadcrumbList className="flex-nowrap max-md:flex-col max-md:items-start">
               {crumbs.map((crumb, index) => {
                 const hidden = cn(
-                  (crumb !== scope || switcher !== undefined) &&
-                    "max-md:hidden",
+                  "max-md:hidden",
                   index === crumbs.length - 1
                     ? "md:@max-3xs:hidden"
                     : "md:@max-lg:hidden"
@@ -191,11 +187,8 @@ export const Page = ({
                         className="hit-area relative min-w-0"
                         render={crumb.link}
                       >
-                        <span className="block max-w-60 truncate max-md:hidden">
+                        <span className="block max-w-60 truncate">
                           {crumb.label}
-                        </span>
-                        <span className="block max-w-20 truncate md:hidden">
-                          {crumb.short}
                         </span>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
@@ -203,10 +196,27 @@ export const Page = ({
                   </Fragment>
                 );
               })}
-              <BreadcrumbItem className="min-w-24">
+              {context === undefined || switcher !== undefined ? null : (
+                <BreadcrumbItem className="max-w-full md:hidden">
+                  <BreadcrumbLink
+                    className="hit-area relative min-w-0"
+                    render={context.link}
+                  >
+                    <span className="block truncate text-xs">
+                      {context.short ?? context.label}
+                    </span>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+              )}
+              <BreadcrumbItem
+                className={cn(
+                  "min-w-24 max-md:max-w-full",
+                  switcher === undefined && "max-md:-mt-1"
+                )}
+              >
                 <PageTitle
+                  context={context?.short ?? context?.label}
                   header={header}
-                  short={short}
                   switcher={switcher}
                   title={title}
                 />

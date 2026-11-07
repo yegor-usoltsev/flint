@@ -134,6 +134,7 @@ import { setTheme } from "~/lib/theme";
 import { listCommands, useCommands } from "~/lib/use-hotkey";
 import type { Command as PaletteCommand, Hotkey } from "~/lib/use-hotkey";
 import { writeIssues } from "~/lib/use-update-issue";
+import { useVisualViewport } from "~/lib/use-visual-viewport";
 import { useWorkspace } from "~/lib/use-workspace";
 import { wikiTarget } from "~/lib/wiki";
 
@@ -449,7 +450,7 @@ const PickerList = ({
         placeholder={pickerTitles[picker]}
         value={query}
       />
-      <CommandList className="max-h-96">
+      <CommandList className="max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1 sm:max-h-96">
         {creatable ? null : <CommandEmpty>No matches</CommandEmpty>}
         <CommandGroup>
           {shown.map((option) => (
@@ -730,7 +731,7 @@ const RootList = ({
         placeholder="Type a command or search…"
         value={query}
       />
-      <CommandList className="fade-bottom max-h-104 scroll-pb-8">
+      <CommandList className="sm:fade-bottom max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1 sm:max-h-104 sm:scroll-pb-8">
         <CommandEmpty>
           {trimmed.length >= 2 && results === null
             ? "Searching…"
@@ -843,7 +844,7 @@ const RootList = ({
             </CommandItem>
           </CommandGroup>
         ) : null}
-        <div aria-hidden className="h-8" />
+        <div aria-hidden className="h-8 max-sm:hidden" />
       </CommandList>
     </Command>
   );
@@ -1318,6 +1319,8 @@ export const CommandLayer = ({ children }: { children: ReactNode }) => {
     setHelp(true);
   }, []);
 
+  useVisualViewport(palette.open);
+
   const commands = useLayerCommands({
     openHelp: showHelp,
     openPicker: (picker, issues) => {
@@ -1336,7 +1339,7 @@ export const CommandLayer = ({ children }: { children: ReactNode }) => {
     <OpenPalette value={openRoot}>
       <OpenHelp value={showHelp}>{children}</OpenHelp>
       <CommandDialog
-        className="flex max-h-[calc(100dvh-1.5rem)] flex-col max-sm:top-3 sm:top-32.5 sm:max-h-112.5 sm:max-w-180 [&>[data-slot=dialog-close]]:top-2.5 md:[&>[data-slot=dialog-close]]:hidden"
+        className="flex flex-col max-sm:top-[calc(var(--visual-viewport-top,0px)+0.5rem)] max-sm:h-[calc(var(--visual-viewport-height,100dvh)-1rem)] max-sm:max-w-[calc(100%-1rem)] sm:top-32.5 sm:max-h-112.5 sm:max-w-180 [&>[data-slot=dialog-close]]:top-2.5 md:[&>[data-slot=dialog-close]]:hidden"
         description="Run a command, jump to a page or search issues"
         finalFocus={() => {
           const [issue] = palette.issues;
