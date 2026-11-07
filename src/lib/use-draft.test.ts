@@ -156,3 +156,21 @@ test("changing accounts does not expose the previous account's text", () => {
     add.mockRestore();
   }
 });
+
+test("text an editor holds when the account changes never reaches the next account", () => {
+  adoptDrafts("alice");
+
+  let held: string | null = "Alice's text";
+
+  const release = holdEdits("account:body", () => {
+    if (held !== null) {
+      editDraft("account:body", held, "");
+      held = null;
+    }
+  });
+
+  adoptDrafts("bob");
+  release();
+
+  expect(readDraft("account:body")).toBeUndefined();
+});

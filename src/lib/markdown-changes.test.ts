@@ -150,7 +150,7 @@ describe("createThrottle", () => {
     expect(runs).toEqual(["a", "abc", "abcd"]);
   });
 
-  test("a flush runs the pending change at once and only once", async () => {
+  test("a flush runs the pending change once and lets the next change run at once", async () => {
     const throttle = createThrottle(20);
     const runs: string[] = [];
 
@@ -165,9 +165,15 @@ describe("createThrottle", () => {
 
     expect(runs).toEqual(["a", "ab"]);
 
+    throttle.run(() => {
+      runs.push("abc");
+    }, true);
+
+    expect(runs).toEqual(["a", "ab", "abc"]);
+
     await Bun.sleep(30);
 
-    expect(runs).toEqual(["a", "ab"]);
+    expect(runs).toEqual(["a", "ab", "abc"]);
   });
 
   test("without throttling every change runs at once", () => {
