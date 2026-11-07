@@ -77,7 +77,9 @@ const usePanelOrigin = (): IssueOrigin | undefined => {
     };
   }
 
-  return mine === undefined ? undefined : { view: "mine" };
+  return mine === undefined
+    ? undefined
+    : { search: withoutIssue(mine.search), view: "mine" };
 };
 
 const Pending = () => (

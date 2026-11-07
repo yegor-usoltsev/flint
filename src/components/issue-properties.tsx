@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { PlusIcon, TagIcon, UserRoundIcon } from "lucide-react";
 import { useState } from "react";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 
 import { LabelChip } from "~/components/issue-parts";
 import { PriorityIcon } from "~/components/priority-icon";
@@ -192,6 +192,10 @@ const triggerClass = {
     "hit-area relative flex h-6 max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2 text-xs font-medium outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:bg-accent dark:border-input dark:bg-input/30 dark:hover:bg-input/50 dark:data-popup-open:bg-input/50",
   rail: "-ml-1.5 flex min-h-7 max-w-full min-w-0 items-center gap-2 rounded-full py-0.5 pr-2.5 pl-1.5 text-left font-medium outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:bg-accent",
 } satisfies Record<Layout, string>;
+
+export const PillButton = (props: ComponentProps<"button">) => (
+  <button className={triggerClass.pills} type="button" {...props} />
+);
 
 const Section = ({
   children,

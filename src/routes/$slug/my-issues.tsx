@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
   BookOpenIcon,
   CircleDotIcon,
   FolderPlusIcon,
+  ListFilterIcon,
   PlusIcon,
   TriangleAlertIcon,
   UsersIcon,
@@ -12,13 +13,15 @@ import {
 import { useState } from "react";
 
 import { useCreateIssue } from "~/components/create-issue";
-import { IssueContextMenu } from "~/components/issue-menu";
+import { FilterChips, useMineFilterOptions } from "~/components/issue-filters";
+import type { ChangeFilter } from "~/components/issue-filters";
+import { IssueListActions } from "~/components/issue-list-actions";
 import type { IssueLookup } from "~/components/issue-parts";
-import { listClass, RowContent, rowClass } from "~/components/issues-view";
+import { IssueLayout } from "~/components/issues-view";
+import type { OpenIssue } from "~/components/issues-view";
 import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
 import { ProjectDialog } from "~/components/project-dialog";
-import { StatusIcon } from "~/components/status-icon";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button, buttonVariants } from "~/components/ui/button";
 import {
@@ -31,15 +34,33 @@ import {
 } from "~/components/ui/empty";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useMe } from "~/lib/api";
-import type { IssueSummary } from "~/lib/api-types";
-import { selectByClick } from "~/lib/issue-focus";
-import { interceptIssueClick, usePanelShows } from "~/lib/issue-panel";
-import { useSelected, useSelectionScope } from "~/lib/issue-selection";
-import { useMyIssues } from "~/lib/my-issues";
+import type { IssueSummary, Status } from "~/lib/api-types";
+import { showInPanel } from "~/lib/issue-panel";
+import { useSelectionScope } from "~/lib/issue-selection";
+import {
+  isClosedStatus,
+  isFiltered,
+  mineFilterKeys,
+  MineSearchSchema,
+  mineViewKey,
+  useProjectView,
+  withKnownLabels,
+} from "~/lib/issue-view";
+import type { MineSearch, ViewKind } from "~/lib/issue-view";
+import {
+  mineStatuses,
+  useMineSearchUpdates,
+  useMyIssues,
+} from "~/lib/my-issues";
 import { loadMyIssues, preload } from "~/lib/preload";
-import { labelsQuery, membersQuery, projectsQuery } from "~/lib/queries";
-import { useRemoteFlash } from "~/lib/remote-flash";
+import {
+  issueQuery,
+  labelsQuery,
+  membersQuery,
+  projectsQuery,
+} from "~/lib/queries";
 import { pageHead } from "~/lib/site";
+import { useUpdateIssue } from "~/lib/use-update-issue";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const NoProjects = ({ isAdmin, slug }: { isAdmin: boolean; slug: string }) => {
@@ -103,40 +124,6 @@ const NoProjects = ({ isAdmin, slug }: { isAdmin: boolean; slug: string }) => {
   );
 };
 
-const IssueRow = ({
-  issue,
-  lookup,
-  slug,
-}: {
-  issue: IssueSummary;
-  lookup: IssueLookup;
-  slug: string;
-}) => {
-  const selected = useSelected(issue.id);
-  const current = usePanelShows(issue.key);
-  const remote = useRemoteFlash(issue.id);
-
-  return (
-    <Link
-      className={cn(rowClass, remote)}
-      data-current={current ? "true" : undefined}
-      data-issue={issue.id}
-      data-selected={selected ? "true" : undefined}
-      onClick={(event) => {
-        if (!selectByClick(event, issue.id)) {
-          interceptIssueClick(event, issue.key);
-        }
-      }}
-      params={{ issueKey: issue.key, slug }}
-      state={{ from: { view: "mine" } }}
-      to="/$slug/issue/$issueKey"
-    >
-      {selected ? <span className="sr-only">Selected,</span> : null}
-      <RowContent assignee={false} issue={issue} lookup={lookup} />
-    </Link>
-  );
-};
-
 const LoadFailed = ({
   onRetry,
   partial,
@@ -179,21 +166,89 @@ const NothingAssigned = () => (
   </Empty>
 );
 
-const AssignedIssues = ({ slug }: { slug: string }) => {
-  const { failed, groups, pending, retry, statuses } = useMyIssues(slug);
+const NoMatches = ({ onClear }: { onClear: () => void }) => (
+  <Empty>
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <ListFilterIcon />
+      </EmptyMedia>
+      <EmptyTitle>
+        <h2>No issues match these filters</h2>
+      </EmptyTitle>
+      <EmptyDescription>
+        Change or clear the filters to see more issues.
+      </EmptyDescription>
+    </EmptyHeader>
+    <EmptyContent>
+      <Button onClick={onClear} size="sm" variant="outline">
+        Clear filters
+      </Button>
+    </EmptyContent>
+  </Empty>
+);
+
+const orders = [
+  { label: "Priority", value: "priority" },
+  { label: "Last updated", value: "updated" },
+] as const;
+
+const AssignedIssues = ({
+  onClear,
+  search,
+  slug,
+  view,
+}: {
+  onClear: () => void;
+  search: MineSearch;
+  slug: string;
+  view: ViewKind;
+}) => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const createIssue = useCreateIssue();
+  const updateIssue = useUpdateIssue();
+  const mine = useMyIssues(slug, search);
   const members = useQuery(membersQuery(slug));
   const labels = useQuery(labelsQuery(slug));
 
-  useSelectionScope(
-    groups.flatMap(({ issues }) => issues.map((issue) => issue.id))
-  );
+  const {
+    closed,
+    columns,
+    projects,
+    retry: handleRetry,
+    shown,
+    statuses,
+    visible,
+  } = mine;
 
-  if (pending) {
+  useSelectionScope(mine.ordered.map((issue) => issue.id));
+
+  if (mine.pending) {
     return (
       <div aria-busy className="flex flex-col gap-2 p-4">
         <Skeleton className="h-9 w-full" />
         <Skeleton className="h-9 w-full" />
       </div>
+    );
+  }
+
+  const failed = mine.failed ? (
+    <LoadFailed onRetry={handleRetry} partial={mine.total > 0} />
+  ) : null;
+
+  if (
+    visible.length === 0 &&
+    (mine.total === 0 || !isFiltered(search, mineFilterKeys))
+  ) {
+    return failed ?? <NothingAssigned />;
+  }
+
+  if (visible.length === 0) {
+    return (
+      <>
+        {failed}
+        <NoMatches onClear={onClear} />
+      </>
     );
   }
 
@@ -207,56 +262,146 @@ const AssignedIssues = ({ slug }: { slug: string }) => {
     statuses,
   };
 
+  const byId = new Map(visible.map((issue) => [issue.id, issue]));
+  const projectOf = new Map(projects.map((project) => [project.id, project]));
+  const groupName = new Map(shown.map((status) => [status.id, status.name]));
+  const lastClosed = shown.findLast(isClosedStatus)?.id;
+
+  const targetStatus = (issue: IssueSummary, groupId: string) =>
+    projectOf
+      .get(issue.projectId)
+      ?.statuses.find((status) => status.name === groupName.get(groupId));
+
+  const footer = (status: Status) =>
+    status.id === lastClosed && closed.hasNextPage && search.closed === true ? (
+      <Button
+        className="m-1.5 self-start"
+        disabled={closed.isFetchingNextPage}
+        onClick={() => {
+          void closed.fetchNextPage();
+        }}
+        size="sm"
+        variant="ghost"
+      >
+        {closed.isFetchingNextPage ? "Loading…" : "Load older issues"}
+      </Button>
+    ) : null;
+
+  const onOpen: OpenIssue = (issue, how) => {
+    if (issue.version === 0) {
+      return;
+    }
+
+    if (how === "prefetch") {
+      queryClient
+        .query(issueQuery(issue.projectId, issue.key))
+        .catch(() => null);
+    } else if (how === "tab") {
+      window.open(`/${slug}/issue/${issue.key}`, "_blank");
+    } else if (!showInPanel(issue.key)) {
+      void navigate({
+        params: { issueKey: issue.key, slug },
+        state: { from: { search, view: "mine" } },
+        to: "/$slug/issue/$issueKey",
+      });
+    }
+  };
+
   return (
-    <IssueContextMenu>
-      <div className={listClass}>
-        {failed ? (
-          <LoadFailed onRetry={retry} partial={groups.length > 0} />
-        ) : null}
-        {groups.length === 0 && !failed ? <NothingAssigned /> : null}
-        {groups.map(({ issues, status }) => (
-          <section aria-labelledby={`group-${status.id}`} key={status.name}>
-            <h2
-              className="bg-group-header sticky top-0 z-10 flex h-9 items-center gap-2 rounded-md px-2 font-medium"
-              id={`group-${status.id}`}
-            >
-              <StatusIcon category={status.category} color={status.color} />
-              {status.name}
-              <span className="text-muted-foreground font-normal tabular-nums">
-                {issues.length}
-              </span>
-            </h2>
-            {issues.map((issue) => (
-              <IssueRow
-                issue={issue}
-                key={issue.id}
-                lookup={lookup}
-                slug={slug}
-              />
-            ))}
-          </section>
-        ))}
-      </div>
-    </IssueContextMenu>
+    <>
+      {failed}
+      <IssueLayout
+        accepts={(issue, groupId) => targetStatus(issue, groupId) !== undefined}
+        assignee={false}
+        columns={columns}
+        footer={footer}
+        issues={byId}
+        lookup={lookup}
+        manualIn={() => false}
+        onCreate={(status) => {
+          const project = projects.find((item) =>
+            item.statuses.some((candidate) => candidate.id === status.id)
+          );
+
+          createIssue({ projectKey: project?.key, statusId: status.id });
+        }}
+        onMove={(issue, to) => {
+          const status = targetStatus(issue, to.statusId);
+
+          if (status !== undefined && status.id !== issue.statusId) {
+            updateIssue(issue, { statusId: status.id });
+          }
+        }}
+        onOpen={onOpen}
+        statuses={shown}
+        total={(_status, loaded) => loaded}
+        view={view}
+      />
+    </>
   );
 };
 
-const PhoneNewIssue = () => {
-  const createIssue = useCreateIssue();
+const MineActions = ({
+  onFilter,
+  search,
+  setSearch,
+  slug,
+  view,
+}: {
+  onFilter: ChangeFilter;
+  search: MineSearch;
+  setSearch: (patch: MineSearch) => void;
+  slug: string;
+  view: ViewKind;
+}) => {
+  const projects = useQuery(projectsQuery(slug)).data ?? [];
+  const { projects: details } = useMyIssues(slug);
 
   return (
-    <Button
-      aria-keyshortcuts="C"
-      aria-label="New issue"
-      className="md:hidden"
-      onClick={() => {
-        createIssue();
+    <IssueListActions
+      closed={search.closed === true}
+      filter={{
+        keys: mineFilterKeys,
+        onChange: onFilter,
+        options: useMineFilterOptions(mineStatuses(details), projects),
+        values: search,
       }}
-      size="icon-round"
-      variant="ghost"
-    >
-      <PlusIcon />
-    </Button>
+      onClosed={(all) => {
+        setSearch({ closed: all ? true : undefined });
+      }}
+      onOrder={(order) => {
+        setSearch({ order: order === "priority" ? undefined : order });
+      }}
+      order={search.order ?? "priority"}
+      orders={orders}
+      view={view}
+      viewKey={mineViewKey}
+    />
+  );
+};
+
+const MineFilterChips = ({
+  onChange,
+  onClear,
+  search,
+  slug,
+}: {
+  onChange: ChangeFilter;
+  onClear: () => void;
+  search: MineSearch;
+  slug: string;
+}) => {
+  const projects = useQuery(projectsQuery(slug)).data ?? [];
+  const { projects: details } = useMyIssues(slug);
+
+  return (
+    <FilterChips
+      keys={mineFilterKeys}
+      onChange={onChange}
+      onClear={onClear}
+      options={useMineFilterOptions(mineStatuses(details), projects)}
+      values={search}
+    />
   );
 };
 
@@ -264,10 +409,31 @@ const MyIssues = () => {
   const workspace = useWorkspace();
   const meId = useMe().data?.id;
   const projects = useQuery(projectsQuery(workspace.slug));
+  const labels = useQuery(labelsQuery(workspace.slug)).data;
+  const view = useProjectView(mineViewKey);
+
+  const search = withKnownLabels(
+    Route.useSearch({
+      select: ({ issue: _shown, ...filters }) => filters,
+      structuralSharing: true,
+    }),
+    labels
+  );
+
+  const { clearFilters, setSearch } = useMineSearchUpdates();
+
+  const onFilter: ChangeFilter = (key, values) => {
+    setSearch({ [key]: values.length === 0 ? undefined : values });
+  };
+
+  const ready =
+    projects.data !== undefined &&
+    projects.data.length > 0 &&
+    meId !== undefined;
 
   return (
     <Page
-      className="flex flex-col"
+      className={cn("flex flex-col", view === "board" && "overflow-hidden")}
       crumbs={[
         {
           label: workspace.name,
@@ -277,7 +443,17 @@ const MyIssues = () => {
           short: workspace.name,
         },
       ]}
-      actions={<PhoneNewIssue />}
+      actions={
+        ready ? (
+          <MineActions
+            onFilter={onFilter}
+            search={search}
+            setSearch={setSearch}
+            slug={workspace.slug}
+            view={view}
+          />
+        ) : undefined
+      }
       switcher={<NavSwitcher place={{ kind: "mine" }} />}
       title="My issues"
     >
@@ -300,16 +476,37 @@ const MyIssues = () => {
           partial={false}
         />
       ) : null}
-      {projects.data !== undefined &&
-      projects.data.length > 0 &&
-      meId !== undefined ? (
-        <AssignedIssues slug={workspace.slug} />
+      {ready ? (
+        <>
+          {isFiltered(search, mineFilterKeys) ? (
+            <MineFilterChips
+              onChange={onFilter}
+              onClear={clearFilters}
+              search={search}
+              slug={workspace.slug}
+            />
+          ) : null}
+          <div
+            className={cn(
+              "min-h-0 flex-1",
+              view === "list" ? "overflow-y-auto" : "flex flex-col"
+            )}
+          >
+            <AssignedIssues
+              onClear={clearFilters}
+              search={search}
+              slug={workspace.slug}
+              view={view}
+            />
+          </div>
+        </>
       ) : null}
     </Page>
   );
 };
 
 export const Route = createFileRoute("/$slug/my-issues")({
+  validateSearch: MineSearchSchema,
   component: MyIssues,
   loader: async ({ context, params }) => {
     await preload(async () => {

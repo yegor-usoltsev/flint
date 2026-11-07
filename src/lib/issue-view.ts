@@ -26,11 +26,41 @@ export type IssueSearch = v.InferOutput<typeof IssueSearchSchema>;
 
 export type Order = NonNullable<IssueSearch["order"]>;
 
-export type FilterKey = "assignee" | "label" | "priority" | "status";
+export const MineSearchSchema = v.object({
+  closed: IssueSearchSchema.entries.closed,
+  label: Ids,
+  order: v.fallback(v.optional(v.picklist(["updated"])), undefined),
+  priority: IssueSearchSchema.entries.priority,
+  project: Ids,
+  status: Ids,
+});
+
+export type MineSearch = v.InferOutput<typeof MineSearchSchema>;
+
+export type FilterKey =
+  | "assignee"
+  | "label"
+  | "priority"
+  | "project"
+  | "status";
+
+export type FilterValues = Partial<
+  Record<FilterKey, readonly (number | string)[] | undefined>
+>;
 
 export const filterKeys = ["status", "priority", "assignee", "label"] as const;
 
-const matches = <Value>(values: Value[] | undefined, actual: Value[]) => {
+export const mineFilterKeys = [
+  "project",
+  "status",
+  "priority",
+  "label",
+] as const;
+
+export const matches = <Value>(
+  values: readonly Value[] | undefined,
+  actual: Value[]
+) => {
   if (values === undefined || values.length === 0) {
     return true;
   }
@@ -57,10 +87,10 @@ export const shownStatuses = (statuses: Status[], search: IssueSearch) => {
     : statuses.filter((status) => shown.has(status.id));
 };
 
-export const withKnownLabels = (
-  search: IssueSearch,
+export const withKnownLabels = <Search extends { label?: string[] }>(
+  search: Search,
   labels: { id: string }[] | undefined
-): IssueSearch => {
+): Search => {
   if (labels === undefined || search.label === undefined) {
     return search;
   }
@@ -70,8 +100,10 @@ export const withKnownLabels = (
   return { ...search, label: search.label.filter((id) => known.has(id)) };
 };
 
-export const isFiltered = (search: IssueSearch) =>
-  filterKeys.some((key) => (search[key]?.length ?? 0) > 0);
+export const isFiltered = (
+  search: FilterValues,
+  keys: readonly FilterKey[] = filterKeys
+) => keys.some((key) => (search[key]?.length ?? 0) > 0);
 
 const compareText = (a: string, b: string) => {
   if (a === b) {
@@ -146,6 +178,8 @@ export const formatDate = (iso: string) => dateFormat.format(new Date(iso));
 
 export type ViewKind = "board" | "list";
 
+export const mineViewKey = "mine";
+
 const viewKey = (projectKey: string) => `view:${projectKey}`;
 
 const viewListeners = new Set<() => void>();
@@ -213,7 +247,7 @@ export const useStatusCollapsed = (statusId: string) =>
 
 export type IssueOrigin =
   | { panel?: string; projectKey: string; search: IssueSearch; view: ViewKind }
-  | { panel?: string; view: "mine" };
+  | { panel?: string; search?: MineSearch; view: "mine" };
 
 export const orderIssues = (
   issues: IssueSummary[],
