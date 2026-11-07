@@ -13,6 +13,7 @@ import type {
 } from "~/lib/api-types";
 import { newId } from "~/lib/ids";
 import { sortKeyBetween } from "~/lib/issue-view";
+import { refresh } from "~/lib/realtime-cache";
 import { readDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
 
@@ -463,11 +464,11 @@ export const setPage = (
   page: WikiPage
 ) => {
   const { queryKey } = wikiPagesQuery(wiki);
-  const tree = queryClient.getQueryState(queryKey);
+  const tree = queryClient.getQueryCache().find({ exact: true, queryKey });
 
   const listed =
-    tree?.fetchStatus === "idle" &&
-    !tree.isInvalidated &&
+    tree?.state.fetchStatus === "idle" &&
+    !tree.state.isInvalidated &&
     queryClient
       .getQueryData(queryKey)
       ?.some((row) => row.id === page.id && row.path === page.path);
@@ -483,10 +484,10 @@ export const setPage = (
             ? pageSummary(page)
             : row
         ),
-      { updatedAt: tree.dataUpdatedAt }
+      { updatedAt: tree.state.dataUpdatedAt }
     );
   } else {
-    void queryClient.invalidateQueries({ queryKey });
+    void refresh(queryClient, (query) => query === tree);
   }
 };
 

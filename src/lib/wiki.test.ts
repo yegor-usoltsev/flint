@@ -814,7 +814,7 @@ test("two rescues of the same page each get a new id and a free path", async () 
   expect(new Set([page.id, first.id, second.id]).size).toBe(3);
 });
 
-test("a saved page updates its tree row in place, while moved or new pages refetch the tree", () => {
+test("a saved page updates its tree row in place, while moved or new pages refetch the tree", async () => {
   const queryClient = new QueryClient();
   const { queryKey } = wikiPagesQuery(wiki);
 
@@ -831,13 +831,29 @@ test("a saved page updates its tree row in place, while moved or new pages refet
     path: "guides/moved",
     revision: page.revision + 2,
   });
+  await Bun.sleep(1);
   expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
-  queryClient.setQueryData(queryKey, [page]);
-  const pending = Promise.withResolvers<WikiPage[]>();
+});
 
-  void queryClient
-    .query({ queryFn: async () => await pending.promise, queryKey })
+test("a save during a tree fetch refetches the tree instead of keeping the older answer", async () => {
+  const queryClient = new QueryClient();
+  const { queryKey } = wikiPagesQuery(wiki);
+  const older = Promise.withResolvers<WikiPage[]>();
+  const saved = { ...page, revision: page.revision + 1, title: "New" };
+  const answers = [older.promise, Promise.resolve([saved])];
+
+  queryClient.setQueryData(queryKey, [page]);
+
+  const loading = queryClient
+    .query({
+      queryFn: async () => await (answers.shift() ?? older.promise),
+      queryKey,
+    })
     .catch(() => null);
-  setPage(queryClient, wiki, { ...page, revision: page.revision + 3 });
-  expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
+
+  setPage(queryClient, wiki, saved);
+  older.resolve([page]);
+  await loading;
+  await Bun.sleep(1);
+  expect(queryClient.getQueryData(queryKey)).toMatchObject([{ title: "New" }]);
 });
