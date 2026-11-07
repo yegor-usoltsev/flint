@@ -705,6 +705,15 @@ test("working set pages keep every status and report the full count", async () =
       { slug: "acme" }
     )
   ).toEqual({ keys: [started1, todo1], total: "7" });
+
+  await make("Backlog 2", "Backlog", "a7");
+  await make("Backlog 3", "Backlog", "a8");
+  await make("Started 3", "In Progress", "Zz");
+
+  expect(await page(`?q=${todo1}&limit=1`)).toEqual({
+    keys: [todo1],
+    total: "2",
+  });
 });
 
 const searchFor = async (auth: string, slug: string, query: string) =>

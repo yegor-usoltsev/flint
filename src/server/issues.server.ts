@@ -888,6 +888,7 @@ const listIssues = async (
           s.category
         ) as category,
         s.position, p.key, i.sort_key,
+        lower(p.key || '-' || i.number) = lower(${query.q}) as exact,
         coalesce(i.completed_at, i.canceled_at) as closed_at,
         row_number() over (
           partition by i.status_id
@@ -898,7 +899,7 @@ const listIssues = async (
     ),
     page as (
       select * from matched
-      order by ${
+      order by exact desc, ${
         closed
           ? db`closed_at desc, id desc`
           : db`place, category, position, key, id`
