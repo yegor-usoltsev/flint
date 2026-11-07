@@ -41,6 +41,7 @@ interface PanelState {
   issue: string | null;
   open: boolean;
   opening: IssueOpening | null;
+  pending: string | null;
   picked: boolean;
   roomy: boolean;
   scope: PanelScope;
@@ -53,6 +54,7 @@ let state: PanelState = {
   issue: null,
   open: false,
   opening: null,
+  pending: null,
   picked: false,
   roomy: false,
   scope: "list",
@@ -84,7 +86,7 @@ const load = () => {
 const update = (patch: Partial<PanelState>) => {
   load();
 
-  const next = { ...state, ...patch };
+  const next = { ...state, pending: null, ...patch };
 
   const sameView =
     next.available === state.available &&
@@ -92,7 +94,7 @@ const update = (patch: Partial<PanelState>) => {
     next.issue === state.issue &&
     next.open === state.open;
 
-  const sameRoom = next.roomy === state.roomy;
+  const sameRoom = next.roomy === state.roomy && next.pending === state.pending;
 
   const sameLayout =
     next.opening === state.opening &&
@@ -131,6 +133,7 @@ const serverState: PanelState = {
   issue: null,
   open: false,
   opening: null,
+  pending: null,
   picked: false,
   roomy: false,
   scope: "list",
@@ -182,7 +185,11 @@ export const usePanelShows = (key: string) =>
     () => {
       const current = snapshot();
 
-      return current.open && current.available && current.issue === key;
+      return (
+        current.open &&
+        current.available &&
+        (current.pending ?? current.issue) === key
+      );
     },
     () => false
   );
@@ -426,10 +433,16 @@ export const followFocus = (queryClient: QueryClient) => {
     return;
   }
 
-  follow = setTimeout(() => {
-    const key = issueKeyOfRow(queryClient, focusedId() ?? undefined);
+  const key = issueKeyOfRow(queryClient, focusedId() ?? undefined);
 
-    if (key !== null && panelShown()) {
+  if (key === null) {
+    return;
+  }
+
+  update({ pending: key });
+
+  follow = setTimeout(() => {
+    if (panelShown()) {
       openPanel(key);
     }
   }, 80);

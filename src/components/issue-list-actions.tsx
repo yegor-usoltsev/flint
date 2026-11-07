@@ -153,7 +153,7 @@ const DisplayOptions = <Order extends string>({
             <button
               aria-keyshortcuts="Meta+B"
               aria-pressed={layout.value === view}
-              className="text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:border-input aria-pressed:text-foreground focus-visible:ring-ring hit-area relative flex h-8 items-center justify-center gap-1.5 rounded-lg border font-medium outline-none focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground border-control-border aria-pressed:bg-accent aria-pressed:text-foreground focus-visible:ring-ring hit-area relative flex h-8 items-center justify-center gap-1.5 rounded-lg border font-medium outline-none focus-visible:ring-2"
               key={layout.value}
               onClick={() => {
                 rememberView(viewKey, layout.value);

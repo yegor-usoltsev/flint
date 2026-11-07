@@ -430,11 +430,13 @@ const useDiagramFit = (
 };
 
 const DiagramFrame = ({
+  children,
   onExpand,
   onSelect,
   size,
   svg,
 }: {
+  children: ReactNode;
   onExpand: () => void;
   onSelect?: () => void;
   size: DiagramSize | undefined;
@@ -459,54 +461,51 @@ const DiagramFrame = ({
           "--diagram-width": vars.width,
         };
 
-  const frame = cn(diagramFrame, "diagram-frame");
-
-  if (svg === undefined) {
-    return (
-      // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- A click on the placeholder selects the block like the rendered diagram; the toolbar reaches it by keyboard.
-      <div
-        aria-busy
-        className={frame}
-        onMouseDown={selectOnMouseDown(onSelect)}
-        style={style}
-      >
-        <Skeleton
-          className={cn(
-            "max-w-full",
-            size === undefined
-              ? "h-40 w-full max-w-lg"
-              : "aspect-(--diagram-ratio) w-(--diagram-width)"
-          )}
-        />
-      </div>
-    );
-  }
-
   return (
-    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
-    <section
-      aria-label="Diagram"
-      className={cn(
-        frame,
-        "focus-visible:ring-ring/50 outline-none focus-visible:ring-3",
-        onSelect === undefined && svg !== "" && "cursor-zoom-in"
+    <div className="diagram-frame relative" style={style}>
+      {svg === undefined ? (
+        // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- A click on the placeholder selects the block like the rendered diagram; the toolbar reaches it by keyboard.
+        <div
+          aria-busy
+          className={diagramFrame}
+          onMouseDown={selectOnMouseDown(onSelect)}
+        >
+          <Skeleton
+            className={cn(
+              "max-w-full",
+              size === undefined
+                ? "h-40 w-full max-w-lg"
+                : "aspect-(--diagram-ratio) w-(--diagram-width)"
+            )}
+          />
+        </div>
+      ) : (
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
+        <section
+          aria-label="Diagram"
+          className={cn(
+            diagramFrame,
+            "focus-visible:ring-ring/50 outline-none focus-visible:ring-3",
+            onSelect === undefined && svg !== "" && "cursor-zoom-in"
+          )}
+          data-fade={fade ? "" : undefined}
+          data-fit={fit ? "" : undefined}
+          // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
+          dangerouslySetInnerHTML={{ __html: svg }}
+          onClick={() => {
+            if (svg !== "" && (onSelect === undefined || coarsePointer())) {
+              onExpand();
+            }
+          }}
+          onMouseDown={selectOnMouseDown(onSelect)}
+          ref={ref}
+          onScroll={handleScroll}
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A wide diagram scrolls inside its frame, so the frame takes focus for keyboard scrolling.
+          tabIndex={0}
+        />
       )}
-      data-fade={fade ? "" : undefined}
-      data-fit={fit ? "" : undefined}
-      // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
-      dangerouslySetInnerHTML={{ __html: svg }}
-      onClick={() => {
-        if (svg !== "" && (onSelect === undefined || coarsePointer())) {
-          onExpand();
-        }
-      }}
-      onMouseDown={selectOnMouseDown(onSelect)}
-      ref={ref}
-      onScroll={handleScroll}
-      style={style}
-      // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A wide diagram scrolls inside its frame, so the frame takes focus for keyboard scrolling.
-      tabIndex={0}
-    />
+      {children}
+    </div>
   );
 };
 
@@ -540,49 +539,56 @@ const Diagram = ({
     }
   };
 
+  const toolbar =
+    menu === undefined && !ready ? null : (
+      <Toolbar
+        className={cn(
+          "pointer-coarse:opacity-100",
+          menu === undefined && "max-sm:hidden",
+          menu !== undefined && "max-sm:top-2.5 max-sm:right-14"
+        )}
+      >
+        {ready ? (
+          <ToolbarButton
+            className="max-sm:hidden"
+            label="Expand diagram"
+            onClick={expand}
+          >
+            <Maximize2Icon />
+          </ToolbarButton>
+        ) : null}
+        {menu}
+      </Toolbar>
+    );
+
   return (
     <>
       {failed ? (
-        <p className={statusClass}>{errorMessage(diagram.error)}</p>
+        <>
+          <p className={statusClass}>{errorMessage(diagram.error)}</p>
+          {toolbar}
+        </>
       ) : (
         <DiagramFrame
           onExpand={expand}
           onSelect={onSelect}
           size={size}
           svg={svg}
-        />
-      )}
-      {ready && !failed ? (
-        <Button
-          aria-label="Expand diagram"
-          className="absolute top-1 right-1 size-11 sm:hidden"
-          contentEditable={false}
-          onClick={expand}
-          size="icon-lg"
-          variant="outline"
-        >
-          <Maximize2Icon />
-        </Button>
-      ) : null}
-      {menu === undefined && !ready ? null : (
-        <Toolbar
-          className={cn(
-            "pointer-coarse:opacity-100",
-            menu === undefined && "max-sm:hidden",
-            menu !== undefined && "max-sm:top-2.5 max-sm:right-14"
-          )}
         >
           {ready ? (
-            <ToolbarButton
-              className="max-sm:hidden"
-              label="Expand diagram"
+            <Button
+              aria-label="Expand diagram"
+              className="absolute top-1 right-1 size-11 sm:hidden"
+              contentEditable={false}
               onClick={expand}
+              size="icon-lg"
+              variant="outline"
             >
               <Maximize2Icon />
-            </ToolbarButton>
+            </Button>
           ) : null}
-          {menu}
-        </Toolbar>
+          {toolbar}
+        </DiagramFrame>
       )}
       {viewer.viewer}
     </>

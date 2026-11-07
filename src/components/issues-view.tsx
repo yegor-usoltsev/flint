@@ -486,7 +486,7 @@ const List = ({
 );
 
 const cardClass =
-  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
+  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 ring-inset text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
 
 const CardContent = ({
   assignee = true,
