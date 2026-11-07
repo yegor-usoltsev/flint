@@ -9,6 +9,7 @@ import { projectView } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
 import { subscribeRealtime } from "~/lib/realtime-transport";
 import { flashRemote } from "~/lib/remote-flash";
+import type { RemoteChange } from "~/lib/remote-flash";
 import { animateMoves, rowRects } from "~/lib/remote-move";
 import {
   cancelNotices,
@@ -73,7 +74,7 @@ export const useRealtime = (
 
   useEffect(() => {
     const pending = new Map<string, QueryKey>();
-    const remote = new Set<string>();
+    const remote = new Map<string, RemoteChange>();
     const actors = new Map<string, Set<string>>();
     const stale = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -153,7 +154,7 @@ export const useRealtime = (
         await queryClient.invalidateQueries({ queryKey });
       });
 
-      const changed = [...remote];
+      const changed = new Map(remote);
 
       pending.clear();
       remote.clear();
@@ -224,7 +225,18 @@ export const useRealtime = (
                 byOther &&
                 (event.entity === "issue" || event.entity === "comment")
               ) {
-                remote.add(event.id);
+                const earlier = remote.get(event.id);
+
+                remote.set(event.id, {
+                  actorId: event.actorId,
+                  fields:
+                    earlier === undefined
+                      ? event.fields
+                      : earlier.fields &&
+                        event.fields && [
+                          ...new Set([...earlier.fields, ...event.fields]),
+                        ],
+                });
               }
 
               if (

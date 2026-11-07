@@ -326,7 +326,7 @@ const CommentItem = ({
   own: boolean;
 }) => {
   const cache = useTimelineCache(issue);
-  const remote = useRemoteFlash(comment.id);
+  const remote = useRemoteFlash(comment.id).row;
 
   const [editing, setEditing, readEditing] = useStoredText(
     `comment:${comment.id}`

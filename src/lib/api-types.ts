@@ -308,9 +308,18 @@ export type RealtimeEntity =
   | "wiki"
   | "workspace";
 
+export type IssueField =
+  | "assignee"
+  | "description"
+  | "labels"
+  | "priority"
+  | "status"
+  | "title";
+
 export interface RealtimeEvent {
   actorId?: string;
   entity: RealtimeEntity;
+  fields?: IssueField[];
   id: string;
   issueId?: string;
   pageId?: string;
