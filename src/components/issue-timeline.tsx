@@ -992,13 +992,13 @@ export const IssueTimeline = ({
   const from =
     earlier?.issueId === issue.id
       ? earlier.from
-      : itemTime(items.at(-recentItems - 1));
+      : itemTime(items.at(-recentItems));
 
   if (timeline.data !== undefined && earlier?.issueId !== issue.id) {
     setEarlier({ from, issueId: issue.id });
   }
 
-  const shown = items.filter((item) => itemTime(item) > from);
+  const shown = items.filter((item) => itemTime(item) >= from);
   const hidden = items.length - shown.length;
 
   const feed = runs(shown);
