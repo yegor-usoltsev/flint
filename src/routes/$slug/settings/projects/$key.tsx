@@ -67,7 +67,7 @@ const ProjectIconPicker = ({ project }: { project: ProjectDetail }) => {
       icon={project.icon}
       label="Project icon"
       onChange={(change) => {
-        saveInBackground("icon", async () => {
+        saveInBackground(Object.keys(change).join(","), async () => {
           await update.mutateAsync(change);
         });
       }}
