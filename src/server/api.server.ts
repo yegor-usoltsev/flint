@@ -245,6 +245,44 @@ export const apiHandler =
     }
   };
 
+const compressAbove = 1024;
+
+const acceptsGzip = (request: Request) =>
+  (request.headers.get("accept-encoding") ?? "").split(",").some((part) => {
+    const [name = "", ...params] = part
+      .split(";")
+      .map((item) => item.trim().toLowerCase());
+
+    return (
+      name === "gzip" && !params.some((param) => /^q=0(?:\.0*)?$/u.test(param))
+    );
+  });
+
+const compressed = async (request: Request, response: Response) => {
+  if (
+    !acceptsGzip(request) ||
+    response.headers.get("content-type")?.startsWith("application/json") !==
+      true
+  ) {
+    return response;
+  }
+
+  const body = await response.bytes();
+
+  if (body.length < compressAbove) {
+    return new Response(body, response);
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set("Content-Encoding", "gzip");
+  headers.append("Vary", "Accept-Encoding");
+
+  return new Response(Bun.gzipSync(body), {
+    headers,
+    status: response.status,
+  });
+};
+
 type EndpointResult<E extends Endpoint> =
   ResponseOf<E> extends object
     ? JsonResponse<ResponseOf<E>> | ResponseOf<E>
@@ -260,11 +298,15 @@ interface EndpointContext<E extends Endpoint> extends ApiContext<
 
 export const endpoint = <E extends Endpoint>(
   handler: (context: EndpointContext<E>) => Promise<EndpointResult<E>>
-) =>
-  apiHandler<EndpointParams<E>>(
+) => {
+  const handle = apiHandler<EndpointParams<E>>(
     async (context) =>
       await handler({
         ...context,
         body: async (schema) => await readBody(context.request, schema),
       })
   );
+
+  return async (context: { params: EndpointParams<E>; request: Request }) =>
+    await compressed(context.request, await handle(context));
+};

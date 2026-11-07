@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
@@ -52,6 +52,7 @@ export default defineConfig({
     tailwindcss(),
     tanstackStart(),
     nitro({
+      compressPublicAssets: { brotli: true, gzip: true },
       plugins: [
         "./src/server/plugins/security-headers.ts",
         "./src/server/plugins/storage-sweep.ts",
@@ -59,6 +60,12 @@ export default defineConfig({
       ],
       preset: "bun",
       routeRules: {
+        ...Object.fromEntries(
+          readdirSync("public").map((name) => [
+            `/${name}`,
+            { headers: { "Cache-Control": "public, max-age=86400" } },
+          ])
+        ),
         "/files/**": {
           headers: {
             "Content-Security-Policy":

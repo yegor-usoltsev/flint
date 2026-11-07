@@ -10,6 +10,8 @@ The image is also on `ghcr.io/yegor-usoltsev/flint`. Each start applies pending 
 
 Put a reverse proxy in front that terminates TLS and serves HTTP/2, because browsers without SharedWorker open an event stream per visible tab and can exhaust the six HTTP/1.1 connections per host. Do not buffer `/api/v1/workspaces/*/stream`, and keep idle connections open longer than its 5-second pings. Have the proxy send `Strict-Transport-Security: max-age=31536000`, so browsers stop trying plain HTTP after the first visit; add `includeSubDomains` only when every subdomain serves HTTPS.
 
+Flint serves its scripts and styles precompressed with Brotli or gzip and gzips JSON API responses over 1 KB, so the proxy needs no compression of its own. If it compresses anyway, such as Caddy's `encode` or nginx's `gzip on`, it passes these through and compresses only the HTML pages; Caddy's `encode` flushes each event of the stream, and nginx's default `gzip_types` leaves the stream alone.
+
 With an `https` `APP_URL`, the session and sign-in cookies carry the `__Host-` prefix, so a page on a sibling subdomain, such as Gitea's, cannot plant its own session in Flint. A sign-in from before this change keeps working from its old cookie until it expires.
 
 Each account gets about `SEARCH_EMBEDDINGS_PER_MINUTE` query embeddings a minute, after which search falls back to full text until the allowance refills. It can run `UPLOADS_PER_USER` uploads at once, with images resized in turns between accounts, and hold `STREAMS_PER_USER` event streams open, after which new ones answer 429 and retry until one closes. JSON request bodies stop at 4 MB. Flint counts all of this in memory per container, so limit anonymous traffic at the reverse proxy.
