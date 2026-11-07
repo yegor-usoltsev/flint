@@ -150,15 +150,21 @@ const applyPending = (issue: IssueSummary, writes: Write[]) => {
   return item;
 };
 
+export const issueListKeys = (projectId: string) => [
+  ["issues", projectId],
+  ["issues", "workspace"],
+];
+
 const setIssue = (
   queryClient: QueryClient,
   queue: Queue,
   update: (issue: IssueSummary) => IssueSummary
 ) => {
-  queryClient.setQueriesData<IssueData>(
-    { queryKey: ["issues", queue.projectId] },
-    (data) => mapIssues(data, queue.base.id, update)
-  );
+  for (const queryKey of issueListKeys(queue.projectId)) {
+    queryClient.setQueriesData<IssueData>({ queryKey }, (data) =>
+      mapIssues(data, queue.base.id, update)
+    );
+  }
 };
 
 const fromServer = (queryClient: QueryClient, queue: Queue, issue: Issue) => {
@@ -368,7 +374,10 @@ export const writeIssue = (
     queue.writes.push({ ...options, patch });
   }
 
-  void queryClient.cancelQueries({ queryKey: ["issues", queue.projectId] });
+  for (const queryKey of issueListKeys(queue.projectId)) {
+    void queryClient.cancelQueries({ queryKey });
+  }
+
   setIssue(queryClient, queue, (item) => applyPatch(item, patch));
   start(queryClient, queue);
 };
@@ -438,7 +447,10 @@ export const findCachedIssue = (
   projectId: string,
   key: string
 ) =>
-  queryClient
-    .getQueriesData<IssueData>({ queryKey: ["issues", projectId] })
-    .flatMap(([, data]) => flatIssues(data))
+  issueListKeys(projectId)
+    .flatMap((queryKey) =>
+      queryClient
+        .getQueriesData<IssueData>({ queryKey })
+        .flatMap(([, data]) => flatIssues(data))
+    )
     .find((issue) => issue.key === key);

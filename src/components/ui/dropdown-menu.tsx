@@ -23,14 +23,18 @@ function DropdownMenuContent({
   sideOffset = 4,
   className,
   region = "Menu",
+  sheet = false,
   ...props
 }: MenuPrimitive.Popup.Props &
   Pick<
     MenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "anchor" | "side" | "sideOffset"
-  > & { region?: string }) {
+  > & { region?: string; sheet?: boolean }) {
   return (
     <MenuPrimitive.Portal>
+      {sheet ? (
+        <MenuPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/25 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:bg-black/40" />
+      ) : null}
       <MenuPrimitive.Positioner
         aria-label={props["aria-label"] ?? region}
         role="region"
@@ -38,6 +42,7 @@ function DropdownMenuContent({
         align={align}
         anchor={anchor}
         alignOffset={alignOffset}
+        collisionPadding={sheet ? 0 : undefined}
         side={side}
         sideOffset={sideOffset}
       >
@@ -45,6 +50,7 @@ function DropdownMenuContent({
           data-slot="dropdown-menu-content"
           className={cn(
             "bg-popover text-popover-foreground ring-foreground/10 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 shadow-menu z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-xl p-1.5 ring-1 duration-150 ease-out outline-none data-closed:overflow-hidden",
+            sheet && "max-h-(--available-height) rounded-t-none pb-4",
             className
           )}
           {...props}

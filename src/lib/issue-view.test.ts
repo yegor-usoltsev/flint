@@ -12,6 +12,7 @@ import {
   isFiltered,
   orderIssues,
   sortKeyBetween,
+  withKnown,
   withKnownLabels,
 } from "~/lib/issue-view";
 
@@ -189,4 +190,14 @@ test("a filter on a deleted label is ignored once the labels have loaded", () =>
     priority: [1],
   });
   expect(isFiltered(withKnownLabels({ label: ["gone"] }, []))).toBe(false);
+});
+
+test("a filter on a deleted project or renamed status is ignored", () => {
+  const search = { project: ["ENG", "OLD"], status: ["Todo"] };
+
+  expect(withKnown(search, "project", undefined)).toBe(search);
+  expect(withKnown(search, "project", ["ENG"])).toEqual({
+    project: ["ENG"],
+    status: ["Todo"],
+  });
 });

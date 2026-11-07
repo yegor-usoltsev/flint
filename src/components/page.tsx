@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
-import { Fragment, use } from "react";
-import type { ReactElement, ReactNode } from "react";
+import { Fragment, use, useRef } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 
 import { useOpenPalette } from "~/components/command-palette";
 import { PanelToggle } from "~/components/panel-toggle";
@@ -66,10 +66,12 @@ const TitleText = ({ short, title }: { short?: string; title: string }) => {
 };
 
 const PageTitle = ({
+  header,
   short,
   switcher,
   title,
 }: {
+  header: RefObject<HTMLElement | null>;
   short?: string;
   switcher?: ReactNode;
   title: string;
@@ -96,7 +98,13 @@ const PageTitle = ({
             data-icon="inline-end"
           />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="max-h-96 w-64">
+        <DropdownMenuContent
+          align="start"
+          anchor={isMobile ? header : undefined}
+          className={isMobile ? undefined : "max-h-96 w-64"}
+          sheet={isMobile}
+          sideOffset={isMobile ? 0 : undefined}
+        >
           {switcher}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -137,11 +145,15 @@ export const Page = ({
   title: string;
 }) => {
   const pane = use(PagePane);
+  const header = useRef<HTMLElement>(null);
   const scope = crumbs.findLast((crumb) => crumb.short !== undefined);
 
   return (
     <>
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <header
+        className="flex h-11 shrink-0 items-center gap-2 border-b px-3"
+        ref={header}
+      >
         {pane === "detail" ? null : (
           <>
             <SidebarTrigger className="-ml-1" />
@@ -186,7 +198,12 @@ export const Page = ({
               );
             })}
             <BreadcrumbItem className="min-w-24">
-              <PageTitle short={short} switcher={switcher} title={title} />
+              <PageTitle
+                header={header}
+                short={short}
+                switcher={switcher}
+                title={title}
+              />
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>

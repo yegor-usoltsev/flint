@@ -24,6 +24,7 @@ export const eventKeys = (slug: string, event: RealtimeEvent) =>
     comment: [["timeline", event.issueId]],
     issue: [
       ["issues", event.projectId],
+      ["issues", "workspace", slug],
       ["timeline", event.id],
       ["workspaces", slug, "projects"],
       ["workspaces", slug, "labels"],

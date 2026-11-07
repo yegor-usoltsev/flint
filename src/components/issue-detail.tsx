@@ -12,8 +12,10 @@ import {
   CopyIcon,
   EllipsisIcon,
   GitBranchIcon,
+  GitPullRequestIcon,
   LinkIcon,
   Maximize2Icon,
+  PaperclipIcon,
   PanelRightIcon,
   RotateCcwIcon,
   Trash2Icon,
@@ -26,7 +28,7 @@ import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
 import { IssueAttachments } from "~/components/issue-attachments";
 import { IssueDevelopment } from "~/components/issue-development";
 import { Hint } from "~/components/issue-parts";
-import { IssueProperties } from "~/components/issue-properties";
+import { IssueProperties, PillButton } from "~/components/issue-properties";
 import { IssueTimeline } from "~/components/issue-timeline";
 import { LoadFailed } from "~/components/load-failed";
 import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
@@ -50,8 +52,13 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
-import { isNotFound, useMe, useUsername } from "~/lib/api";
-import type { Issue, IssueSummary, ProjectDetail } from "~/lib/api-types";
+import { api, isNotFound, useMe, useUsername } from "~/lib/api";
+import type {
+  Attachment,
+  Issue,
+  IssueSummary,
+  ProjectDetail,
+} from "~/lib/api-types";
 import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
@@ -108,7 +115,7 @@ const useNeighbors = (project: ProjectDetail, key: string) => {
   const mine = origin.view === "mine";
   const search = mine ? {} : origin.search;
   const open = useWorkingSet(project, search).query.data ?? [];
-  const assigned = useMyIssues(workspace.slug, mine);
+  const assigned = useMyIssues(workspace.slug, mine ? origin.search : {}, mine);
 
   const closed =
     search.closed === true
@@ -123,7 +130,7 @@ const useNeighbors = (project: ProjectDetail, key: string) => {
 
   const issues =
     origin.view === "mine"
-      ? assigned.issues
+      ? assigned.ordered
       : orderIssues(
           [...open, ...closed.filter((issue) => !ids.has(issue.id))],
           project.statuses,
@@ -172,7 +179,7 @@ const originCrumb = (
         link: (
           <Link
             params={{ slug }}
-            search={{ issue: origin.panel }}
+            search={{ ...origin.search, issue: origin.panel }}
             to="/$slug/my-issues"
           />
         ),
@@ -200,7 +207,7 @@ const useBack = (origin: IssueOrigin) => {
     if (origin.view === "mine") {
       void navigate({
         params: { slug },
-        search: { issue: origin.panel },
+        search: { ...origin.search, issue: origin.panel },
         to: "/$slug/my-issues",
       });
     } else {
@@ -293,6 +300,80 @@ const Title = ({
   );
 };
 
+const sectionId = (issue: Issue, section: "attachments" | "development") =>
+  `${section}-${issue.id}`;
+
+const jumpTo = (id: string) => {
+  const section = document.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+
+  section?.scrollIntoView({ behavior: "smooth", block: "start" });
+  section?.focus({ preventScroll: true });
+};
+
+const SectionsChip = ({ issue }: { issue: Issue }) => {
+  const attachments = useQuery({
+    queryFn: async () =>
+      await api<Attachment[]>(`/issues/${issue.key}/attachments`),
+    queryKey: ["attachments", issue.id],
+  }).data?.length;
+
+  const jumped = useRef<string | null>(null);
+
+  const sections = [
+    {
+      count: issue.links.length,
+      icon: GitPullRequestIcon,
+      id: sectionId(issue, "development"),
+      label: "Development",
+    },
+    {
+      count: attachments ?? 0,
+      icon: PaperclipIcon,
+      id: sectionId(issue, "attachments"),
+      label: "Attachments",
+    },
+  ];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<PillButton aria-label="More sections" />}>
+        <EllipsisIcon className="size-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className="w-48"
+        finalFocus={() => {
+          const id = jumped.current;
+          jumped.current = null;
+
+          if (id === null) {
+            return true;
+          }
+
+          jumpTo(id);
+
+          return false;
+        }}
+      >
+        {sections.map((section) => (
+          <DropdownMenuItem
+            disabled={section.count === 0}
+            key={section.id}
+            onClick={() => {
+              jumped.current = section.id;
+            }}
+          >
+            <section.icon />
+            {section.label}
+            <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+              {section.count === 0 ? "None" : section.count}
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 const Description = ({
   sections,
   editable,
@@ -349,8 +430,20 @@ const Description = ({
       />
       {sections ? (
         <>
-          <IssueDevelopment issue={issue} />
-          <IssueAttachments compact editable={editable} issue={issue} />
+          <div
+            className="scroll-mt-4 outline-none empty:hidden"
+            id={sectionId(issue, "development")}
+            tabIndex={-1}
+          >
+            <IssueDevelopment issue={issue} />
+          </div>
+          <div
+            className="scroll-mt-4 outline-none empty:hidden"
+            id={sectionId(issue, "attachments")}
+            tabIndex={-1}
+          >
+            <IssueAttachments compact editable={editable} issue={issue} />
+          </div>
         </>
       ) : null}
     </section>
@@ -655,7 +748,10 @@ const IssueBody = ({
           </h2>
         )}
         {wide ? null : (
-          <div className="flex flex-wrap gap-1.5">{properties("pills")}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {properties("pills")}
+            {ready ? <SectionsChip issue={data} /> : null}
+          </div>
         )}
         {ready ? (
           <Description
@@ -1023,7 +1119,7 @@ const SplitIssue = ({
       <Navigate
         params={{ slug }}
         replace
-        search={{ issue: issueKey }}
+        search={{ ...origin.search, issue: issueKey }}
         to="/$slug/my-issues"
       />
     );

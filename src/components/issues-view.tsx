@@ -21,17 +21,20 @@ import { cn } from "cn";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  KanbanIcon,
   ListIcon,
   ListFilterIcon,
   PlusIcon,
-  SlidersHorizontalIcon,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
 import { useCreateIssue } from "~/components/create-issue";
-import { FilterChips, FilterMenu } from "~/components/issue-filters";
+import {
+  FilterChips,
+  useProjectFilterOptions,
+} from "~/components/issue-filters";
+import type { ChangeFilter } from "~/components/issue-filters";
+import { IssueListActions } from "~/components/issue-list-actions";
 import { IssueContextMenu } from "~/components/issue-menu";
 import {
   Assignee,
@@ -55,25 +58,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
 import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
 import { rangeLabel, visibleRange } from "~/lib/board-range";
 import type { ColumnRange } from "~/lib/board-range";
@@ -86,16 +71,17 @@ import {
 } from "~/lib/issue-selection";
 import {
   filterIssues,
+  filterKeys,
   formatDate,
   groupIssues,
   isClosedStatus,
   isFiltered,
-  rememberView,
   setStatusCollapsed,
   shownStatuses,
   useProjectView,
   useStatusCollapsed,
   sortKeyBetween,
+  withKnown,
   withKnownLabels,
 } from "~/lib/issue-view";
 import type { IssueSearch, Order, ViewKind } from "~/lib/issue-view";
@@ -109,7 +95,6 @@ import {
 } from "~/lib/queries";
 import { rootRem } from "~/lib/rem";
 import { useRemoteFlash } from "~/lib/remote-flash";
-import { useCommands } from "~/lib/use-hotkey";
 import { useUpdateIssue } from "~/lib/use-update-issue";
 import type { IssuePatch } from "~/lib/use-update-issue";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -145,17 +130,19 @@ const sortableTransition = { duration: 150, easing: easeOut, idle: false };
 const dropAnimation = { duration: 150, easing: easeOut };
 
 interface ViewProps {
+  assignee?: boolean;
   columns: Columns;
   dragging: string | null;
   footer: (status: Status) => ReactNode;
   issues: Map<string, IssueSummary>;
   lookup: IssueLookup;
+  onCreate: (status: Status) => void;
   onOpen: OpenIssue;
   statuses: Status[];
   total: (status: Status, loaded: number) => number;
 }
 
-type OpenIssue = (
+export type OpenIssue = (
   issue: IssueSummary,
   how: "open" | "prefetch" | "tab"
 ) => void;
@@ -341,6 +328,7 @@ export const RowContent = ({
 );
 
 const ListGroup = ({
+  assignee,
   dragging,
   footer,
   ids,
@@ -349,7 +337,7 @@ const ListGroup = ({
   onOpen,
   status,
   total,
-}: Omit<ViewProps, "columns" | "statuses"> & {
+}: Omit<ViewProps, "columns" | "onCreate" | "statuses"> & {
   ids: string[];
   status: Status;
 }) => {
@@ -397,7 +385,7 @@ const ListGroup = ({
             key={id}
             onOpen={onOpen}
           >
-            <RowContent issue={issue} lookup={lookup} />
+            <RowContent assignee={assignee} issue={issue} lookup={lookup} />
           </Sortable>
         );
       })}
@@ -406,7 +394,12 @@ const ListGroup = ({
   );
 };
 
-const List = ({ columns, statuses, ...props }: ViewProps) => (
+const List = ({
+  columns,
+  onCreate: _create,
+  statuses,
+  ...props
+}: ViewProps) => (
   <div className={listClass}>
     {statuses.map((status) => (
       <ListGroup
@@ -423,9 +416,11 @@ const cardClass =
   "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
 
 const CardContent = ({
+  assignee = true,
   issue,
   lookup,
 }: {
+  assignee?: boolean;
   issue: IssueSummary;
   lookup: IssueLookup;
 }) => (
@@ -433,7 +428,9 @@ const CardContent = ({
     <span className="flex flex-col gap-0.5">
       <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
         {issue.key}
-        <Assignee className="ml-auto" issue={issue} lookup={lookup} />
+        {assignee ? (
+          <Assignee className="ml-auto" issue={issue} lookup={lookup} />
+        ) : null}
       </span>
       <span className="line-clamp-2 font-medium break-words">
         {issue.title}
@@ -450,10 +447,12 @@ const CardContent = ({
 );
 
 const BoardColumn = ({
+  assignee,
   footer,
   ids,
   issues,
   lookup,
+  onCreate,
   onOpen,
   status,
   total,
@@ -462,7 +461,6 @@ const BoardColumn = ({
   status: Status;
 }) => {
   const { isDropTarget, ref } = useColumn(status);
-  const createIssue = useCreateIssue();
 
   return (
     <section
@@ -486,7 +484,7 @@ const BoardColumn = ({
           aria-label={`New issue in ${status.name}`}
           className="ml-auto"
           onClick={() => {
-            createIssue({ statusId: status.id });
+            onCreate(status);
           }}
           size="icon-xs"
           variant="ghost"
@@ -507,7 +505,7 @@ const BoardColumn = ({
               key={id}
               onOpen={onOpen}
             >
-              <CardContent issue={issue} lookup={lookup} />
+              <CardContent assignee={assignee} issue={issue} lookup={lookup} />
             </Sortable>
           );
         })}
@@ -920,6 +918,146 @@ const useClosedIssues = (
   return { closed, hasOlder, isCut, shown, total };
 };
 
+const acceptAll = () => true;
+
+export type MoveIssue = (
+  issue: IssueSummary,
+  to: { ids: string[]; index: number; statusId: string }
+) => void;
+
+export const IssueLayout = ({
+  accepts = acceptAll,
+  columns: sorted,
+  issues: byId,
+  manualIn,
+  onMove,
+  view,
+  ...rest
+}: Omit<ViewProps, "dragging"> & {
+  accepts?: (issue: IssueSummary, statusId: string) => boolean;
+  manualIn: (statusId: string) => boolean;
+  onMove: MoveIssue;
+  view: ViewKind;
+}) => {
+  const [drag, setDrag] = useState<{ columns: Columns; id: string } | null>(
+    null
+  );
+
+  const columns = drag?.columns ?? sorted;
+
+  const onDragOver: DragDropEventHandlers["onDragOver"] = (event) => {
+    const { source, target } = event.operation;
+
+    if (!isSortable(source)) {
+      return;
+    }
+
+    const issue = byId.get(String(source.id));
+    const group = isSortable(target) ? target.group : target?.id;
+    const reorder = isSortable(target) && source.group === target.group;
+
+    const foreign =
+      group !== undefined &&
+      group !== source.group &&
+      issue !== undefined &&
+      !accepts(issue, String(group));
+
+    const blocked = reorder ? !manualIn(String(group)) : foreign;
+
+    if (blocked) {
+      event.preventDefault();
+
+      if (foreign) {
+        setDrag((current) =>
+          current === null ? null : { ...current, columns: sorted }
+        );
+      }
+
+      return;
+    }
+
+    setDrag((current) =>
+      current === null
+        ? null
+        : { ...current, columns: move(current.columns, event) }
+    );
+  };
+
+  const onDragEnd: DragDropEventHandlers["onDragEnd"] = (event) => {
+    const id = String(event.operation.source?.id);
+    const issue = byId.get(id);
+    const to = drag === null ? undefined : placement(drag.columns, id);
+
+    setDrag(null);
+
+    if (event.canceled || issue === undefined || to === undefined) {
+      return;
+    }
+
+    const from = placement(sorted, id);
+
+    if (
+      from?.statusId === to.statusId &&
+      (!manualIn(to.statusId) || from.index === to.index)
+    ) {
+      return;
+    }
+
+    onMove(issue, to);
+  };
+
+  const props: ViewProps = {
+    ...rest,
+    columns,
+    dragging: drag?.id ?? null,
+    issues: byId,
+  };
+
+  return (
+    <DragDropProvider
+      onDragEnd={onDragEnd}
+      onDragMove={closeIssueMenu}
+      onDragOver={onDragOver}
+      onDragStart={(event) => {
+        setDrag({ columns: sorted, id: String(event.operation.source?.id) });
+      }}
+      sensors={sensors}
+    >
+      <IssueContextMenu>
+        {view === "board" ? <Board {...props} /> : <List {...props} />}
+      </IssueContextMenu>
+      <DragOverlay dropAnimation={dropAnimation}>
+        {(source) => {
+          const issue = byId.get(String(source.id));
+
+          return issue === undefined ? null : (
+            <div
+              className={cn(
+                view === "board" ? cardClass : rowClass,
+                "bg-popover ring-ring/20 cursor-grabbing shadow-lg ring-1"
+              )}
+            >
+              {view === "board" ? (
+                <CardContent
+                  assignee={rest.assignee}
+                  issue={issue}
+                  lookup={rest.lookup}
+                />
+              ) : (
+                <RowContent
+                  assignee={rest.assignee}
+                  issue={issue}
+                  lookup={rest.lookup}
+                />
+              )}
+            </div>
+          );
+        }}
+      </DragOverlay>
+    </DragDropProvider>
+  );
+};
+
 const Issues = ({
   onClearFilters,
   project,
@@ -946,10 +1084,7 @@ const Issues = ({
   const labels = useQuery(labelsQuery(workspace.slug));
   const updateIssue = useUpdateIssue();
 
-  const [drag, setDrag] = useState<{ columns: Columns; id: string } | null>(
-    null
-  );
-
+  const createIssue = useCreateIssue();
   const order: Order = search.order ?? "manual";
 
   const all = mergeIssues(
@@ -1022,7 +1157,6 @@ const Issues = ({
     ])
   );
 
-  const columns = drag?.columns ?? sorted;
   const byId = new Map(all.map((issue) => [issue.id, issue]));
 
   const lookup: IssueLookup = {
@@ -1043,49 +1177,10 @@ const Issues = ({
     );
   };
 
-  const onDragOver: DragDropEventHandlers["onDragOver"] = (event) => {
-    const { source, target } = event.operation;
-
-    if (
-      isSortable(source) &&
-      isSortable(target) &&
-      source.group === target.group &&
-      !manualIn(String(target.group))
-    ) {
-      event.preventDefault();
-
-      return;
-    }
-
-    setDrag((current) =>
-      current === null
-        ? null
-        : { ...current, columns: move(current.columns, event) }
-    );
-  };
-
-  const onDragEnd: DragDropEventHandlers["onDragEnd"] = (event) => {
-    const id = String(event.operation.source?.id);
-    const issue = byId.get(id);
-    const to = drag === null ? undefined : placement(drag.columns, id);
-
-    setDrag(null);
-
-    if (event.canceled || issue === undefined || to === undefined) {
-      return;
-    }
-
-    const from = placement(sorted, id);
-    const sameStatus = to.statusId === issue.statusId;
-    const manual = manualIn(to.statusId);
-
-    if (sameStatus && (!manual || from?.index === to.index)) {
-      return;
-    }
-
+  const onMove: MoveIssue = (issue, to) => {
     const patch: IssuePatch = { statusId: to.statusId };
 
-    if (manual) {
+    if (manualIn(to.statusId)) {
       patch.sortKey = sortKeyBetween(
         byId.get(to.ids[to.index - 1] ?? "")?.sortKey,
         byId.get(to.ids[to.index + 1] ?? "")?.sortKey
@@ -1098,7 +1193,7 @@ const Issues = ({
   const statuses = shownStatuses(project.statuses, search);
 
   const footer = (status: Status) => {
-    const loaded = columns[status.id]?.length ?? 0;
+    const loaded = sorted[status.id]?.length ?? 0;
 
     return (
       <>
@@ -1145,17 +1240,6 @@ const Issues = ({
     }
   };
 
-  const props: ViewProps = {
-    columns,
-    dragging: drag?.id ?? null,
-    footer,
-    issues: byId,
-    lookup,
-    onOpen,
-    statuses,
-    total,
-  };
-
   return (
     <>
       <RefreshFailed
@@ -1165,39 +1249,21 @@ const Issues = ({
         }}
         what="issues"
       />
-      <DragDropProvider
-        onDragEnd={onDragEnd}
-        onDragMove={closeIssueMenu}
-        onDragOver={onDragOver}
-        onDragStart={(event) => {
-          setDrag({ columns: sorted, id: String(event.operation.source?.id) });
+      <IssueLayout
+        columns={sorted}
+        footer={footer}
+        issues={byId}
+        lookup={lookup}
+        manualIn={manualIn}
+        onCreate={(status) => {
+          createIssue({ statusId: status.id });
         }}
-        sensors={sensors}
-      >
-        <IssueContextMenu>
-          {view === "board" ? <Board {...props} /> : <List {...props} />}
-        </IssueContextMenu>
-        <DragOverlay dropAnimation={dropAnimation}>
-          {(source) => {
-            const issue = byId.get(String(source.id));
-
-            return issue === undefined ? null : (
-              <div
-                className={cn(
-                  view === "board" ? cardClass : rowClass,
-                  "bg-popover ring-ring/20 cursor-grabbing shadow-lg ring-1"
-                )}
-              >
-                {view === "board" ? (
-                  <CardContent issue={issue} lookup={lookup} />
-                ) : (
-                  <RowContent issue={issue} lookup={lookup} />
-                )}
-              </div>
-            );
-          }}
-        </DragOverlay>
-      </DragDropProvider>
+        onMove={onMove}
+        onOpen={onOpen}
+        statuses={statuses}
+        total={total}
+        view={view}
+      />
     </>
   );
 };
@@ -1208,127 +1274,58 @@ const orders = [
   { label: "Last updated", value: "updated" },
 ] as const;
 
-const completedOptions = [
-  { label: "Past 2 weeks", value: "recent" },
-  { label: "All", value: "all" },
-] as const;
-
-const isOrder = (value: unknown): value is Order =>
-  orders.some((order) => order.value === value);
-
-const OptionSelect = <Value extends string>({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: Value) => void;
-  options: readonly { label: string; value: Value }[];
-  value: Value;
-}) => (
-  <div className="flex h-8 items-center justify-between gap-2">
-    <span className="text-muted-foreground">{label}</span>
-    <Select
-      items={options}
-      onValueChange={(next) => {
-        const option = options.find((item) => item.value === next);
-
-        if (option !== undefined) {
-          onChange(option.value);
-        }
-      }}
-      value={value}
-    >
-      <SelectTrigger aria-label={label} className="w-34" size="sm">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  </div>
-);
-
-const layouts = [
-  { icon: ListIcon, label: "List", value: "list" },
-  { icon: KanbanIcon, label: "Board", value: "board" },
-] as const;
-
-const DisplayOptions = ({
-  onChange,
-  projectKey,
+const ProjectActions = ({
+  onFilter,
+  project,
   search,
+  setSearch,
   view,
 }: {
-  onChange: (patch: IssueSearch) => void;
-  projectKey: string;
+  onFilter: ChangeFilter;
+  project: ProjectDetail;
   search: IssueSearch;
+  setSearch: (patch: IssueSearch) => void;
   view: ViewKind;
 }) => (
-  <Popover>
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <PopoverTrigger
-            render={
-              <Button
-                aria-label="Display options"
-                size="icon-round"
-                variant="ghost"
-              />
-            }
-          />
-        }
-      >
-        <SlidersHorizontalIcon />
-      </TooltipTrigger>
-      <TooltipContent side="bottom">Display options</TooltipContent>
-    </Tooltip>
-    <PopoverContent align="end" aria-label="Display options" className="w-76">
-      <div className="grid grid-cols-2 gap-2">
-        {layouts.map((layout) => (
-          <button
-            aria-keyshortcuts="Meta+B"
-            aria-pressed={layout.value === view}
-            className="text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:border-input aria-pressed:text-foreground focus-visible:ring-ring hit-area relative flex h-8 items-center justify-center gap-1.5 rounded-lg border font-medium outline-none focus-visible:ring-2"
-            key={layout.value}
-            onClick={() => {
-              rememberView(projectKey, layout.value);
-            }}
-            type="button"
-          >
-            <layout.icon aria-hidden className="size-3.5" />
-            {layout.label}
-          </button>
-        ))}
-      </div>
-      <OptionSelect
-        label="Ordering"
-        onChange={(order) => {
-          if (isOrder(order)) {
-            onChange({ order: order === "manual" ? undefined : order });
-          }
-        }}
-        options={orders}
-        value={search.order ?? "manual"}
-      />
-      <OptionSelect
-        label="Completed issues"
-        onChange={(completed) => {
-          onChange({ closed: completed === "all" ? true : undefined });
-        }}
-        options={completedOptions}
-        value={search.closed === true ? "all" : "recent"}
-      />
-    </PopoverContent>
-  </Popover>
+  <IssueListActions
+    closed={search.closed === true}
+    filter={{
+      keys: filterKeys,
+      onChange: onFilter,
+      options: useProjectFilterOptions(project.statuses),
+      values: search,
+    }}
+    onClosed={(all) => {
+      setSearch({ closed: all ? true : undefined });
+    }}
+    onOrder={(order) => {
+      setSearch({ order: order === "manual" ? undefined : order });
+    }}
+    order={search.order ?? "manual"}
+    orders={orders}
+    view={view}
+    viewKey={project.key}
+  />
+);
+
+const ProjectFilterChips = ({
+  onChange,
+  onClear,
+  project,
+  search,
+}: {
+  onChange: ChangeFilter;
+  onClear: () => void;
+  project: ProjectDetail;
+  search: IssueSearch;
+}) => (
+  <FilterChips
+    keys={filterKeys}
+    onChange={onChange}
+    onClear={onClear}
+    options={useProjectFilterOptions(project.statuses)}
+    values={search}
+  />
 );
 
 export const IssuesView = ({
@@ -1343,8 +1340,6 @@ export const IssuesView = ({
   const labels = useQuery(labelsQuery(workspace.slug)).data;
   const search = withKnownLabels(requested, labels);
   const view = useProjectView(projectKey);
-  const [filtering, setFiltering] = useState(false);
-  const createIssue = useCreateIssue();
 
   const setSearch = (patch: IssueSearch) => {
     void navigate({
@@ -1368,101 +1363,59 @@ export const IssuesView = ({
     });
   };
 
-  useCommands([
-    {
-      group: "View",
-      hotkey: { keys: "f" },
-      id: "filter",
-      label: "Filter…",
-      run: () => {
-        setFiltering(true);
-      },
-    },
-    {
-      group: "View",
-      hotkey: { keys: "b", mod: true },
-      id: "toggle-view",
-      label: view === "list" ? "Switch to board" : "Switch to list",
-      run: () => {
-        rememberView(projectKey, view === "list" ? "board" : "list");
-      },
-    },
-  ]);
+  const onFilter: ChangeFilter = (key, values) => {
+    setSearch({ [key]: values.length === 0 ? undefined : values });
+  };
+
+  const knownIn = (project: ProjectDetail) =>
+    withKnown(
+      search,
+      "status",
+      project.statuses.map((status) => status.id)
+    );
 
   return (
     <ProjectPage
       renderActions={(project) => (
-        <>
-          <FilterMenu
-            onChange={(key, values) => {
-              setSearch({ [key]: values.length === 0 ? undefined : values });
-            }}
-            onOpenChange={setFiltering}
-            open={filtering}
-            project={project}
-            search={search}
-          />
-          <DisplayOptions
-            onChange={setSearch}
-            projectKey={project.key}
-            search={search}
-            view={view}
-          />
-          <Button
-            aria-keyshortcuts="C"
-            className="max-md:hidden"
-            onClick={() => {
-              createIssue();
-            }}
-            size="pill"
-            variant="ghost"
-          >
-            <PlusIcon data-icon="inline-start" />
-            New issue
-          </Button>
-          <Button
-            aria-keyshortcuts="C"
-            aria-label="New issue"
-            className="md:hidden"
-            onClick={() => {
-              createIssue();
-            }}
-            size="icon-round"
-            variant="ghost"
-          >
-            <PlusIcon />
-          </Button>
-        </>
+        <ProjectActions
+          onFilter={onFilter}
+          project={project}
+          search={knownIn(project)}
+          setSearch={setSearch}
+          view={view}
+        />
       )}
       className={cn("flex flex-col", view === "board" && "overflow-hidden")}
     >
-      {(project) => (
-        <>
-          {isFiltered(search) ? (
-            <FilterChips
-              onChange={(key, values) => {
-                setSearch({ [key]: values.length === 0 ? undefined : values });
-              }}
-              onClear={clearFilters}
-              project={project}
-              search={search}
-            />
-          ) : null}
-          <div
-            className={cn(
-              "min-h-0 flex-1",
-              view === "list" ? "overflow-y-auto" : "flex flex-col"
-            )}
-          >
-            <Issues
-              onClearFilters={clearFilters}
-              project={project}
-              search={search}
-              view={view}
-            />
-          </div>
-        </>
-      )}
+      {(project) => {
+        const known = knownIn(project);
+
+        return (
+          <>
+            {isFiltered(known) ? (
+              <ProjectFilterChips
+                onChange={onFilter}
+                onClear={clearFilters}
+                project={project}
+                search={known}
+              />
+            ) : null}
+            <div
+              className={cn(
+                "min-h-0 flex-1",
+                view === "list" ? "overflow-y-auto" : "flex flex-col"
+              )}
+            >
+              <Issues
+                onClearFilters={clearFilters}
+                project={project}
+                search={known}
+                view={view}
+              />
+            </div>
+          </>
+        );
+      }}
     </ProjectPage>
   );
 };
