@@ -3,7 +3,7 @@ import { createRouter } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 
-import { PagePending } from "~/components/page";
+import { PagePending } from "~/components/page-pending";
 import { RouteError } from "~/components/route-error";
 import { RouteNotFound } from "~/components/route-not-found";
 import { rememberImportFailure } from "~/lib/import-recovery";
