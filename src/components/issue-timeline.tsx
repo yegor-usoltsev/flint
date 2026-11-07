@@ -306,7 +306,15 @@ const useTimelineCache = (issue: Issue) => {
     );
   };
 
-  return { queryClient, queryKey, update };
+  const settle = (change: (comments: Comment[]) => Comment[]) => {
+    update(change);
+
+    if (queryClient.getQueryState(queryKey)?.fetchStatus === "fetching") {
+      void queryClient.invalidateQueries({ queryKey });
+    }
+  };
+
+  return { queryClient, queryKey, settle, update };
 };
 
 const CommentVersionSchema = v.looseObject({
@@ -401,7 +409,7 @@ const CommentItem = ({
       }
     },
     onSuccess: (saved) => {
-      cache.update((comments) =>
+      cache.settle((comments) =>
         comments.map((item) =>
           item.id === saved.id && item.version <= saved.version ? saved : item
         )
@@ -418,7 +426,7 @@ const CommentItem = ({
       await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
     },
     onSuccess: () => {
-      cache.update((comments) =>
+      cache.settle((comments) =>
         comments.filter((item) => item.id !== comment.id)
       );
     },
@@ -623,7 +631,7 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
       }
     },
     onSuccess: (saved) => {
-      cache.update((comments) =>
+      cache.settle((comments) =>
         comments.some((item) => item.id === saved.id)
           ? comments.map((item) =>
               item.id === saved.id && item.version <= saved.version
