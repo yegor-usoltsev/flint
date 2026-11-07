@@ -13,7 +13,8 @@ To retake the screenshots, run Flint with `bun run demo` data (a worktree can us
 
 ```sh
 for f in board issue search wiki; do
-  url=$(curl -sS --user "api:$TINIFY_API_KEY" --data-binary @"$f.png" -D - -o /dev/null https://api.tinify.com/shrink | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }')
-  curl -sS --user "api:$TINIFY_API_KEY" -H 'Content-Type: application/json' -d '{"convert":{"type":"image/webp"}}' -o "assets/screenshots/$f.webp" "$url"
+  url=$(curl -fsS --user "api:$TINIFY_API_KEY" --data-binary @"$f.png" -D - -o /dev/null https://api.tinify.com/shrink | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }')
+  curl -fsS --user "api:$TINIFY_API_KEY" -H 'Content-Type: application/json' -d '{"convert":{"type":"image/webp"}}' -o "$f.webp" "$url" &&
+    mv "$f.webp" "assets/screenshots/$f.webp"
 done
 ```
