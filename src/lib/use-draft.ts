@@ -42,6 +42,7 @@ const bases = new Map<string, string>();
 const uploads = new Map<string, number>();
 const listeners = new Set<() => void>();
 const dirty = new Set<string>();
+const held = new Map<string, () => void>();
 let owner: string | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let warning = false;
@@ -57,7 +58,25 @@ const subscribe = (listener: () => void) => {
   };
 };
 
+const takeHeld = (key: string) => {
+  held.get(key)?.();
+};
+
+export const holdEdits = (key: string, take: () => void) => {
+  held.set(key, take);
+
+  return () => {
+    if (held.get(key) === take) {
+      held.delete(key);
+    }
+  };
+};
+
 const persist = () => {
+  for (const take of held.values()) {
+    take();
+  }
+
   if (persistTimer !== null) {
     clearTimeout(persistTimer);
     persistTimer = null;
@@ -323,6 +342,8 @@ export const settleDraft = (key: string, saved: string) => {
       return;
     }
 
+    takeHeld(key);
+
     const current = drafts.get(key);
 
     if (current?.edits === edits && current?.text === saved) {
@@ -379,6 +400,7 @@ export const useDraft = <
   };
 
   const flush = () => {
+    takeHeld(key);
     stopTimer(key);
 
     const current = drafts.get(key);

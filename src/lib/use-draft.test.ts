@@ -8,6 +8,7 @@ import {
   adoptDrafts,
   discardDraft,
   editDraft,
+  holdEdits,
   isRetryableDraftError,
   readDraft,
   settleDraft,
@@ -90,6 +91,31 @@ test("queued saves clear the draft once the last one is told", () => {
   drain();
 
   expect(readDraft("queue:body")).toBeUndefined();
+});
+
+test("a save that answers while an editor holds newer text keeps that text as a draft", () => {
+  editDraft("held:body", "A", "");
+  settleDraft("held:body", "A");
+
+  let held: string | null = "AB";
+
+  const release = holdEdits("held:body", () => {
+    if (held !== null) {
+      editDraft("held:body", held, "");
+      held = null;
+    }
+  });
+
+  drain();
+  release();
+
+  expect(readDraft("held:body")).toMatchObject({
+    base: "A",
+    status: "pending",
+    text: "AB",
+  });
+
+  discardDraft("held:body");
 });
 
 test("a save from before a discard never clears the same text retyped", () => {
