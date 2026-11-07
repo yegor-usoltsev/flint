@@ -69,6 +69,8 @@ test("a diagram never shrinks its smallest label below 12 px", () => {
   expect(
     smallestLabel("<svg><style>.c4-type{font-size: 0.75em}</style></svg>")
   ).toBe(9.75);
+  expect(smallestLabel('<svg><g style="font-size: 75%"></g></svg>')).toBe(9.75);
+  expect(smallestLabel('<svg><text font-size="0.1"></text></svg>')).toBe(6);
   expect(diagramVars({ height: 100, width: 1300 }).min).toBe("1200px");
   expect(diagramVars({ height: 100, width: 1300 }, 10).min).toBe("1560px");
 });

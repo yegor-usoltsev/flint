@@ -726,7 +726,7 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
   const frame = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
   const range = useColumnRange(board, statuses);
-  const more = range !== null && range.last < range.count;
+  const more = range === null || range.last < range.count;
   const layout = useColumnWidth(frame, statuses.length);
   const shownWidth = useRef(layout.width);
 

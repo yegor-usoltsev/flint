@@ -310,7 +310,10 @@
 @utility diagram-frame {
   width: min(
     100%,
-    max(100% - var(--wide-extra, 0px), var(--diagram-width, 100%) + 2rem + 2px)
+    max(
+      100% - var(--wide-extra, 0px),
+      max(var(--diagram-width, 100%), var(--diagram-min, 0px)) + 2rem + 2px
+    )
   );
   margin-inline: auto;
 

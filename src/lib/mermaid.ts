@@ -166,21 +166,26 @@ export interface DiagramSize {
   width: number;
 }
 
+const unitScale = new Map([
+  ["%", labelPx / 100],
+  ["em", labelPx],
+]);
+
 export const smallestLabel = (svg: string) => {
   let smallest = labelPx;
 
   for (const match of svg.matchAll(
-    /font-size(?::\s*(?<css>[\d.]+)(?<unit>px|em)|="(?<attr>[\d.]+)")/gu
+    /font-size(?::\s*(?<css>[\d.]+)(?<unit>px|em|%)|="(?<attr>[\d.]+)")/gu
   )) {
     const value = Number(match.groups?.["css"] ?? match.groups?.["attr"]);
-    const px = match.groups?.["unit"] === "em" ? value * labelPx : value;
+    const px = value * (unitScale.get(match.groups?.["unit"] ?? "px") ?? 1);
 
     if (px > 0 && px < smallest) {
       smallest = px;
     }
   }
 
-  return smallest;
+  return Math.max(smallest, minLabelPx / 2);
 };
 
 export const diagramVars = (size: DiagramSize, smallest = labelPx) => ({
