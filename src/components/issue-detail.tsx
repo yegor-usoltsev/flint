@@ -345,10 +345,13 @@ const SectionsChip = ({ issue }: { issue: Issue }) => {
           const id = jumped.current;
           jumped.current = null;
 
-          return (
-            id === null ||
-            document.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
-          );
+          if (id === null) {
+            return true;
+          }
+
+          jumpTo(id);
+
+          return false;
         }}
       >
         {sections.map((section) => (
@@ -357,7 +360,6 @@ const SectionsChip = ({ issue }: { issue: Issue }) => {
             key={section.id}
             onClick={() => {
               jumped.current = section.id;
-              jumpTo(section.id);
             }}
           >
             <section.icon />

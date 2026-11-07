@@ -79,6 +79,7 @@ import {
   useProjectView,
   useStatusCollapsed,
   sortKeyBetween,
+  withKnown,
   withKnownLabels,
 } from "~/lib/issue-view";
 import type { IssueSearch, Order, ViewKind } from "~/lib/issue-view";
@@ -1309,31 +1310,39 @@ export const IssuesView = ({
       )}
       className={cn("flex flex-col", view === "board" && "overflow-hidden")}
     >
-      {(project) => (
-        <>
-          {isFiltered(search) ? (
-            <ProjectFilterChips
-              onChange={onFilter}
-              onClear={clearFilters}
-              project={project}
-              search={search}
-            />
-          ) : null}
-          <div
-            className={cn(
-              "min-h-0 flex-1",
-              view === "list" ? "overflow-y-auto" : "flex flex-col"
-            )}
-          >
-            <Issues
-              onClearFilters={clearFilters}
-              project={project}
-              search={search}
-              view={view}
-            />
-          </div>
-        </>
-      )}
+      {(project) => {
+        const known = withKnown(
+          search,
+          "status",
+          project.statuses.map((status) => status.id)
+        );
+
+        return (
+          <>
+            {isFiltered(known) ? (
+              <ProjectFilterChips
+                onChange={onFilter}
+                onClear={clearFilters}
+                project={project}
+                search={known}
+              />
+            ) : null}
+            <div
+              className={cn(
+                "min-h-0 flex-1",
+                view === "list" ? "overflow-y-auto" : "flex flex-col"
+              )}
+            >
+              <Issues
+                onClearFilters={clearFilters}
+                project={project}
+                search={known}
+                view={view}
+              />
+            </div>
+          </>
+        );
+      }}
     </ProjectPage>
   );
 };
