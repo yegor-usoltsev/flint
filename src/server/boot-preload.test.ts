@@ -8,8 +8,8 @@ test("pages preload the requests their first render waits for", () => {
   );
   expect(bootPreloads("/acme/my-issues")?.split(", ")).toEqual([
     "</api/v1/me>; rel=preload; as=fetch; crossorigin",
-    "</api/v1/workspaces/acme/projects>; rel=preload; as=fetch; crossorigin",
-    "</api/v1/workspaces/acme/labels>; rel=preload; as=fetch; crossorigin",
+    "</api/v1/workspaces/acme/projects?counts=false>; rel=preload; as=fetch; crossorigin",
+    "</api/v1/workspaces/acme/labels?counts=false>; rel=preload; as=fetch; crossorigin",
     "</api/v1/workspaces/acme/members>; rel=preload; as=fetch; crossorigin",
   ]);
   expect(bootPreloads("/doc/123")).toBeNull();
