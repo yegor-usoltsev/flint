@@ -1,4 +1,4 @@
-import { afterEach, expect, spyOn, test } from "bun:test";
+import { afterEach, expect, jest, spyOn, test } from "bun:test";
 
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import type { InfiniteData, QueryKey } from "@tanstack/react-query";
@@ -115,6 +115,7 @@ afterEach(() => {
   }
 
   spyOn(globalThis, "fetch").mockRestore();
+  jest.useRealTimers();
 });
 
 const setup = () => {
@@ -214,6 +215,62 @@ test("an edit patches every cached copy and refetches no list", async () => {
   );
   expect(queryClient.getQueryData(["timeline", "1"])).toEqual({
     comments: timeline.comments,
+    events: [{ id: "e1" }],
+  });
+});
+
+test("edits in a burst load the activity once at once and once after a gap", async () => {
+  jest.useFakeTimers();
+
+  const { queryClient, shown } = setup();
+
+  shown(["timeline", "1"], { comments: [], events: [] });
+
+  const paths = serve(() => Response.json([]));
+
+  const edit = async (version: number) => {
+    await applyEvents(queryClient, "acme", [
+      edited(row("1", { title: String(version), version }), ["title"]),
+    ]);
+  };
+
+  await edit(2);
+  expect(paths).toHaveLength(1);
+  jest.advanceTimersByTime(500);
+  await edit(3);
+  jest.advanceTimersByTime(500);
+  await edit(4);
+  expect(paths).toHaveLength(1);
+  jest.advanceTimersByTime(1000);
+  await Promise.resolve();
+  expect(paths).toHaveLength(2);
+  jest.advanceTimersByTime(5000);
+  expect(paths).toHaveLength(2);
+});
+
+test("a scheduled activity load keeps the answer of the one in flight", async () => {
+  jest.useFakeTimers();
+
+  const { queryClient, shown } = setup();
+  const slow = Promise.withResolvers<Response>();
+
+  shown(["timeline", "1"], { comments: [], events: [] });
+  spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(async () => await slow.promise, {
+      preconnect: fetch.preconnect,
+    })
+  );
+
+  const first = applyEvents(queryClient, "acme", [
+    edited(row("1", { title: "2", version: 2 }), ["title"]),
+  ]);
+
+  await applyEvents(queryClient, "acme", [
+    edited(row("1", { title: "3", version: 3 }), ["title"]),
+  ]);
+  slow.resolve(Response.json([{ id: "e1" }]));
+  await first;
+  expect(queryClient.getQueryData(["timeline", "1"])).toMatchObject({
     events: [{ id: "e1" }],
   });
 });

@@ -7,7 +7,7 @@ import { perKey } from "~/server/limits.server";
 
 interface Listener {
   close: () => void;
-  send: (chunk: string) => void;
+  send: (chunk: Uint8Array) => void;
   stop: () => void;
   userId: string;
 }
@@ -17,9 +17,13 @@ const pingsPerCheck = 6;
 const listeners = new Map<string, Set<Listener>>();
 const streams = perKey(() => env.STREAMS_PER_USER);
 const encoder = new TextEncoder();
+const pingChunk = encoder.encode("event: ping\ndata:\n\n");
+
+const encode = (event: RealtimeEvent) =>
+  encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
 
 export const publish = (workspaceId: string, event: RealtimeEvent) => {
-  const chunk = `data: ${JSON.stringify(event)}\n\n`;
+  const chunk = encode(event);
 
   for (const listener of listeners.get(workspaceId) ?? []) {
     listener.send(chunk);
@@ -27,7 +31,7 @@ export const publish = (workspaceId: string, event: RealtimeEvent) => {
 };
 
 export const publishToUser = (userId: string, event: RealtimeEvent) => {
-  const chunk = `data: ${JSON.stringify(event)}\n\n`;
+  const chunk = encode(event);
 
   for (const workspaceListeners of listeners.values()) {
     for (const listener of workspaceListeners) {
@@ -82,7 +86,7 @@ const openStream = (
     },
     send: (chunk) => {
       if (workspaceListeners.has(listener)) {
-        controller?.enqueue(encoder.encode(chunk));
+        controller?.enqueue(chunk);
       }
     },
     stop: () => {
@@ -106,7 +110,7 @@ const openStream = (
     start: (streamController) => {
       controller = streamController;
       ping = setInterval(() => {
-        listener.send("event: ping\ndata:\n\n");
+        listener.send(pingChunk);
         pings += 1;
 
         if (pings % pingsPerCheck === 0) {
@@ -115,7 +119,7 @@ const openStream = (
       }, pingMs);
       listeners.set(workspaceId, workspaceListeners);
       workspaceListeners.add(listener);
-      listener.send("retry: 3000\n\nevent: ping\ndata:\n\n");
+      listener.send(encoder.encode("retry: 3000\n\nevent: ping\ndata:\n\n"));
     },
   });
 

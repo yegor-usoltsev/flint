@@ -30,7 +30,7 @@ interface Timeline {
 }
 
 interface Plan {
-  partials: Map<string, { query: Query; run: () => Promise<void> }>;
+  partials: Map<string, { query: Query; run: () => Promise<void> | void }>;
   stale: Set<Query>;
 }
 
@@ -183,16 +183,21 @@ const regroups = (
 };
 
 const latest = new Map<string, symbol>();
+const nextLoad = new WeakMap<Query, number>();
+const waiting = new Map<string, symbol>();
+const activityGapMs = 2000;
 
 const timelinePart = <Value>(
   queryClient: QueryClient,
   plan: Plan,
   {
+    gap = 0,
     issueId,
     load,
     merge,
     part,
   }: {
+    gap?: number;
     issueId: string;
     load: () => Promise<Value>;
     merge: (timeline: Timeline, value: Value) => Timeline;
@@ -218,12 +223,18 @@ const timelinePart = <Value>(
   }
 
   const slot = `${query.queryHash}:${part}`;
+  const delay = gap > 0 ? (nextLoad.get(query) ?? 0) - Date.now() : 0;
 
   const run = async () => {
     const token = Symbol(slot);
     const since = query.state.dataUpdatedAt;
 
     latest.set(slot, token);
+    waiting.delete(slot);
+
+    if (gap > 0) {
+      nextLoad.set(query, Date.now() + gap);
+    }
 
     const loaded = await load().then(
       (value) => ({ value }),
@@ -251,7 +262,18 @@ const timelinePart = <Value>(
     }
   };
 
-  plan.partials.set(slot, { query, run });
+  const later = () => {
+    const token = Symbol(slot);
+
+    waiting.set(slot, token);
+    setTimeout(() => {
+      if (waiting.get(slot) === token) {
+        void run();
+      }
+    }, delay);
+  };
+
+  plan.partials.set(slot, { query, run: delay > 0 ? later : run });
 };
 
 const issueQueries = (
@@ -343,6 +365,7 @@ const changedIssue = (
 
   if (fields.size > 0) {
     timelinePart(queryClient, plan, {
+      gap: activityGapMs,
       issueId: id,
       load: async () =>
         await request("GET /issues/:issueKey/activity", {

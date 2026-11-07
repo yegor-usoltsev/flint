@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
 import type { Issue } from "~/lib/api-types";
-import { cachedIssues, findIssue } from "~/lib/issue-focus";
+import {
+  cachedIssues,
+  findIssue,
+  findListedIssueByKey,
+} from "~/lib/issue-focus";
 
 const issue = (id: string, deletedAt: string | null = null): Issue => ({
   assigneeId: null,
@@ -45,5 +49,37 @@ describe("issue targets", () => {
     expect(
       cachedIssues(queryClient, [issue("1"), issue("2")]).map(({ id }) => id)
     ).toEqual(["1"]);
+  });
+
+  test("only a current list counts as listing a key", () => {
+    const queryClient = new QueryClient();
+
+    const shown = (queryKey: string[]) =>
+      new QueryObserver(queryClient, {
+        queryKey,
+        staleTime: Infinity,
+      }).subscribe(() => {});
+
+    queryClient.setQueryData(["issues", "p"], [issue("1")]);
+    queryClient.setQueryData(["issues", "p", "detail", "ENG-2"], issue("2"));
+    queryClient.setQueryData(["issues", "q"], [issue("3")]);
+
+    const stops = [
+      shown(["issues", "p"]),
+      shown(["issues", "p", "detail", "ENG-2"]),
+    ];
+
+    expect(findListedIssueByKey(queryClient, "ENG-1")?.id).toBe("1");
+    expect(findListedIssueByKey(queryClient, "ENG-2")).toBeNull();
+    expect(findListedIssueByKey(queryClient, "ENG-3")?.id).toBe("3");
+    void queryClient.invalidateQueries({
+      queryKey: ["issues", "q"],
+      refetchType: "none",
+    });
+    expect(findListedIssueByKey(queryClient, "ENG-3")).toBeNull();
+
+    for (const stop of stops) {
+      stop();
+    }
   });
 });
