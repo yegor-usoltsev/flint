@@ -440,16 +440,17 @@ const DeleteDialog = ({
 
   const remove = useMutation({
     mutationFn: async () => {
+      const ids = subtreeIds(pages.data ?? [], node);
+
       await request("DELETE /wiki/:pageId", { params: { pageId: node.id } });
+
+      return ids;
     },
     onError: notifyError(`Could not delete ${node.title}`),
-    onSuccess: async () => {
+    onSuccess: async (ids) => {
       discardDraft(`${wikiDraftId(node.id)}:title`);
       discardDraft(`${wikiDraftId(node.id)}:body`);
-      forgetRecentHrefs(
-        wiki.slug,
-        subtreeIds(pages.data ?? [], node).map(pageHref)
-      );
+      forgetRecentHrefs(wiki.slug, ids.map(pageHref));
       notifyWithAction({
         action: "Undo",
         onAction: () => {
