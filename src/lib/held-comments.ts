@@ -37,3 +37,6 @@ export const seenIds = ({
     ? all
     : known;
 };
+
+export const followsEnd = (gap: number, reader: Reader) =>
+  gap <= 48 && !holdsComments(reader);
