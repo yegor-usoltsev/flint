@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
 import { FileTextIcon } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
-import { MarkdownView } from "~/components/markdown-view";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -17,6 +16,12 @@ import type { DiffPart } from "~/lib/line-diff";
 import { notifyError } from "~/lib/notify";
 import { setPage, wikiRevisionQuery, wikiRevisionsQuery } from "~/lib/wiki";
 import type { Wiki } from "~/lib/wiki";
+
+const MarkdownView = lazy(async () => {
+  const { MarkdownView: View } = await import("~/components/markdown-view");
+
+  return { default: View };
+});
 
 const dayFormat = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -263,11 +268,13 @@ const RevisionPane = ({
         {loaded && !changes ? (
           <div className="flex flex-col gap-4">
             <h3 className="text-title">{revision.data.title}</h3>
-            <MarkdownView
-              attachments={`/wiki/${pageId}/attachments`}
-              className="text-prose"
-              value={revision.data.body}
-            />
+            <Suspense fallback={<Skeleton className="h-24 w-full" />}>
+              <MarkdownView
+                attachments={`/wiki/${pageId}/attachments`}
+                className="text-prose"
+                value={revision.data.body}
+              />
+            </Suspense>
           </div>
         ) : null}
       </div>
