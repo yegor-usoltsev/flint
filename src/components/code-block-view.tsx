@@ -48,7 +48,10 @@ import {
   diagramImage,
   diagramQuery,
   diagramSize,
+  diagramVars,
   parseDiagram,
+  smallestLabel,
+  svgSize,
   useDarkTheme,
 } from "~/lib/mermaid";
 import type { DiagramSize } from "~/lib/mermaid";
@@ -249,7 +252,7 @@ const statusClass = "text-muted-foreground mt-1 px-1 font-sans text-xs";
 const coarsePointer = () => window.matchMedia("(pointer: coarse)").matches;
 
 const diagramFrame =
-  "group-data-selected/code:ring-ring flex min-h-16 justify-center overflow-x-auto rounded-lg border p-4 group-data-selected/code:ring-2";
+  "group-data-selected/code:ring-ring flex min-h-16 justify-center-safe overflow-x-auto rounded-lg border p-4 group-data-selected/code:ring-2";
 
 const useDiagramViewer = () => {
   const [src, setSrc] = useState<string | null>(null);
@@ -308,15 +311,33 @@ const DiagramFrame = ({
   size: DiagramSize | undefined;
   svg: string | undefined;
 }) => {
-  const frame = cn(diagramFrame, "[&_svg]:h-auto [&_svg]:max-w-full");
+  const shown = svg === undefined || svg === "" ? undefined : svgSize(svg);
+  const measured = shown ?? size;
+
+  const smallest = svg === undefined ? undefined : smallestLabel(svg);
+
+  const vars =
+    measured === undefined ? undefined : diagramVars(measured, smallest);
+
+  const style =
+    vars === undefined
+      ? undefined
+      : {
+          "--diagram-min": vars.min,
+          "--diagram-ratio": vars.ratio,
+          "--diagram-width": vars.width,
+        };
+
+  const frame = cn(diagramFrame, "diagram-frame");
 
   if (svg === undefined) {
     return (
       // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- A click on the placeholder selects the block like the rendered diagram; the toolbar reaches it by keyboard.
       <div
         aria-busy
-        className={diagramFrame}
+        className={frame}
         onMouseDown={selectOnMouseDown(onSelect)}
+        style={style}
       >
         <Skeleton
           className={cn(
@@ -325,14 +346,6 @@ const DiagramFrame = ({
               ? "h-40 w-full max-w-lg"
               : "aspect-(--diagram-ratio) w-(--diagram-width)"
           )}
-          style={
-            size === undefined
-              ? undefined
-              : {
-                  "--diagram-ratio": `${size.width} / ${size.height}`,
-                  "--diagram-width": `${size.width}px`,
-                }
-          }
         />
       </div>
     );
@@ -342,20 +355,25 @@ const DiagramFrame = ({
     return (
       <button
         aria-label="Expand diagram"
-        className={cn(frame, "w-full cursor-zoom-in")}
+        className={cn(frame, "cursor-zoom-in")}
         // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
         dangerouslySetInnerHTML={{ __html: svg }}
         disabled={svg === ""}
         onClick={onExpand}
+        style={style}
         type="button"
       />
     );
   }
 
   return (
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
-    <div
-      className={frame}
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
+    <section
+      aria-label="Diagram"
+      className={cn(
+        frame,
+        "focus-visible:ring-ring/50 outline-none focus-visible:ring-3"
+      )}
       // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
       dangerouslySetInnerHTML={{ __html: svg }}
       onClick={() => {
@@ -364,6 +382,9 @@ const DiagramFrame = ({
         }
       }}
       onMouseDown={selectOnMouseDown(onSelect)}
+      style={style}
+      // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A wide diagram scrolls inside its frame, so the frame takes focus for keyboard scrolling.
+      tabIndex={0}
     />
   );
 };
@@ -505,6 +526,7 @@ const DiagramBlock = ({
     <NodeViewWrapper
       className="group/code relative"
       data-active={selectionInside === true ? "" : undefined}
+      data-diagram={showSource ? undefined : ""}
       data-selected={selected}
     >
       <pre className="relative" hidden={!showSource}>

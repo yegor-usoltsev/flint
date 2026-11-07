@@ -320,6 +320,23 @@
   }
 }
 
+@utility diagram-frame {
+  width: min(
+    100%,
+    max(
+      100% - var(--wide-extra, 0px),
+      max(var(--diagram-width, 100%), var(--diagram-min, 0px)) + 2rem + 2px
+    )
+  );
+  margin-inline: auto;
+
+  & > svg {
+    height: auto;
+    min-width: var(--diagram-min, 0px);
+    max-width: min(100%, var(--diagram-width, 100%)) !important;
+  }
+}
+
 @utility fade-right {
   mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
 }
@@ -670,8 +687,22 @@
     & .tableWrapper {
       @apply overflow-x-auto;
     }
+    & > .tableWrapper,
+    & > * > [data-diagram] {
+      margin-inline: calc(var(--wide-extra, 0px) / -2);
+    }
+    & > .media:has(> img:not([width])),
+    & > p > .media:has(> img:not([width])) {
+      @apply w-max;
+      max-width: calc(var(--wide-text, 100%) + var(--wide-extra, 0px));
+      translate: min(0px, calc(var(--wide-text, 100%) / 2 - 50%));
+    }
     & table {
       @apply w-full border-collapse overflow-hidden text-left;
+    }
+    & > .tableWrapper > table {
+      @apply mx-auto w-auto;
+      min-width: calc(100% - var(--wide-extra, 0px));
     }
     & th,
     & td {
