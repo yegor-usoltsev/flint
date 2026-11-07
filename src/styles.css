@@ -360,7 +360,7 @@
   );
   margin-inline: auto;
 
-  & > * > svg {
+  & > section > svg {
     height: auto;
     min-width: var(--diagram-min, 0px);
     max-width: min(100%, var(--diagram-width, 100%)) !important;

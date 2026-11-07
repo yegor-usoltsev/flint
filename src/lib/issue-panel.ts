@@ -86,7 +86,9 @@ const load = () => {
 const update = (patch: Partial<PanelState>) => {
   load();
 
-  const replaces = "issue" in patch || "open" in patch;
+  const replaces =
+    "issue" in patch || "open" in patch || patch.available === false;
+
   const next = { ...state, ...(replaces && { pending: null }), ...patch };
 
   const sameView =
