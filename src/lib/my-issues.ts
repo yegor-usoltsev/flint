@@ -134,6 +134,28 @@ export const mergeClosed = (
   return [...open, ...rest];
 };
 
+export const mineGroups = (
+  shown: Status[],
+  columns: Record<string, string[]>,
+  keepClosed: boolean
+) => {
+  const filled = (status: Status) => (columns[status.id]?.length ?? 0) > 0;
+
+  const last =
+    shown.findLast((status) => isClosedStatus(status) && filled(status)) ??
+    shown.findLast(isClosedStatus);
+
+  return {
+    groups: shown.filter(
+      (status) =>
+        !isClosedStatus(status) ||
+        filled(status) ||
+        (keepClosed && status === last)
+    ),
+    lastClosed: last?.id,
+  };
+};
+
 export const createTarget = (
   projects: ProjectDetail[],
   statusName: string,

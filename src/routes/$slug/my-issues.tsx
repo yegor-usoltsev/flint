@@ -38,7 +38,6 @@ import type { IssueSummary, Status } from "~/lib/api-types";
 import { openIssueRow } from "~/lib/issue-panel";
 import { useSelectionScope } from "~/lib/issue-selection";
 import {
-  isClosedStatus,
   isFiltered,
   mineFilterKeys,
   MineSearchSchema,
@@ -50,6 +49,7 @@ import {
 import type { MineSearch, ViewKind } from "~/lib/issue-view";
 import {
   createTarget,
+  mineGroups,
   mineStatuses,
   useMineSearchUpdates,
   useMyIssues,
@@ -283,7 +283,12 @@ const AssignedIssues = ({
   const byId = new Map(visible.map((issue) => [issue.id, issue]));
   const projectOf = new Map(projects.map((project) => [project.id, project]));
   const groupName = new Map(shown.map((status) => [status.id, status.name]));
-  const lastClosed = shown.findLast(isClosedStatus)?.id;
+
+  const { groups, lastClosed } = mineGroups(
+    shown,
+    columns,
+    search.closed === true && closed.hasNextPage
+  );
 
   const targetStatus = (issue: IssueSummary, groupId: string) =>
     projectOf
@@ -334,7 +339,7 @@ const AssignedIssues = ({
           }
         }}
         onOpen={onOpen}
-        statuses={shown}
+        statuses={groups}
         total={(_status, loaded) => loaded}
         view={view}
       />

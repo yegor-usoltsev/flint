@@ -5,6 +5,7 @@ import {
   arrangeMine,
   createTarget,
   mergeClosed,
+  mineGroups,
   mineStatuses,
 } from "~/lib/my-issues";
 
@@ -152,4 +153,23 @@ test("keeps one copy of a closed issue repeated across pages", () => {
       (item) => item.id
     )
   ).toEqual(["ENG-1", "ENG-2"]);
+});
+
+test("My issues hides empty closed groups but keeps open ones and the group that loads older issues", () => {
+  const todo = status("todo", "Todo", 0);
+  const done = status("done", "Done", 1, "completed");
+  const canceled = status("canceled", "Canceled", 2, "canceled");
+  const shown = [todo, done, canceled];
+
+  expect(mineGroups(shown, {}, false)).toEqual({
+    groups: [todo],
+    lastClosed: "canceled",
+  });
+
+  expect(mineGroups(shown, { done: ["a"] }, false)).toEqual({
+    groups: [todo, done],
+    lastClosed: "done",
+  });
+
+  expect(mineGroups(shown, {}, true).groups).toEqual([todo, canceled]);
 });

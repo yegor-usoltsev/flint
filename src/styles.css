@@ -270,6 +270,12 @@
       grid-template-columns: 0 minmax(0, 60rem) minmax(17.5rem, 25rem) 1fr;
     }
   }
+
+  @container (width >= 64rem) {
+    & .issue-layout {
+      grid-template-columns: 1fr minmax(0, 45rem) 18rem 1fr;
+    }
+  }
 }
 
 @keyframes remote-flash {
@@ -387,10 +393,6 @@
   @media (width >= 48rem) {
     --fade-end: 1rem;
   }
-}
-
-@utility board-columns {
-  grid-auto-columns: minmax(17rem, 24rem);
 }
 
 @utility fade-x {
