@@ -62,6 +62,12 @@ const takeHeld = (key: string) => {
   held.get(key)?.();
 };
 
+const takeAllHeld = () => {
+  for (const take of held.values()) {
+    take();
+  }
+};
+
 export const holdEdits = (key: string, take: () => void) => {
   held.set(key, take);
 
@@ -73,9 +79,7 @@ export const holdEdits = (key: string, take: () => void) => {
 };
 
 const persist = () => {
-  for (const take of held.values()) {
-    take();
-  }
+  takeAllHeld();
 
   if (persistTimer !== null) {
     clearTimeout(persistTimer);
@@ -159,6 +163,8 @@ export const setStoredText = (key: string, next: string | null) => {
 };
 
 const forgetDrafts = () => {
+  takeAllHeld();
+
   ownership += 1;
 
   for (const timer of timers.values()) {

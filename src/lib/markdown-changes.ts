@@ -98,7 +98,7 @@ export const createThrottle = (delay: number) => {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pending: (() => void) | null = null;
 
-  const flush = () => {
+  const runPending = () => {
     const run = pending;
 
     pending = null;
@@ -109,9 +109,18 @@ export const createThrottle = (delay: number) => {
     timer = null;
 
     if (pending !== null) {
-      flush();
+      runPending();
       timer = setTimeout(tick, delay);
     }
+  };
+
+  const flush = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+
+    runPending();
   };
 
   return {

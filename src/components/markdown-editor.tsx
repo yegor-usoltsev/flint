@@ -35,6 +35,8 @@ import type {
   RefObject,
   SyntheticEvent,
 } from "react";
+// oxlint-disable-next-line react-doctor/no-flush-sync -- A keyboard submit reads text from the last render, so held text must render before it runs.
+import { flushSync } from "react-dom";
 
 import { codeBlockView as CodeBlockView } from "~/components/code-block-view";
 import {
@@ -735,7 +737,7 @@ export const MarkdownEditor = ({
       attributes: { "aria-label": label, class: "markdown" },
       handleKeyDown: (view, event) => {
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-          throttle.flush();
+          flushSync(throttle.flush);
           live.current.onSubmit?.();
 
           return live.current.onSubmit !== undefined;
@@ -748,6 +750,7 @@ export const MarkdownEditor = ({
         if (slashMenu.isOpen() || mentionMenu.isOpen()) {
           event.stopPropagation();
         } else {
+          throttle.flush();
           live.current.onCancel?.();
           // oxlint-disable-next-line github/no-blur -- Escape leaves the text field, so single-key shortcuts work next.
           view.dom.blur();
