@@ -12,7 +12,9 @@ import {
   SuggestionList,
   useSuggestionMenu,
 } from "~/components/suggestion-menu";
+import { request } from "~/lib/api";
 import type { IssueSummary, Status, WikiPageSummary } from "~/lib/api-types";
+import { maxIssueLimit } from "~/lib/endpoints";
 import { issuesQuery, projectQuery, projectsQuery } from "~/lib/queries";
 import { allowedPrefixes, allowTrigger } from "~/lib/suggestion-trigger";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -155,8 +157,24 @@ export const useMentionMenu = () => {
       )
     );
 
+    const cached = lists.flat();
+    const known = new Set(cached.map((issue) => issue.id));
+
+    const found =
+      needle.trim() !== "" && lists.some((list) => list.length >= maxIssueLimit)
+        ? await request("GET /workspaces/:slug/issues", {
+            params: { slug: current.slug },
+            query: { limit: limit * 4, q: needle.trim() },
+          }).catch(() => [])
+        : [];
+
+    const issues = [
+      ...cached,
+      ...found.filter((issue) => !known.has(issue.id)),
+    ];
+
     return [
-      ...pick(lists.flat(), needle, (issue) => [issue.key, issue.title]).map(
+      ...pick(issues, needle, (issue) => [issue.key, issue.title]).map(
         (issue): MentionItem => ({
           group: "Issues",
           issue,

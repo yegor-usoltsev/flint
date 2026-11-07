@@ -17,7 +17,7 @@ import { text as readStream } from "node:stream/consumers";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
-import { endpointPath } from "../src/lib/endpoints.ts";
+import { endpointPath, totalCountHeader } from "../src/lib/endpoints.ts";
 import type {
   Body,
   Endpoint,
@@ -34,6 +34,7 @@ export type Json =
   | { [key: string]: Json | undefined };
 
 export interface Output {
+  note?: string;
   raw?: string;
   result: unknown;
   text?: () => Promise<string> | string;
@@ -53,7 +54,7 @@ export const jsonText = (json: string) =>
       `\\u${(character.codePointAt(0) ?? 0).toString(16).padStart(4, "0")}`
   );
 
-export const print = async ({ raw, result, text }: Output) => {
+export const print = async ({ note, raw, result, text }: Output) => {
   if (raw !== undefined) {
     console.log(process.stdout.isTTY ? terminalText(raw) : raw);
   } else if (wantsJson()) {
@@ -64,6 +65,10 @@ export const print = async ({ raw, result, text }: Output) => {
         text === undefined ? JSON.stringify(result, null, 2) : await text()
       )
     );
+  }
+
+  if (note !== undefined) {
+    console.error(terminalText(note));
   }
 };
 
@@ -218,7 +223,7 @@ const parseJsonOrNull = (source: string) => {
 const apiUrl = (config: Config, apiPath: string) =>
   new URL(`/api/v1${apiPath.replace(/^\/?(?:api\/v1\/?)?/u, "/")}`, config.url);
 
-const send = async (config: Config, apiPath: string, init: RequestInit) => {
+const exchange = async (config: Config, apiPath: string, init: RequestInit) => {
   const headers = new Headers(init.headers);
 
   headers.set("authorization", `Bearer ${config.token}`);
@@ -236,6 +241,12 @@ const send = async (config: Config, apiPath: string, init: RequestInit) => {
   if (!response.ok) {
     throw httpError(response.status, json);
   }
+
+  return { headers: response.headers, json };
+};
+
+const send = async (config: Config, apiPath: string, init: RequestInit) => {
+  const { json } = await exchange(config, apiPath, init);
 
   return json;
 };
@@ -301,6 +312,29 @@ export const call = async <E extends Endpoint>(
   // SAFETY: the server answers each endpoint with its mapped response type.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- See the SAFETY note.
   return answer as ResponseOf<E>;
+};
+
+export const callWithTotal = async <E extends Endpoint>(
+  config: Config,
+  endpoint: E,
+  options: RequestOptions<E>
+) => {
+  const { method, path: apiPath } = endpointPath(
+    endpoint,
+    options.params,
+    options.query
+  );
+
+  const { headers, json } = await exchange(config, apiPath, { method });
+  const answer: unknown = json;
+  const total = headers.get(totalCountHeader);
+
+  return {
+    // SAFETY: the server answers each endpoint with its mapped response type.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- See the SAFETY note.
+    result: answer as ResponseOf<E>,
+    total: total === null ? undefined : Number(total),
+  };
 };
 
 export const changes = <E extends Endpoint>(_endpoint: E, body: Body<E>) => {

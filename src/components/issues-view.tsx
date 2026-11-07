@@ -103,9 +103,9 @@ import {
   closedIssuesQuery,
   issueCountsQuery,
   issueQuery,
-  issuesQuery,
   labelsQuery,
   membersQuery,
+  useWorkingSet,
 } from "~/lib/queries";
 import { rootRem } from "~/lib/rem";
 import { useRemoteFlash } from "~/lib/remote-flash";
@@ -868,7 +868,11 @@ const placement = (columns: Columns, id: string) => {
   );
 };
 
-const useClosedIssues = (project: ProjectDetail, search: IssueSearch) => {
+const useClosedIssues = (
+  project: ProjectDetail,
+  search: IssueSearch,
+  truncated: boolean
+) => {
   const enabled = search.closed === true;
 
   const closed = useInfiniteQuery({
@@ -876,16 +880,24 @@ const useClosedIssues = (project: ProjectDetail, search: IssueSearch) => {
     enabled,
   });
 
-  const counts = useQuery({ ...issueCountsQuery(project, search), enabled });
+  const counts = useQuery({
+    ...issueCountsQuery(project, search),
+    enabled: enabled || truncated,
+  });
 
   const totals = new Map(
     counts.data?.map((count) => [count.statusId, count.count])
   );
 
-  const total = (status: Status, loaded: number) =>
-    enabled && isClosedStatus(status)
-      ? Math.max(loaded, totals.get(status.id) ?? 0)
-      : loaded;
+  const recents = new Map(
+    counts.data?.map((count) => [count.statusId, count.recent])
+  );
+
+  const total = (status: Status, loaded: number) => {
+    const counted = isClosedStatus(status) ? enabled : truncated;
+
+    return counted ? Math.max(loaded, totals.get(status.id) ?? 0) : loaded;
+  };
 
   const hasOlder = (status: Status, loaded: number) => {
     if (!enabled || !isClosedStatus(status) || !closed.hasNextPage) {
@@ -895,7 +907,17 @@ const useClosedIssues = (project: ProjectDetail, search: IssueSearch) => {
     return counts.data === undefined || loaded < total(status, loaded);
   };
 
-  return { closed, hasOlder, total };
+  const shown = (status: Status, loaded: number) =>
+    isClosedStatus(status)
+      ? Math.max(loaded, recents.get(status.id) ?? 0)
+      : total(status, loaded);
+
+  const isCut = (status: Status, loaded: number) =>
+    truncated &&
+    !(enabled && isClosedStatus(status)) &&
+    loaded < shown(status, loaded);
+
+  return { closed, hasOlder, isCut, shown, total };
 };
 
 const Issues = ({
@@ -912,9 +934,13 @@ const Issues = ({
   const workspace = useWorkspace();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const issues = useQuery(issuesQuery(project));
+  const { query: issues, truncated } = useWorkingSet(project, search);
 
-  const { closed, hasOlder, total } = useClosedIssues(project, search);
+  const { closed, hasOlder, isCut, shown, total } = useClosedIssues(
+    project,
+    search,
+    truncated
+  );
 
   const members = useQuery(membersQuery(workspace.slug));
   const labels = useQuery(labelsQuery(workspace.slug));
@@ -1071,26 +1097,35 @@ const Issues = ({
 
   const statuses = shownStatuses(project.statuses, search);
 
-  const footer = (status: Status) => (
-    <>
-      {visible.length === 0 && status.id === statuses[0]?.id ? (
-        <FirstIssue statusId={status.id} />
-      ) : null}
-      {hasOlder(status, columns[status.id]?.length ?? 0) ? (
-        <Button
-          className="m-1.5 self-start"
-          disabled={closed.isFetchingNextPage}
-          onClick={() => {
-            void closed.fetchNextPage();
-          }}
-          size="sm"
-          variant="ghost"
-        >
-          {closed.isFetchingNextPage ? "Loading…" : "Load older issues"}
-        </Button>
-      ) : null}
-    </>
-  );
+  const footer = (status: Status) => {
+    const loaded = columns[status.id]?.length ?? 0;
+
+    return (
+      <>
+        {visible.length === 0 && status.id === statuses[0]?.id ? (
+          <FirstIssue statusId={status.id} />
+        ) : null}
+        {isCut(status, loaded) ? (
+          <p className="text-muted-foreground m-1.5 text-xs">
+            Showing {loaded} of {shown(status, loaded)}. Filter to see the rest.
+          </p>
+        ) : null}
+        {hasOlder(status, loaded) ? (
+          <Button
+            className="m-1.5 self-start"
+            disabled={closed.isFetchingNextPage}
+            onClick={() => {
+              void closed.fetchNextPage();
+            }}
+            size="sm"
+            variant="ghost"
+          >
+            {closed.isFetchingNextPage ? "Loading…" : "Load older issues"}
+          </Button>
+        ) : null}
+      </>
+    );
+  };
 
   const onOpen: OpenIssue = (issue, how) => {
     if (issue.version === 0) {

@@ -13,6 +13,7 @@ import type {
   StatusCount,
 } from "~/lib/api-types";
 import { countChecklist } from "~/lib/checklist";
+import { maxIssueLimit } from "~/lib/endpoints";
 import {
   isInstanceAdmin,
   notFound,
@@ -99,9 +100,8 @@ const ListQuerySchema = v.object({
       v.digits(),
       v.transform(Number),
       v.minValue(1),
-      v.maxValue(200)
-    ),
-    "50"
+      v.maxValue(maxIssueLimit)
+    )
   ),
   offset: v.optional(
     v.pipe(v.string(), v.digits(), v.transform(Number), v.maxValue(1_000_000)),
@@ -837,48 +837,106 @@ const issueFilters = (actor: Actor, query: IssueQuery) => {
         ? db``
         : db`and (
             i.title ilike ${`%${escapeLike(query.q)}%`}
-            or lower(p.key || '-' || i.number) = lower(${query.q})
+            or (p.key || '-' || i.number) ilike ${`%${escapeLike(query.q)}%`}
             or i.search @@ websearch_to_tsquery('english', ${query.q})
           )`
     }
   `;
 };
 
-const listIssues = async (
+type IssueScope = { projectId: string } | { workspaceId: string };
+
+// oxlint-disable-next-line typescript/promise-function-async -- Returns an unexecuted Bun SQL fragment, which is thenable.
+const matchingIssues = (
   actor: Actor,
-  scope: { projectId: string } | { workspaceId: string },
+  scope: IssueScope,
   query: IssueQuery
-) => {
-  const where =
+) => db`
+  from issues i
+  join projects p on p.id = i.project_id
+  join statuses s on s.id = i.status_id
+  where ${
     "projectId" in scope
       ? db`i.project_id = ${scope.projectId}`
-      : db`p.workspace_id = ${scope.workspaceId}`;
-
-  const state =
-    query.closed === "true"
-      ? db`
-          and s.category in ('completed', 'canceled')
-          order by coalesce(i.completed_at, i.canceled_at) desc, i.id desc
-          limit ${query.limit} offset ${query.offset}
-        `
-      : db`
-          and (
+      : db`p.workspace_id = ${scope.workspaceId}`
+  }
+    and i.deleted_at is null
+    ${issueFilters(actor, query)}
+    and ${
+      query.closed === "true"
+        ? db`s.category in ('completed', 'canceled')`
+        : db`(
             s.category not in ('completed', 'canceled')
             or coalesce(i.completed_at, i.canceled_at)
               > now() - interval '14 days'
-          )
-          order by i.sort_key, i.id
-        `;
+          )`
+    }
+`;
 
-  return await db<IssueSummary[]>`
-    select ${summaryColumns}
-    from issues i
+const listIssues = async (
+  actor: Actor,
+  scope: IssueScope,
+  query: IssueQuery
+) => {
+  const closed = query.closed === "true";
+
+  const rows = await db<(IssueSummary & { total: number })[]>`
+    with matched as (
+      select i.id, count(*) over ()::int as total,
+        array_position(
+          array['started', 'unstarted', 'backlog', 'completed', 'canceled'],
+          s.category
+        ) as category,
+        s.position, p.key, i.sort_key,
+        lower(p.key || '-' || i.number) = lower(${query.q}) as exact,
+        (
+          i.title ilike ${`%${escapeLike(query.q)}%`}
+          or (p.key || '-' || i.number) ilike ${`%${escapeLike(query.q)}%`}
+        ) as named,
+        coalesce(i.completed_at, i.canceled_at) as closed_at,
+        row_number() over (
+          partition by i.status_id
+          order by coalesce(i.completed_at, i.canceled_at) desc nulls last,
+            i.sort_key, i.id
+        ) as place
+      ${matchingIssues(actor, scope, query)}
+    ),
+    page as (
+      select * from matched
+      order by exact desc, named desc, ${
+        closed
+          ? db`closed_at desc, id desc`
+          : db`place, category, position, key, id`
+      }
+      limit ${query.limit ?? (closed ? 50 : maxIssueLimit)}
+      offset ${query.offset}
+    )
+    select ${summaryColumns}, page.total
+    from page
+    join issues i on i.id = page.id
     join projects p on p.id = i.project_id
-    join statuses s on s.id = i.status_id
-    where ${where} and i.deleted_at is null
-      ${issueFilters(actor, query)}
-      ${state}
+    order by ${
+      closed
+        ? db`page.closed_at desc, page.id desc`
+        : db`page.category, page.position, page.key,
+            page.closed_at desc nulls last, page.sort_key, page.id`
+    }
   `;
+
+  const [first] = rows;
+
+  if (first !== undefined || query.offset === 0) {
+    return {
+      issues: rows.map(({ total: _total, ...issue }): IssueSummary => issue),
+      total: first?.total ?? 0,
+    };
+  }
+
+  const [count] = await db<{ total: number }[]>`
+    select count(*)::int as total ${matchingIssues(actor, scope, query)}
+  `;
+
+  return { issues: [], total: count?.total ?? 0 };
 };
 
 export const listProjectIssues = async (
@@ -899,7 +957,12 @@ export const countProjectIssues = async (
   const { project } = await findProject(actor, key);
 
   return await db<StatusCount[]>`
-    select i.status_id as "statusId", count(*)::int as count
+    select i.status_id as "statusId", count(*)::int as count,
+      count(*) filter (
+        where s.category not in ('completed', 'canceled')
+          or coalesce(i.completed_at, i.canceled_at)
+            > now() - interval '14 days'
+      )::int as recent
     from issues i
     join projects p on p.id = i.project_id
     join statuses s on s.id = i.status_id
