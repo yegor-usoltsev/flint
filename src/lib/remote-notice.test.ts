@@ -5,7 +5,9 @@ import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { toast } from "~/components/ui/toast";
 import type { Issue, Member } from "~/lib/api-types";
 import { membersQuery } from "~/lib/queries";
-import { noticeOffscreen } from "~/lib/remote-notice";
+import { cancelNotices, noticeOffscreen } from "~/lib/remote-notice";
+
+const page = { collapsed: false, row: true };
 
 const browser = {
   CSS: { escape: (value: string) => value },
@@ -23,13 +25,28 @@ const browser = {
     }
   },
   document: {
-    querySelector: () => ({
-      getBoundingClientRect: () => new browser.DOMRect(0, 2000, 100, 30),
-      parentElement: null,
-    }),
+    querySelector: (selector: string) => {
+      if (selector.startsWith("#group-")) {
+        return page.collapsed ? { querySelector: () => ({}) } : null;
+      }
+
+      return page.row
+        ? {
+            getBoundingClientRect: () => new browser.DOMRect(0, 2000, 100, 30),
+            parentElement: null,
+          }
+        : null;
+    },
   },
-  localStorage: { getItem: () => null },
-  window: { innerHeight: 800, innerWidth: 1200 },
+  localStorage: { getItem: () => null, setItem: () => {} },
+  requestAnimationFrame: (run: () => void) => {
+    run();
+  },
+  window: {
+    innerHeight: 800,
+    innerWidth: 1200,
+    location: { search: "" },
+  },
 };
 
 const descriptors = new Map<string, PropertyDescriptor | undefined>();
@@ -79,6 +96,9 @@ const setup = () => {
     queryKey: ["issues", "p"],
     staleTime: Number.POSITIVE_INFINITY,
   }).subscribe(() => {});
+  queryClient.setQueryData(["projects", "ENG"], {
+    statuses: [{ id: "done", name: "Done" }],
+  });
   queryClient.setQueryData(membersQuery("acme").queryKey, [
     member("bob", "Bob Chen"),
     member("carol", "Carol Diaz"),
@@ -87,15 +107,27 @@ const setup = () => {
   return queryClient;
 };
 
+const before = (statusId: string, rendered = true) => ({
+  key: "ENG-1",
+  rendered,
+  statusId,
+});
+
+const opened: string[] = [];
+
 const change = (
   queryClient: QueryClient,
   id: string,
   actorId: string,
-  before = "todo"
+  status = "todo",
+  rendered = true
 ) => {
   noticeOffscreen({
     actors: new Map([[id, new Set([actorId])]]),
-    before: new Map([[id, before]]),
+    before: new Map([[id, before(status, rendered)]]),
+    openIssue: (key) => {
+      opened.push(key);
+    },
     queryClient,
     slug: "acme",
   });
@@ -103,6 +135,10 @@ const change = (
 
 beforeEach(() => {
   jest.useFakeTimers();
+  page.collapsed = false;
+  page.row = true;
+  browser.window.location.search = "";
+  opened.length = 0;
 
   for (const [name, value] of Object.entries(browser)) {
     descriptors.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
@@ -154,12 +190,125 @@ test("two teammates in one realtime batch are not merged into one name", () => {
 
   noticeOffscreen({
     actors: new Map([["1", new Set(["bob", "carol"])]]),
-    before: new Map([["1", "backlog"]]),
+    before: new Map([["1", before("backlog")]]),
+    openIssue: () => {},
     queryClient,
     slug: "acme",
   });
   jest.advanceTimersByTime(1200);
 
   expect(add.mock.calls[0]?.[0].title).toBe("ENG-1 changed");
+  add.mockRestore();
+});
+
+const moveToDone = (queryClient: QueryClient) => {
+  queryClient.setQueryData(
+    ["issues", "p"],
+    [{ ...issue("1"), statusId: "done" }, issue("2")]
+  );
+  change(queryClient, "1", "bob");
+  jest.advanceTimersByTime(1200);
+};
+
+test("a move into a collapsed group names the collapsed group", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+
+  page.row = false;
+  page.collapsed = true;
+  moveToDone(queryClient);
+
+  const [options] = add.mock.calls[0] ?? [];
+
+  expect(options?.title).toBe("Bob Chen moved ENG-1 to Done (group collapsed)");
+  add.mockRestore();
+});
+
+test("a move hidden by filters names the filters", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+
+  page.row = false;
+  browser.window.location.search = "?status=%5B%22todo%22%5D";
+  moveToDone(queryClient);
+
+  const [options] = add.mock.calls[0] ?? [];
+
+  expect(options?.title).toBe(
+    "Bob Chen moved ENG-1 to Done (hidden by filters)"
+  );
+  add.mockRestore();
+});
+
+test("an issue that was not in the view stays quiet when it changes", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+
+  page.row = false;
+  change(queryClient, "1", "bob", "todo", false);
+  jest.advanceTimersByTime(1200);
+
+  expect(add).not.toHaveBeenCalled();
+  add.mockRestore();
+});
+
+test("Show opens the issue when expanding its group still leaves it filtered out", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+  const close = spyOn(toast, "close").mockReturnValue();
+
+  page.row = false;
+  page.collapsed = true;
+  moveToDone(queryClient);
+
+  const click: ((...args: never[]) => void) | undefined =
+    add.mock.calls[0]?.[0].actionProps?.onClick;
+
+  click?.();
+
+  expect(opened).toEqual(["ENG-1"]);
+  add.mockRestore();
+  close.mockRestore();
+});
+
+test("an issue that appears below the fold stays quiet", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+
+  change(queryClient, "1", "bob", "todo", false);
+  jest.advanceTimersByTime(1200);
+
+  expect(add).not.toHaveBeenCalled();
+  add.mockRestore();
+});
+
+test("Show opens the issue when its off-screen row is gone by the click", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+  const close = spyOn(toast, "close").mockReturnValue();
+
+  change(queryClient, "1", "bob");
+  jest.advanceTimersByTime(1200);
+  page.row = false;
+
+  const click: ((...args: never[]) => void) | undefined =
+    add.mock.calls[0]?.[0].actionProps?.onClick;
+
+  click?.();
+
+  expect(opened).toEqual(["ENG-1"]);
+  add.mockRestore();
+  close.mockRestore();
+});
+
+test("leaving the workspace drops notices that have not shown yet", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+
+  change(queryClient, "1", "bob");
+  cancelNotices();
+  jest.advanceTimersByTime(1200);
+
+  expect(add).not.toHaveBeenCalled();
   add.mockRestore();
 });

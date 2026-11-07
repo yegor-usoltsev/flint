@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
 import {
+  ArrowDownIcon,
   ArrowUpIcon,
   EllipsisIcon,
   PencilIcon,
@@ -59,7 +60,7 @@ import { notifyError } from "~/lib/notify";
 import { priorities } from "~/lib/priorities";
 import type { Priority } from "~/lib/priorities";
 import { labelsQuery, membersQuery, timelineQuery } from "~/lib/queries";
-import { useRemoteFlash } from "~/lib/remote-flash";
+import { flashRemote, useRemoteFlash } from "~/lib/remote-flash";
 import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -408,7 +409,7 @@ const CommentItem = ({
   };
 
   return (
-    <li className={cn(cardClass, remote)}>
+    <li className={cn(cardClass, remote)} data-comment={comment.id}>
       <header className="flex min-h-6 items-center gap-2">
         <UserAvatar
           avatarUrl={comment.author.avatarUrl}
@@ -682,6 +683,125 @@ const runs = (items: ActivityItem[]) => {
   return result;
 };
 
+const clips = (element: Element) =>
+  getComputedStyle(element).overflowY !== "visible";
+
+const onScreen = (element: HTMLElement) => {
+  const rect = element.getBoundingClientRect();
+  let top = 0;
+  let bottom = window.innerHeight;
+
+  for (
+    let parent = element.parentElement;
+    parent !== null;
+    parent = parent.parentElement
+  ) {
+    if (clips(parent)) {
+      const bounds = parent.getBoundingClientRect();
+
+      top = Math.max(top, bounds.top);
+      bottom = Math.min(bottom, bounds.bottom);
+    }
+  }
+
+  return rect.top < bottom && rect.bottom > top;
+};
+
+const engaged = (composer: HTMLElement | null) =>
+  composer !== null &&
+  (composer.contains(document.activeElement) || onScreen(composer));
+
+interface Seen {
+  comments: Comment[];
+  ids: ReadonlySet<string>;
+  issueId: string;
+}
+
+const allIds = (comments: Comment[]) =>
+  new Set(comments.map((comment) => comment.id));
+
+const useHeldComments = (
+  issueId: string,
+  comments: Comment[] | undefined,
+  me: string | undefined
+) => {
+  const composerId = useId();
+  const [seen, setSeen] = useState<Seen | null>(null);
+  const known = seen?.issueId === issueId ? seen.ids : null;
+
+  if (
+    comments !== undefined &&
+    (known === null || seen?.comments !== comments)
+  ) {
+    const fresh = comments.filter((comment) => known?.has(comment.id) !== true);
+
+    const show =
+      known === null ||
+      fresh.some((comment) => comment.author.id === me) ||
+      !engaged(
+        document.querySelector(`[data-composer="${CSS.escape(composerId)}"]`)
+      );
+
+    setSeen({ comments, ids: show ? allIds(comments) : known, issueId });
+  }
+
+  const isHeld = (comment: Comment) =>
+    known !== null && !known.has(comment.id) && comment.author.id !== me;
+
+  const held = comments?.filter(isHeld) ?? [];
+
+  const reveal = () => {
+    const [first] = held;
+
+    if (comments !== undefined) {
+      setSeen({ comments, ids: allIds(comments), issueId });
+    }
+
+    flashRemote(held.map((comment) => comment.id));
+
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-comment="${CSS.escape(first?.id ?? "")}"]`)
+        ?.scrollIntoView({
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
+          block: "nearest",
+        });
+
+      if (document.activeElement === document.body) {
+        document
+          .querySelector<HTMLElement>(
+            `[data-composer="${CSS.escape(composerId)}"] [contenteditable="true"], [data-composer="${CSS.escape(composerId)}"] textarea`
+          )
+          ?.focus({ preventScroll: true });
+      }
+    });
+  };
+
+  return { composerId, held, isHeld, reveal };
+};
+
+const NewComments = ({
+  count,
+  onReveal,
+}: {
+  count: number;
+  onReveal: () => void;
+}) => (
+  <div
+    aria-live="polite"
+    className="pointer-events-none absolute inset-x-0 bottom-full z-10 flex justify-center pb-2"
+  >
+    {count > 0 ? (
+      <Button className="pointer-events-auto" onClick={onReveal} size="pill">
+        {count === 1 ? "1 new comment" : `${count} new comments`}
+        <ArrowDownIcon data-icon="inline-end" />
+      </Button>
+    ) : null}
+  </div>
+);
+
 export const IssueTimeline = ({
   editable,
   issue,
@@ -695,8 +815,17 @@ export const IssueTimeline = ({
   const me = useMe().data;
   const timeline = useQuery(timelineQuery(issue));
 
+  const { composerId, held, isHeld, reveal } = useHeldComments(
+    issue.id,
+    timeline.data?.comments,
+    me?.id
+  );
+
   const feed = runs(
-    activityFeed(timeline.data?.events ?? [], timeline.data?.comments ?? [])
+    activityFeed(
+      timeline.data?.events ?? [],
+      (timeline.data?.comments ?? []).filter((comment) => !isHeld(comment))
+    )
   );
 
   return (
@@ -734,7 +863,12 @@ export const IssueTimeline = ({
           )}
         </ol>
       )}
-      {editable && !timeline.isPending ? <CommentBox issue={issue} /> : null}
+      {editable && !timeline.isPending ? (
+        <div className="relative" data-composer={composerId}>
+          <NewComments count={held.length} onReveal={reveal} />
+          <CommentBox issue={issue} />
+        </div>
+      ) : null}
     </section>
   );
 };
