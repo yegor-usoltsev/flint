@@ -56,7 +56,7 @@ test("offline at load shows the offline copy after 3 s", () => {
   expect(status.get()?.pill).toBe("offline");
 });
 
-test("issue writes waiting over 1 s show Saving until they are sent", () => {
+test("issue writes waiting over 1 s show Saving until the queue drains, without claiming success", () => {
   status.update({ connection: "live", pending: 1 });
   jest.advanceTimersByTime(500);
   status.update({ connection: "live", pending: 0 });
@@ -66,7 +66,9 @@ test("issue writes waiting over 1 s show Saving until they are sent", () => {
   jest.advanceTimersByTime(1000);
   expect(status.get()?.pill).toBe("saving");
   status.update({ connection: "live", pending: 0 });
-  expect(status.get()?.pill).toBe("synced");
+  expect(status.get()).toEqual({ leaving: true, pill: "saving" });
+  jest.advanceTimersByTime(fadeMs);
+  expect(status.get()).toBeNull();
 });
 
 test("a lost connection outranks saving, and a pill shown again stops fading", () => {
@@ -76,6 +78,7 @@ test("a lost connection outranks saving, and a pill shown again stops fading", (
   status.update({ connection: "live", pending: 1 });
   expect(status.get()?.pill).toBe("saving");
   status.update({ connection: "live", pending: 0 });
+  expect(status.get()).toEqual({ leaving: false, pill: "synced" });
   jest.advanceTimersByTime(2000);
   expect(status.get()?.leaving).toBe(true);
   status.update({ connection: "live", pending: 1 });

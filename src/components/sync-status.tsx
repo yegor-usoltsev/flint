@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { useEffect, useSyncExternalStore } from "react";
 
+import { useSelection } from "~/lib/issue-selection";
 import { useConnection } from "~/lib/realtime";
 import { createSyncStatus } from "~/lib/sync-status";
 import type { SyncPill } from "~/lib/sync-status";
@@ -18,6 +19,7 @@ const status = createSyncStatus();
 export const SyncStatus = () => {
   const connection = useConnection();
   const pending = usePendingIssueWrites();
+  const selecting = useSelection().ids.size > 0;
   const shown = useSyncExternalStore(status.subscribe, status.get, () => null);
 
   useEffect(() => {
@@ -31,7 +33,10 @@ export const SyncStatus = () => {
   return (
     <output
       aria-live="polite"
-      className="pointer-events-none absolute bottom-3 left-3 z-20"
+      className={cn(
+        "pointer-events-none absolute left-3 z-20",
+        selecting ? "bottom-18" : "bottom-3"
+      )}
     >
       {pill === null || shown === null ? null : (
         <span

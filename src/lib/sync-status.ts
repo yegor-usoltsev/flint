@@ -114,10 +114,7 @@ export const createSyncStatus = () => {
     if (next.pending === 0) {
       savingTimer.clear();
 
-      if (saving) {
-        saving = false;
-        showSynced();
-      }
+      saving = false;
     } else if (!saving && !savingTimer.active()) {
       savingTimer.start(() => {
         saving = true;

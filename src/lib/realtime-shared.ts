@@ -55,6 +55,7 @@ export interface RealtimeStream {
   close: () => void;
   isOpen: () => boolean;
   reconnect: () => void;
+  retryNow: () => void;
 }
 
 export const openStream = (
@@ -119,6 +120,21 @@ export const openStream = (
     },
     isOpen: () => source?.readyState === EventSource.OPEN,
     reconnect: () => {
+      attempt = 0;
+
+      if (closed || source?.readyState === EventSource.OPEN) {
+        return;
+      }
+
+      if (retry !== null) {
+        clearTimeout(retry);
+      }
+
+      source?.close();
+      source = null;
+      connect();
+    },
+    retryNow: () => {
       attempt = 0;
 
       if (!closed && retry !== null) {
@@ -213,7 +229,7 @@ export const createRealtimeHub = () => {
           } else if (stream.handle?.isOpen() === true) {
             port.postMessage({ type: "open" } satisfies RealtimeMessage);
           } else {
-            stream.handle?.reconnect();
+            stream.handle?.retryNow();
           }
         }
       }

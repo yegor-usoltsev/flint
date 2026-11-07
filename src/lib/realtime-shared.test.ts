@@ -374,6 +374,12 @@ test("going online retries a waiting stream at once in the worker and the direct
   expect(Source.instances).toHaveLength(4);
   direct.window.dispatchEvent(new Event("online"));
   expect(Source.instances).toHaveLength(5);
+  direct.window.dispatchEvent(new Event("online"));
+  expect(Source.instances[4]?.readyState).toBe(Source.CLOSED);
+  expect(Source.instances).toHaveLength(6);
+  Source.instances[5]?.open();
+  direct.window.dispatchEvent(new Event("online"));
+  expect(Source.instances).toHaveLength(6);
 });
 
 test("a tab joining a stream that waits to retry reconnects it at once", async () => {
