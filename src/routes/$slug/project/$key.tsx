@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { IssuesView } from "~/components/issues-view";
 import { IssueSearchSchema } from "~/lib/issue-view";
@@ -16,6 +16,19 @@ const View = () => {
 
 export const Route = createFileRoute("/$slug/project/$key")({
   validateSearch: IssueSearchSchema,
+  beforeLoad: ({ params, search }) => {
+    const key = params.key.toUpperCase();
+
+    if (params.key !== key) {
+      // oxlint-disable-next-line typescript/only-throw-error -- TanStack Router redirects by throwing.
+      throw redirect({
+        params: { ...params, key },
+        replace: true,
+        search,
+        to: "/$slug/project/$key",
+      });
+    }
+  },
   component: View,
   loader: async ({ context, params }) => {
     await preload(async () => {
