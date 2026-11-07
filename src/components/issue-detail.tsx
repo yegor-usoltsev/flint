@@ -117,13 +117,40 @@ const useOrigin = (project: ProjectDetail): IssueOrigin => {
   return { projectKey: project.key, search: {}, view: "list" };
 };
 
-const useNeighbors = (project: ProjectDetail, key: string) => {
+const usePainted = (ready: boolean) => {
+  const [painted, setPainted] = useState(false);
+
+  useEffect(() => {
+    let timer = 0;
+
+    const frame = requestAnimationFrame(() => {
+      timer = window.setTimeout(() => {
+        if (ready) {
+          setPainted(true);
+        }
+      }, 0);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [ready]);
+
+  return painted;
+};
+
+const useNeighbors = (project: ProjectDetail, key: string, ready: boolean) => {
   const queryClient = useQueryClient();
   const workspace = useWorkspace();
   const origin = useOrigin(project);
   const mine = origin.view === "mine";
   const search = mine ? {} : origin.search;
-  const open = useWorkingSet(project, search).query.data ?? [];
+  const painted = usePainted(ready);
+
+  const open =
+    useWorkingSet(project, search, !mine && painted).query.data ?? [];
+
   const assigned = useMyIssues(workspace.slug, mine ? origin.search : {}, mine);
 
   const closed =
@@ -831,8 +858,10 @@ const IssueScreen = ({
   const workspace = useWorkspace();
   const navigate = useNavigate();
   const deletion = useDeleteIssue();
-  const neighbors = useNeighbors(project, issueKey);
   const issue = useIssueQuery(project, issueKey);
+  const { data } = issue;
+  const ready = data !== undefined && !issue.isPlaceholderData;
+  const neighbors = useNeighbors(project, issueKey, ready);
   const { origin } = neighbors;
   const back = useBack(origin);
   const username = useUsername();
@@ -855,8 +884,6 @@ const IssueScreen = ({
     }
   };
 
-  const { data } = issue;
-  const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
   const fits = usePanelFits();
 

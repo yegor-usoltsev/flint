@@ -129,7 +129,7 @@ describe("issue writes", () => {
     const a = { ...issue("1", "todo"), assigneeId: "u" };
     const b = issue("2", "todo");
     const { queryClient, statuses } = setup([a, b]);
-    const assignedKey = ["issues", "p", "assigned", "u"];
+    const assignedKey = ["issues", "workspace", "acme", "mine", "u"];
 
     queryClient.setQueryData(assignedKey, [a]);
 

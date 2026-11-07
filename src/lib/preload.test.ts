@@ -8,7 +8,7 @@ afterEach(() => {
   spyOn(globalThis, "fetch").mockRestore();
 });
 
-test("My issues preloads assigned rows without filling full project lists", async () => {
+test("My issues preloads assigned rows in one workspace request", async () => {
   const queryClient = new QueryClient();
   const requested: string[] = [];
 
@@ -25,7 +25,7 @@ test("My issues preloads assigned rows without filling full project lists", asyn
             { id: "p", key: "ENG" },
           ],
           "/api/v1/projects/ENG": { id: "p", key: "ENG", statuses: [] },
-          "/api/v1/projects/ENG/issues?assignee=me": [{ id: "mine" }],
+          "/api/v1/workspaces/acme/issues?assignee=me": [{ id: "mine" }],
         }[path];
 
         return await Promise.resolve(
@@ -40,20 +40,23 @@ test("My issues preloads assigned rows without filling full project lists", asyn
 
   await loadMyIssues(queryClient, "acme");
 
-  expect(requested).toContain("/api/v1/projects/ENG/issues?assignee=me");
-  expect(requested).not.toContain("/api/v1/projects/ENG/issues");
+  expect(requested.toSorted()).toEqual([
+    "/api/v1/me",
+    "/api/v1/projects/ENG",
+    "/api/v1/workspaces/acme/issues?assignee=me",
+    "/api/v1/workspaces/acme/projects",
+  ]);
   expect(queryClient.getQueryData(["issues", "p"])).toBeUndefined();
   expect(
-    queryClient.getQueryData(["issues", "p", "assigned", "alice"])
+    queryClient.getQueryData(["issues", "workspace", "acme", "mine", "alice"])
   ).toEqual([{ id: "mine" }]);
-  expect(
-    queryClient.getQueryData(["issues", "p", "assigned", "bob"])
-  ).toBeUndefined();
 
-  await queryClient.invalidateQueries({ queryKey: ["issues", "p"] });
+  await queryClient.invalidateQueries({
+    queryKey: ["issues", "workspace", "acme"],
+  });
 
   expect(
-    queryClient.getQueryState(["issues", "p", "assigned", "alice"])
+    queryClient.getQueryState(["issues", "workspace", "acme", "mine", "alice"])
       ?.isInvalidated
   ).toBe(true);
   queryClient.clear();

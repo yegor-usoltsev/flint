@@ -54,7 +54,7 @@ import {
 } from "~/lib/queries";
 import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
-import { withLabelChanges } from "~/lib/use-update-issue";
+import { issueListKeys, withLabelChanges } from "~/lib/use-update-issue";
 import { useVisualViewport } from "~/lib/use-visual-viewport";
 import { useWorkspace } from "~/lib/use-workspace";
 
@@ -211,7 +211,11 @@ const useSubmitIssue = () => {
       });
     }
 
-    await queryClient.invalidateQueries({ queryKey });
+    await Promise.all(
+      issueListKeys(project.id).map(async (key) => {
+        await queryClient.invalidateQueries({ queryKey: key });
+      })
+    );
   };
 
   return submit;

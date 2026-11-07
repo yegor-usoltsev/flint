@@ -187,11 +187,9 @@ export const useMyIssues = (
     queries: list.map((project) => projectQuery(project.key)),
   });
 
-  const lists = useQueries({
-    queries:
-      meId === undefined
-        ? []
-        : list.map((project) => assignedIssuesQuery(project, meId)),
+  const assigned = useQuery({
+    ...assignedIssuesQuery(slug, meId ?? ""),
+    enabled: enabled && meId !== undefined,
   });
 
   const closed = useInfiniteQuery({
@@ -201,7 +199,7 @@ export const useMyIssues = (
 
   const queries = [
     ...details,
-    ...lists,
+    assigned,
     ...(search.closed === true ? [closed] : []),
   ];
 
@@ -209,9 +207,8 @@ export const useMyIssues = (
     query.data === undefined ? [] : [query.data]
   );
 
-  const open = lists.flatMap(
-    (query) => query.data?.filter((issue) => issue.assigneeId === meId) ?? []
-  );
+  const open =
+    assigned.data?.filter((issue) => issue.assigneeId === meId) ?? [];
 
   const issues = mergeClosed(
     open,
