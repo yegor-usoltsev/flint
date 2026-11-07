@@ -60,7 +60,13 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 import { Skeleton } from "~/components/ui/skeleton";
-import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
+import { UserAvatar } from "~/components/user-avatar";
+import type {
+  IssueField,
+  IssueSummary,
+  ProjectDetail,
+  Status,
+} from "~/lib/api-types";
 import { rangeLabel, visibleRange } from "~/lib/board-range";
 import type { ColumnRange } from "~/lib/board-range";
 import { closeIssueMenu, selectByClick, toggleRow } from "~/lib/issue-focus";
@@ -164,6 +170,41 @@ const useColumn = (status: Status, collapsed = false) =>
     type: "column",
   });
 
+const shownFields = (
+  issue: IssueSummary,
+  assignee = true,
+  labels = true
+): IssueField[] => [
+  "title",
+  ...(issue.priority === 0 ? [] : (["priority"] as const)),
+  ...(labels && issue.labelIds.length > 0 ? (["labels"] as const) : []),
+  ...(assignee && issue.assigneeId !== null ? (["assignee"] as const) : []),
+];
+
+const ChangedBy = ({
+  actorId,
+  className,
+  lookup,
+}: {
+  actorId: string;
+  className?: string;
+  lookup: IssueLookup;
+}) => {
+  const member = lookup.members.get(actorId);
+  const name = member?.displayName ?? "A teammate";
+
+  return (
+    <span className={cn("flex shrink-0 items-center", className)}>
+      <UserAvatar
+        avatarUrl={member?.avatarUrl ?? ""}
+        className="size-5"
+        name={name}
+      />
+      <span className="sr-only">Changed by {name}</span>
+    </span>
+  );
+};
+
 const Sortable = ({
   children,
   className,
@@ -171,6 +212,7 @@ const Sortable = ({
   index,
   issue,
   onOpen,
+  shown,
 }: {
   children: ReactNode;
   className: string;
@@ -178,6 +220,7 @@ const Sortable = ({
   index: number;
   issue: IssueSummary;
   onOpen: OpenIssue;
+  shown: IssueField[];
 }) => {
   const { id } = issue;
 
@@ -192,7 +235,7 @@ const Sortable = ({
 
   const selected = useSelected(id);
   const current = usePanelShows(issue.key);
-  const remote = useRemoteFlash(id);
+  const remote = useRemoteFlash(id, shown).row;
 
   return (
     <button
@@ -265,56 +308,89 @@ export const RowContent = ({
   assignee?: boolean;
   issue: IssueSummary;
   lookup: IssueLookup;
-}) => (
-  <>
-    <RowCheck id={issue.id} />
-    <PriorityIcon
-      className={cn(issue.priority === 0 && "invisible")}
-      priority={issue.priority}
-    />
-    <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
-      {issue.key}
-    </span>
-    <span
-      className={cn(
-        "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate",
-        (!assignee || issue.assigneeId === null) && "max-md:w-full"
-      )}
-    >
-      {issue.title}
-    </span>
-    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:hidden @5xl/list:hidden">
-      <IssueLabels issue={issue} lookup={lookup} max={1} />
-    </span>
-    <span className="hidden w-64 shrink-0 items-center justify-end gap-1 overflow-hidden @5xl/list:flex">
-      <IssueLabels issue={issue} lookup={lookup} max={2} />
-    </span>
-    <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1">
-      <PullRequestIcon state={issue.pullRequestState} />
-      <CiIcon state={issue.ciState} />
-    </span>
-    <span className="contents md:flex md:w-10 md:shrink-0 md:justify-end">
-      <Checklist issue={issue} />
-    </span>
-    {assignee ? (
+}) => {
+  const remote = useRemoteFlash(issue.id, shownFields(issue, assignee, false));
+
+  return (
+    <>
+      <RowCheck id={issue.id} />
       <span
         className={cn(
-          "order-first self-start md:order-none md:flex md:w-6 md:shrink-0 md:justify-end md:self-auto",
-          issue.assigneeId === null && "max-md:contents"
+          "-m-1 flex shrink-0 rounded-sm p-1",
+          issue.priority === 0 && "invisible",
+          remote.field("priority")
         )}
       >
-        <Assignee issue={issue} lookup={lookup} />
+        <PriorityIcon priority={issue.priority} />
       </span>
-    ) : null}
-    <time
-      className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0 md:w-16"
-      dateTime={issue.updatedAt}
-    >
-      <span className="sr-only">Updated </span>
-      {formatDate(issue.updatedAt)}
-    </time>
-  </>
-);
+      <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
+        {issue.key}
+      </span>
+      <span
+        className={cn(
+          "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate",
+          (!assignee || issue.assigneeId === null) && "max-md:w-full",
+          remote.field("title")
+        )}
+      >
+        {issue.title}
+      </span>
+      <span
+        className={cn(
+          "flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:hidden @5xl/list:hidden"
+        )}
+      >
+        <IssueLabels issue={issue} lookup={lookup} max={1} />
+      </span>
+      <span
+        className={cn(
+          "hidden w-64 shrink-0 items-center justify-end gap-1 overflow-hidden @5xl/list:flex"
+        )}
+      >
+        <IssueLabels issue={issue} lookup={lookup} max={2} />
+      </span>
+      <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1">
+        <PullRequestIcon state={issue.pullRequestState} />
+        <CiIcon state={issue.ciState} />
+      </span>
+      <span className="contents md:flex md:w-10 md:shrink-0 md:justify-end">
+        <Checklist issue={issue} />
+      </span>
+      {assignee ? (
+        <span
+          className={cn(
+            "order-first self-start md:order-none md:flex md:w-6 md:shrink-0 md:justify-end md:self-auto",
+            issue.assigneeId === null && "max-md:contents"
+          )}
+        >
+          <Assignee
+            className={cn(
+              issue.assigneeId !== null && "-m-1 rounded-full p-1",
+              remote.field("assignee")
+            )}
+            issue={issue}
+            lookup={lookup}
+          />
+        </span>
+      ) : null}
+      {remote.actorId === undefined ? (
+        <time
+          className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0 md:w-16"
+          dateTime={issue.updatedAt}
+        >
+          <span className="sr-only">Updated </span>
+          {formatDate(issue.updatedAt)}
+        </time>
+      ) : (
+        <ChangedBy
+          actorId={remote.actorId}
+          className="ml-auto w-14 justify-end md:ml-0 md:w-16"
+          lookup={lookup}
+        />
+      )}
+    </>
+  );
+};
 
 const ListGroup = ({
   assignee,
@@ -380,6 +456,7 @@ const ListGroup = ({
             issue={issue}
             key={id}
             onOpen={onOpen}
+            shown={shownFields(issue, assignee, false)}
           >
             <RowContent assignee={assignee} issue={issue} lookup={lookup} />
           </Sortable>
@@ -419,28 +496,66 @@ const CardContent = ({
   assignee?: boolean;
   issue: IssueSummary;
   lookup: IssueLookup;
-}) => (
-  <>
-    <span className="flex flex-col gap-0.5">
-      <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
-        {issue.key}
-        {assignee ? (
-          <Assignee className="ml-auto" issue={issue} lookup={lookup} />
-        ) : null}
+}) => {
+  const remote = useRemoteFlash(issue.id, shownFields(issue, assignee));
+
+  return (
+    <>
+      <span className="flex flex-col gap-0.5">
+        <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
+          {issue.key}
+          {remote.actorId === undefined ? null : (
+            <ChangedBy
+              actorId={remote.actorId}
+              className="-my-0.5"
+              lookup={lookup}
+            />
+          )}
+          {assignee ? (
+            <span className="ml-auto flex">
+              <Assignee
+                className={cn(
+                  issue.assigneeId !== null && "-m-1 rounded-full p-1",
+                  remote.field("assignee")
+                )}
+                issue={issue}
+                lookup={lookup}
+              />
+            </span>
+          ) : null}
+        </span>
+        <span
+          className={cn(
+            "line-clamp-2 font-medium break-words",
+            remote.field("title")
+          )}
+        >
+          {issue.title}
+        </span>
       </span>
-      <span className="line-clamp-2 font-medium break-words">
-        {issue.title}
+      <span className="flex flex-wrap items-center gap-1.5 empty:hidden">
+        {issue.priority === 0 ? null : (
+          <span
+            className={cn("-m-1 flex rounded-sm p-1", remote.field("priority"))}
+          >
+            <PriorityIcon priority={issue.priority} />
+          </span>
+        )}
+        <span className={cn("flex items-center gap-1.5 empty:hidden")}>
+          <IssueLabels
+            className={remote.field("labels")}
+            issue={issue}
+            lookup={lookup}
+            max={1}
+          />
+        </span>
+        <PullRequestIcon state={issue.pullRequestState} />
+        <CiIcon state={issue.ciState} />
+        <Checklist issue={issue} />
       </span>
-    </span>
-    <span className="flex flex-wrap items-center gap-1.5 empty:hidden">
-      {issue.priority === 0 ? null : <PriorityIcon priority={issue.priority} />}
-      <IssueLabels issue={issue} lookup={lookup} max={1} />
-      <PullRequestIcon state={issue.pullRequestState} />
-      <CiIcon state={issue.ciState} />
-      <Checklist issue={issue} />
-    </span>
-  </>
-);
+    </>
+  );
+};
 
 const toggleRail = (button: HTMLElement, id: string, expanded: boolean) => {
   const column = button.closest("section");
@@ -552,6 +667,7 @@ const BoardColumn = ({
                   issue={issue}
                   key={id}
                   onOpen={onOpen}
+                  shown={shownFields(issue, assignee)}
                 >
                   <CardContent
                     assignee={assignee}

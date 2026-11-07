@@ -57,9 +57,20 @@ export const Hint = ({
   </Tooltip>
 );
 
-export const LabelChip = ({ label }: { label: Label }) => (
+export const LabelChip = ({
+  className,
+  label,
+}: {
+  className?: string;
+  label: Label;
+}) => (
   <Hint label={label.name}>
-    <span className="text-muted-foreground border-hairline inline-flex h-6 max-w-40 shrink-0 items-center gap-1.5 rounded-full px-2 text-xs">
+    <span
+      className={cn(
+        "text-muted-foreground border-hairline inline-flex h-6 max-w-40 shrink-0 items-center gap-1.5 rounded-full px-2 text-xs",
+        className
+      )}
+    >
       <Swatch className="size-2" color={label.color} />
       <span className="truncate">{label.name}</span>
     </span>
@@ -67,10 +78,12 @@ export const LabelChip = ({ label }: { label: Label }) => (
 );
 
 export const IssueLabels = ({
+  className,
   issue,
   lookup,
   max = Infinity,
 }: {
+  className?: string;
   issue: IssueSummary;
   lookup: IssueLookup;
   max?: number;
@@ -86,7 +99,7 @@ export const IssueLabels = ({
   return (
     <>
       {labels.slice(0, max).map((label) => (
-        <LabelChip key={label.id} label={label} />
+        <LabelChip className={className} key={label.id} label={label} />
       ))}
       {hidden > 0 ? (
         <Hint
@@ -95,7 +108,12 @@ export const IssueLabels = ({
             .map((label) => label.name)
             .join(", ")}
         >
-          <span className="text-muted-foreground border-hairline inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs tabular-nums">
+          <span
+            className={cn(
+              "text-muted-foreground border-hairline inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs tabular-nums",
+              className
+            )}
+          >
             +{hidden}
           </span>
         </Hint>

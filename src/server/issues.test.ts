@@ -1198,6 +1198,11 @@ test("the stream delivers workspace events and drops removed members", async () 
     `data: ${JSON.stringify({ actorId: rootId, entity: "issue", id: issue.id, projectId: eng.id })}\n\n`
   );
 
+  await issueCall(root, "PATCH", issue.key, { priority: 2, title: "Live!" });
+  expect(await aliceStream.next()).toBe(
+    `data: ${JSON.stringify({ actorId: rootId, entity: "issue", fields: ["title", "priority"], id: issue.id, projectId: eng.id })}\n\n`
+  );
+
   const pending = bobStream.next();
 
   await createIssue(bob, { title: "Globex only" }, "GLX");

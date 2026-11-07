@@ -7,6 +7,7 @@ import type {
   Issue,
   IssueEvent,
   IssueEventKind,
+  IssueField,
   IssueSummary,
   Role,
   StatusCategory,
@@ -601,6 +602,21 @@ const changeEvents = (
   return events;
 };
 
+const changedFields = (
+  row: IssueRow,
+  next: Omit<IssueRow, "deletedAt" | "version">
+): IssueField[] => [
+  ...(row.title === next.title ? [] : (["title"] as const)),
+  ...(row.priority === next.priority ? [] : (["priority"] as const)),
+  ...(row.statusId === next.statusId ? [] : (["status"] as const)),
+  ...(row.assigneeId === next.assigneeId ? [] : (["assignee"] as const)),
+  ...(new Set(row.labelIds).symmetricDifference(new Set(next.labelIds)).size ===
+  0
+    ? []
+    : (["labels"] as const)),
+  ...(row.description === next.description ? [] : (["description"] as const)),
+];
+
 export const updateIssue = async (
   actor: Actor,
   key: string,
@@ -608,7 +624,7 @@ export const updateIssue = async (
 ) => {
   const issue = await findIssue(actor, key);
 
-  const changed = await db.begin(async (tx) => {
+  const fields = await db.begin(async (tx) => {
     const row = await lockIssue(tx, issue.id);
 
     if (changes.version !== undefined && changes.version !== row.version) {
@@ -648,7 +664,7 @@ export const updateIssue = async (
       !descriptionChanged &&
       row.sortKey === next.sortKey
     ) {
-      return false;
+      return null;
     }
 
     if (row.assigneeId !== next.assigneeId) {
@@ -705,13 +721,14 @@ export const updateIssue = async (
 
     await recordEvents(tx, actor, issue.id, events);
 
-    return true;
+    return changedFields(row, next);
   });
 
-  if (changed) {
+  if (fields !== null) {
     publish(issue.workspaceId, {
       actorId: actor.userId,
       entity: "issue",
+      fields,
       id: issue.id,
       projectId: issue.projectId,
     });

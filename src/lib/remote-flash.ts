@@ -1,7 +1,18 @@
 import { useSyncExternalStore } from "react";
 
+import type { IssueField } from "~/lib/api-types";
+
+export interface RemoteChange {
+  actorId?: string;
+  fields?: IssueField[];
+}
+
+interface Flash extends RemoteChange {
+  count: number;
+}
+
 const flashMs = 1600;
-const flashing = new Map<string, number>();
+const flashing = new Map<string, Flash>();
 const listeners = new Set<() => void>();
 
 const notify = () => {
@@ -18,11 +29,18 @@ const subscribe = (listener: () => void) => {
   };
 };
 
-export const flashRemote = (ids: Iterable<string>) => {
-  const marked = [...ids].map((id) => {
-    const count = (flashing.get(id) ?? 0) + 1;
+export const flashRemote = (
+  changes: Iterable<string> | Map<string, RemoteChange>
+) => {
+  const entries =
+    changes instanceof Map
+      ? [...changes]
+      : [...changes].map((id): [string, RemoteChange] => [id, {}]);
 
-    flashing.set(id, count);
+  const marked = entries.map(([id, change]) => {
+    const count = (flashing.get(id)?.count ?? 0) + 1;
+
+    flashing.set(id, { ...change, count });
 
     return { count, id };
   });
@@ -35,7 +53,7 @@ export const flashRemote = (ids: Iterable<string>) => {
 
   setTimeout(() => {
     for (const { count, id } of marked) {
-      if (flashing.get(id) === count) {
+      if (flashing.get(id)?.count === count) {
         flashing.delete(id);
       }
     }
@@ -44,17 +62,29 @@ export const flashRemote = (ids: Iterable<string>) => {
   }, flashMs);
 };
 
-const useFlashStamp = (id: string) =>
-  useSyncExternalStore(
-    subscribe,
-    () => flashing.get(id) ?? 0,
-    () => 0
-  );
-
 const flashClasses = ["remote-flash", "remote-flash-again"] as const;
 
-export const useRemoteFlash = (id: string) => {
-  const flash = useFlashStamp(id);
+export const useRemoteFlash = (
+  id: string,
+  shown: readonly IssueField[] = []
+) => {
+  const flash = useSyncExternalStore(
+    subscribe,
+    () => flashing.get(id) ?? null,
+    () => null
+  );
 
-  return flash === 0 ? undefined : flashClasses[flash % 2];
+  const className = flash === null ? undefined : flashClasses[flash.count % 2];
+
+  const fields = flash?.fields ?? [];
+
+  const inPlace =
+    fields.length > 0 && new Set(fields).isSubsetOf(new Set(shown));
+
+  return {
+    actorId: flash?.actorId,
+    field: (field: IssueField) =>
+      inPlace && fields.includes(field) ? className : undefined,
+    row: inPlace ? undefined : className,
+  };
 };
