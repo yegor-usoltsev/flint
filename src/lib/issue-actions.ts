@@ -125,10 +125,15 @@ const report = (
   }
 };
 
+const listKeys = (issues: IssueSummary[]) => [
+  ...projectsOf(issues).map((projectId) => ["issues", projectId]),
+  ["issues", "workspace"],
+];
+
 const refresh = async (queryClient: QueryClient, issues: IssueSummary[]) => {
   await Promise.all(
-    projectsOf(issues).map(async (projectId) => {
-      await queryClient.invalidateQueries({ queryKey: ["issues", projectId] });
+    listKeys(issues).map(async (queryKey) => {
+      await queryClient.invalidateQueries({ queryKey });
     })
   );
 };
@@ -160,9 +165,7 @@ export const deleteIssues = async (
   const snapshot: [QueryKey, IssueData | undefined][] = [];
 
   await Promise.all(
-    projectsOf(issues).map(async (projectId) => {
-      const queryKey = ["issues", projectId];
-
+    listKeys(issues).map(async (queryKey) => {
       await queryClient.cancelQueries({ queryKey });
       snapshot.push(...queryClient.getQueriesData<IssueData>({ queryKey }));
       queryClient.setQueriesData<IssueData>({ queryKey }, (data) =>

@@ -243,11 +243,27 @@ const AssignedIssues = ({
     return failed ?? <NothingAssigned />;
   }
 
+  const older =
+    search.closed === true && closed.hasNextPage ? (
+      <Button
+        className="m-1.5 self-start"
+        disabled={closed.isFetchingNextPage}
+        onClick={() => {
+          void closed.fetchNextPage();
+        }}
+        size="sm"
+        variant="ghost"
+      >
+        {closed.isFetchingNextPage ? "Loading…" : "Load older issues"}
+      </Button>
+    ) : null;
+
   if (visible.length === 0) {
     return (
       <>
         {failed}
         <NoMatches onClear={onClear} />
+        <div className="flex justify-center">{older}</div>
       </>
     );
   }
@@ -272,20 +288,7 @@ const AssignedIssues = ({
       .get(issue.projectId)
       ?.statuses.find((status) => status.name === groupName.get(groupId));
 
-  const footer = (status: Status) =>
-    status.id === lastClosed && closed.hasNextPage && search.closed === true ? (
-      <Button
-        className="m-1.5 self-start"
-        disabled={closed.isFetchingNextPage}
-        onClick={() => {
-          void closed.fetchNextPage();
-        }}
-        size="sm"
-        variant="ghost"
-      >
-        {closed.isFetchingNextPage ? "Loading…" : "Load older issues"}
-      </Button>
-    ) : null;
+  const footer = (status: Status) => (status.id === lastClosed ? older : null);
 
   const onOpen: OpenIssue = (issue, how) => {
     if (issue.version === 0) {

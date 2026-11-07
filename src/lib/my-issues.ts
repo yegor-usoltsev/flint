@@ -149,7 +149,11 @@ export const useMyIssues = (
     enabled: enabled && search.closed === true,
   });
 
-  const queries = [...details, ...lists];
+  const queries = [
+    ...details,
+    ...lists,
+    ...(search.closed === true ? [closed] : []),
+  ];
 
   const loaded = details.flatMap((query) =>
     query.data === undefined ? [] : [query.data]

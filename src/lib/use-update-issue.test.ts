@@ -510,3 +510,37 @@ describe("issue writes", () => {
     expect(labels()).toEqual(["theirs", "ops", "bug"]);
   });
 });
+
+test("writes update the workspace-wide issue lists too", async () => {
+  const a = issue("1", "done");
+  const { queryClient } = setup([]);
+  const workspaceKey = ["issues", "workspace", "acme", "closed", "mine"];
+
+  queryClient.setQueryData<InfiniteData<IssueSummary[]>>(workspaceKey, {
+    pageParams: [0],
+    pages: [[summaryOf(a)]],
+  });
+
+  spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(
+      async () =>
+        await Promise.resolve(
+          Response.json({ ...a, statusId: "todo", version: 2 })
+        ),
+      { preconnect: fetch.preconnect }
+    )
+  );
+
+  writeIssue(queryClient, a, { statusId: "todo" });
+
+  const workspaceIssue = () =>
+    queryClient.getQueryData<InfiniteData<IssueSummary[]>>(workspaceKey)
+      ?.pages[0]?.[0];
+
+  expect(workspaceIssue()?.statusId).toBe("todo");
+  expect(findCachedIssue(queryClient, "p", a.key)?.statusId).toBe("todo");
+
+  await settle();
+
+  expect(workspaceIssue()).toMatchObject({ statusId: "todo", version: 2 });
+});
