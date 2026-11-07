@@ -219,3 +219,30 @@ export const updateComment = async (
 export const deleteComment = async (actor: Actor, id: string) => {
   await changeComment(actor, id, null);
 };
+
+const withoutWorkspace = ({
+  workspaceId: _workspaceId,
+  ...comment
+}: Comment & { workspaceId: string }): Comment => comment;
+
+export const getComment = async (actor: Actor, id: string) => {
+  const [comment] = isUuid(id)
+    ? await db<(Comment & { workspaceId: string })[]>`
+        select ${commentColumns}, p.workspace_id as "workspaceId"
+        from comments c
+        join users u on u.id = c.author_id
+        join issues i on i.id = c.issue_id
+        join projects p on p.id = i.project_id
+        where c.id = ${id} and c.deleted_at is null
+      `
+    : [];
+
+  if (
+    comment === undefined ||
+    (await workspaceRole(actor, comment.workspaceId)) === null
+  ) {
+    throw notFound("Comment");
+  }
+
+  return withoutWorkspace(comment);
+};

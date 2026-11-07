@@ -5,12 +5,14 @@ export type RealtimeMessage =
 
 export type RealtimeSubscription =
   | { type: "subscribe"; slug: string; userId: string }
-  | { type: "ping" | "reconnect" | "unsubscribe" };
+  | { type: "hide" | "ping" }
+  | { type: "reconnect" | "unsubscribe" };
 
 export const realtimeUrl = (slug: string, userId: string) =>
   `/api/v1/workspaces/${encodeURIComponent(slug)}/stream?userId=${encodeURIComponent(userId)}`;
 
 export const heartbeatMs = 10_000;
+export const hiddenStreamMs = 30_000;
 export const leaseMs = 30_000;
 export const stallMs = 15_000;
 
@@ -153,7 +155,11 @@ interface Stream {
 
 export const createRealtimeHub = () => {
   const streams = new Map<string, Stream>();
-  const ports = new Map<MessagePort, { at: number; stream?: Stream }>();
+
+  const ports = new Map<
+    MessagePort,
+    { at: number; hidden?: boolean; stream?: Stream }
+  >();
 
   const detach = (port: MessagePort) => {
     const stream = ports.get(port)?.stream;
@@ -183,8 +189,8 @@ export const createRealtimeHub = () => {
   };
 
   const sweep = setInterval(() => {
-    for (const [port, { at }] of ports) {
-      if (Date.now() - at >= leaseMs) {
+    for (const [port, { at, hidden }] of ports) {
+      if (hidden !== true && Date.now() - at >= leaseMs) {
         detach(port);
       }
     }
@@ -202,6 +208,10 @@ export const createRealtimeHub = () => {
         }
 
         subscriber.at = Date.now();
+
+        if (data.type === "hide" || data.type === "ping") {
+          subscriber.hidden = data.type === "hide";
+        }
 
         if (data.type === "unsubscribe") {
           detach(port);

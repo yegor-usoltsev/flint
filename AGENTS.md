@@ -23,14 +23,14 @@ Issue tracker and Markdown wiki on TanStack Start and Bun with Gitea sign-in. [R
 - Every product feature is a REST endpoint under `src/routes/api/v1/`, so the CLI can do what the UI does. Add it to `src/lib/endpoints.ts` first, declare the handler with `endpoint<"METHOD /path">` from `src/server/api.server.ts`, and set `ANY: methodNotAllowed`, or other methods fall through to the HTML app.
 - Server-only code lives in `*.server.ts`. Services take the `Actor` and validate and authorize through `src/server/access.server.ts`; anything outside the caller's workspaces answers 404, never 403, so its existence does not leak.
 - Migrations are new `migrations/NNNN_name.sql` files; never edit an applied one. Env variables go in `src/server/env.server.ts`, `.env.example`, the compose `app` service and the table in `docs/self-hosting.md`.
-- Call `publish` from `realtime.server.ts` after the transaction commits, and key issue-derived queries under `["issues", projectId]` so SSE events refresh them.
+- Call `publish` from `realtime.server.ts` after the transaction commits, and key issue-derived queries under `["issues", projectId]`. `src/lib/realtime-cache.ts` patches cached rows from the summary in issue update and wiki write events and refetches only queries whose members can change, so a new list kind needs a rule there.
 - `cli/` imports only `node:*`, types and pure helpers from `src/lib`. Keep `cli/guide.md`, which `flint skill` prints, in step with the commands.
 - Inside `db.begin`, run every query on `tx`, including helpers: a pool query there waits for a free connection while the transaction keeps its locks, so a burst the size of the pool (10) wedges the app. `db.server.ts` sets `lock_timeout` and `idle_in_transaction_session_timeout` so such a wedge ends in errors after seconds.
 - Bun SQL encodes `${value}::jsonb` itself, so pass the raw value; pass arrays as `any(${tx.array(ids, "uuid")})`; detect unique violations with `UniqueViolationSchema`.
 - `src/lib/markdown.ts` wraps Tiptap's ordered-list tokenizer for letter and Roman markers, start values and mixed `.`/`)` delimiters (normalized to `.`). Keep it re-lexing block-first content and continuation blocks at the full marker-prefix width, keeping initial paragraph text, reusing tokenized nested lists (re-parsing them is exponential) and merging bare markers into the previous item.
 - `src/components/media-viewer.tsx` mounts PhotoSwipe inside a Base UI dialog, so it nests above other dialogs and their focus traps. Base UI popups stop arrow-key propagation, so the viewer forwards keys itself; unmount with `dispose`, as `pswp.destroy()` only closes an opening viewer.
 - `src/routeTree.gen.ts` is generated.
-- Realtime transports deliver `open` through `useRealtime`; keep draft retry and full query catch-up there, so SharedWorker joins and the direct fallback behave alike.
+- Realtime transports deliver `open` through `useRealtime`; keep draft retry and catch-up there, so SharedWorker joins and the direct fallback behave alike. The first `open` refreshes only queries loaded well before the connect, later ones refresh everything, and focus refetches only while the stream is down. Shared tabs stay subscribed while hidden and apply queued events when shown.
 
 ## Style
 

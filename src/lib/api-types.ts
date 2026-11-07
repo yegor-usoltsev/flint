@@ -328,7 +328,9 @@ export interface RealtimeEvent {
   entity: RealtimeEntity;
   fields?: IssueField[];
   id: string;
+  issue?: IssueSummary;
   issueId?: string;
+  page?: WikiPageSummary;
   pageId?: string;
   projectId: string | null;
   userIds?: string[];

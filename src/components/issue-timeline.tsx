@@ -306,7 +306,15 @@ const useTimelineCache = (issue: Issue) => {
     );
   };
 
-  return { queryClient, queryKey, update };
+  const settle = (change: (comments: Comment[]) => Comment[]) => {
+    update(change);
+
+    if (queryClient.getQueryState(queryKey)?.fetchStatus === "fetching") {
+      void queryClient.invalidateQueries({ queryKey });
+    }
+  };
+
+  return { queryClient, queryKey, settle, update };
 };
 
 const CommentVersionSchema = v.looseObject({
@@ -395,12 +403,16 @@ const CommentItem = ({
 
       notifyError("Could not save the comment")(error);
     },
-    onSettled: async () => {
-      await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+    onSettled: async (_saved, error) => {
+      if (error !== null) {
+        await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+      }
     },
     onSuccess: (saved) => {
-      cache.update((comments) =>
-        comments.map((item) => (item.id === saved.id ? saved : item))
+      cache.settle((comments) =>
+        comments.map((item) =>
+          item.id === saved.id && item.version <= saved.version ? saved : item
+        )
       );
     },
   });
@@ -409,9 +421,14 @@ const CommentItem = ({
     mutationFn: async () => {
       await api(`/comments/${comment.id}`, { method: "DELETE" });
     },
-    onError: notifyError("Could not delete the comment"),
-    onSettled: async () => {
+    onError: async (error) => {
+      notifyError("Could not delete the comment")(error);
       await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+    },
+    onSuccess: () => {
+      cache.settle((comments) =>
+        comments.filter((item) => item.id !== comment.id)
+      );
     },
   });
 
@@ -608,12 +625,20 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
 
       notifyError("Could not post the comment")(error);
     },
-    onSettled: async () => {
-      await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+    onSettled: async (_saved, error) => {
+      if (error !== null) {
+        await cache.queryClient.invalidateQueries({ queryKey: cache.queryKey });
+      }
     },
     onSuccess: (saved) => {
-      cache.update((comments) =>
-        comments.map((item) => (item.id === saved.id ? saved : item))
+      cache.settle((comments) =>
+        comments.some((item) => item.id === saved.id)
+          ? comments.map((item) =>
+              item.id === saved.id && item.version <= saved.version
+                ? saved
+                : item
+            )
+          : [...comments, saved]
       );
     },
   });

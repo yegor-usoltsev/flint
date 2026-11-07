@@ -8,6 +8,7 @@ import { RouteError } from "~/components/route-error";
 import { RouteNotFound } from "~/components/route-not-found";
 import { rememberImportFailure } from "~/lib/import-recovery";
 import type { IssueOrigin } from "~/lib/issue-view";
+import { refetchOnFocus } from "~/lib/realtime";
 import { routeTree } from "~/routeTree.gen";
 
 const NotFound = () => <RouteNotFound />;
@@ -18,7 +19,13 @@ export const getRouter = () => {
   }
 
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: refetchOnFocus,
+        retry: false,
+        staleTime: 30_000,
+      },
+    },
   });
 
   const QueryProvider = ({ children }: { children: ReactNode }) => (

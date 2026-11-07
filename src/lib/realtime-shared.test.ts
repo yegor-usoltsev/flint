@@ -3,6 +3,8 @@ import { setImmediate as settle } from "node:timers/promises";
 
 import {
   createRealtimeHub,
+  heartbeatMs,
+  hiddenStreamMs,
   leaseMs,
   retryDelay,
   stallMs,
@@ -214,6 +216,15 @@ test("direct fallback handles missing workers, hidden tabs and bfcache", () => {
   expect(tab.messages).toContainEqual({ type: "open" });
   tab.document.hidden = true;
   tab.document.dispatchEvent(new Event("visibilitychange"));
+  jest.advanceTimersByTime(hiddenStreamMs - 1);
+  tab.document.hidden = false;
+  tab.document.dispatchEvent(new Event("visibilitychange"));
+  jest.advanceTimersByTime(hiddenStreamMs);
+  expect(Source.instances).toHaveLength(1);
+  expect(Source.instances[0]?.readyState).toBe(Source.OPEN);
+  tab.document.hidden = true;
+  tab.document.dispatchEvent(new Event("visibilitychange"));
+  jest.advanceTimersByTime(hiddenStreamMs);
   expect(Source.instances[0]?.readyState).toBe(Source.CLOSED);
   tab.document.hidden = false;
   tab.document.dispatchEvent(new Event("visibilitychange"));
@@ -228,7 +239,7 @@ test("direct fallback handles missing workers, hidden tabs and bfcache", () => {
   expect(Source.instances).toHaveLength(3);
 });
 
-test("working worker shares events and releases its port on hidden and cleanup", async () => {
+test("working worker keeps hidden tabs subscribed without a heartbeat and releases them on cleanup", async () => {
   const tab = client(Worker);
 
   await settle();
@@ -241,19 +252,91 @@ test("working worker shares events and releases its port on hidden and cleanup",
   tab.document.hidden = true;
   tab.document.dispatchEvent(new Event("visibilitychange"));
   await settle();
-  expect(Source.instances[0]?.readyState).toBe(Source.CLOSED);
+  jest.advanceTimersByTime(leaseMs * 3);
+  await settle();
+  Source.instances[0]?.message("while hidden");
+  await settle();
+  expect(Source.instances).toHaveLength(1);
+  expect(Source.instances[0]?.readyState).toBe(Source.OPEN);
+  expect(tab.messages).toContainEqual({
+    data: "while hidden",
+    type: "message",
+  });
   tab.document.hidden = false;
   tab.document.dispatchEvent(new Event("visibilitychange"));
   await settle();
-  expect(Source.instances).toHaveLength(2);
+
+  for (let beat = 0; beat < 4; beat += 1) {
+    jest.advanceTimersByTime(heartbeatMs);
+    // oxlint-disable-next-line no-await-in-loop -- Each heartbeat waits for the worker's reply.
+    await settle();
+  }
+
+  expect(Source.instances).toHaveLength(1);
+  expect(tab.messages.filter((item) => item.type === "open")).toHaveLength(1);
   tab.stop();
   await settle();
-  expect(Source.instances[1]?.readyState).toBe(Source.CLOSED);
+  expect(Source.instances[0]?.readyState).toBe(Source.CLOSED);
+});
+
+test("a hidden tab stays exempt from the sweep after asking to reconnect", async () => {
+  const hidden = await subscribe();
+
+  hidden.port.postMessage({ type: "hide" }, []);
+  hidden.port.postMessage({ type: "reconnect" }, []);
+  await settle();
+  jest.advanceTimersByTime(leaseMs * 2);
+  Source.instances.at(-1)?.message("later");
+  await settle();
+  expect(hidden.messages).toContainEqual({ data: "later", type: "message" });
+});
+
+test("a frozen tab releases the shared stream and rejoins on resume", async () => {
+  const tab = client(Worker);
+
+  await settle();
+  Source.instances[0]?.open();
+  await settle();
+  tab.document.dispatchEvent(new Event("freeze"));
+  await settle();
+  expect(Source.instances[0]?.readyState).toBe(Source.CLOSED);
+  tab.document.dispatchEvent(new Event("resume"));
+  await settle();
+  expect(Source.instances).toHaveLength(2);
+});
+
+test("a tab that starts hidden joins the shared stream at once", async () => {
+  const document = Object.assign(new EventTarget(), { hidden: true });
+
+  replace("document", document);
+  replace("window", new EventTarget());
+  replace("SharedWorker", Worker);
+  cleanups.push(subscribeRealtime("acme", "alice", () => {}));
+  await settle();
+  expect(Source.instances).toHaveLength(1);
+  jest.advanceTimersByTime(leaseMs * 2);
+  await settle();
+  expect(Source.instances[0]?.readyState).not.toBe(Source.CLOSED);
 });
 
 test("worker startup failure falls back once without leaking retry timers", () => {
   Worker.behavior.mode = "throw";
   client(Worker);
+  expect(Source.instances).toHaveLength(1);
+});
+
+test("a hidden tab whose worker fails to start waits until shown to connect", () => {
+  Worker.behavior.mode = "throw";
+
+  const document = Object.assign(new EventTarget(), { hidden: true });
+
+  replace("document", document);
+  replace("window", new EventTarget());
+  replace("SharedWorker", Worker);
+  cleanups.push(subscribeRealtime("acme", "alice", () => {}));
+  expect(Source.instances).toHaveLength(0);
+  document.hidden = false;
+  document.dispatchEvent(new Event("visibilitychange"));
   expect(Source.instances).toHaveLength(1);
 });
 

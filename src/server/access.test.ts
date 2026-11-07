@@ -215,6 +215,10 @@ const scopedCalls = (ids: Ids): Record<ScopedEndpoint, Call> => {
       params: wikiPath,
       route: wikiPathRoute,
     },
+    "GET /comments/:commentId": {
+      params: { commentId: ids.commentId },
+      route: commentRoute,
+    },
     "GET /issues/:issueKey": { params: issueKey, route: issueRoute },
     "GET /issues/:issueKey/activity": {
       params: issueKey,
