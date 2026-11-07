@@ -30,9 +30,13 @@ export const Route = createFileRoute("/$slug/project/$key")({
     }
   },
   component: View,
-  loader: async ({ context, params }) => {
+  loader: async ({ context, location, params }) => {
     await preload(async () => {
-      await loadProject(context.queryClient, params.key);
+      await loadProject(
+        context.queryClient,
+        params.key,
+        new URLSearchParams(location.searchStr).get("issue")?.toUpperCase()
+      );
     });
   },
   head: ({ params }) => pageHead(params.key),

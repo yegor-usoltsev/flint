@@ -331,6 +331,12 @@
   }
 }
 
+@utility skeleton-delay {
+  --tw-enter-opacity: 0;
+
+  animation: enter 150ms ease 200ms backwards;
+}
+
 @utility border-hairline {
   border-width: 0.5px;
 }

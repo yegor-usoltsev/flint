@@ -32,9 +32,11 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 import { SidebarInset, SidebarProvider } from "~/components/ui/sidebar";
-import { useMe } from "~/lib/api";
+import { meQuery, useMe } from "~/lib/api";
 import type { Workspace } from "~/lib/api-types";
 import { rememberAppLocation } from "~/lib/back-to-app";
+import { loadIssueDetail, preload } from "~/lib/preload";
+import { labelsQuery, membersQuery, projectsQuery } from "~/lib/queries";
 import { RealtimeStatus, useRealtime } from "~/lib/realtime";
 import { adoptDrafts } from "~/lib/use-draft";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -242,6 +244,28 @@ export const Route = createFileRoute("/$slug")({
       undefined
     ),
   }),
+  ssr: false,
+  loader: async ({ context: { queryClient }, location, params }) => {
+    await preload(async () => {
+      await Promise.all([
+        queryClient.query({ ...meQuery, staleTime: "static" }),
+        queryClient.query({
+          ...projectsQuery(params.slug),
+          staleTime: "static",
+        }),
+        queryClient.query({ ...labelsQuery(params.slug), staleTime: "static" }),
+        queryClient.query({
+          ...membersQuery(params.slug),
+          staleTime: "static",
+        }),
+      ]);
+    });
+
+    if (new URLSearchParams(location.searchStr).has("issue")) {
+      void loadIssueDetail();
+    }
+  },
+  pendingComponent: Loading,
   component: WorkspaceLayout,
   notFoundComponent: AppNotFound,
 });

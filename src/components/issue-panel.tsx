@@ -43,11 +43,11 @@ import {
 } from "~/lib/issue-panel";
 import { useProjectView } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
+import { loadIssueDetail } from "~/lib/preload";
 import { useCommands } from "~/lib/use-hotkey";
 
 const IssuePanelContent = lazy(async () => {
-  const { IssuePanelContent: Content } =
-    await import("~/components/issue-detail");
+  const { IssuePanelContent: Content } = await loadIssueDetail();
 
   return { default: Content };
 });
@@ -83,7 +83,7 @@ const usePanelOrigin = (): IssueOrigin | undefined => {
 };
 
 const Pending = () => (
-  <div aria-busy className="flex flex-col gap-3 p-4">
+  <div aria-busy className="skeleton-delay flex flex-col gap-3 p-4">
     <Skeleton className="h-6 w-1/2" />
     <Skeleton className="h-4 w-full" />
   </div>
