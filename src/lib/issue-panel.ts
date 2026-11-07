@@ -10,10 +10,11 @@ import {
   moveFocus,
   rowOrder,
 } from "~/lib/issue-focus";
+import { rootRem } from "~/lib/rem";
 
-export const panelMin = 420;
-export const listMin = 520;
-const listMax = 1440;
+export const panelMin = (rem = rootRem()) => 26.25 * rem;
+export const listMin = (rem = rootRem()) => 32.5 * rem;
+const listMax = (rem: number) => 90 * rem;
 const panelMaxShare = 0.65;
 const defaultShare = 0.48;
 const boardShare = 0.32;
@@ -179,18 +180,22 @@ export const panelIssue = () => snapshot().issue;
 export const clampWidth = (
   width: number | null,
   space: number,
-  capList = true
+  capList = true,
+  rem = rootRem()
 ) =>
   Math.round(
     Math.min(
       Math.max(
         width ??
           (capList
-            ? Math.max(space * defaultShare, space - listMax)
+            ? Math.max(space * defaultShare, space - listMax(rem))
             : space * boardShare),
-        panelMin
+        panelMin(rem)
       ),
-      Math.max(panelMin, Math.min(space * panelMaxShare, space - listMin))
+      Math.max(
+        panelMin(rem),
+        Math.min(space * panelMaxShare, space - listMin(rem))
+      )
     )
   );
 
@@ -204,8 +209,12 @@ export const setPanelWidth = (width: number | null) => {
   update({ width });
 };
 
-export const setPanelSpace = (space: number, enabled: boolean) => {
-  const fits = space >= panelMin + listMin;
+export const setPanelSpace = (
+  space: number,
+  enabled: boolean,
+  rem = rootRem()
+) => {
+  const fits = space >= panelMin(rem) + listMin(rem);
 
   update({ available: enabled && fits, fits });
 };

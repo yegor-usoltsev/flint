@@ -16,15 +16,23 @@ import {
 
 test("the panel width stays between its minimum and what leaves the list its minimum", () => {
   expect(clampWidth(null, 1400)).toBe(672);
-  expect(clampWidth(100, 1400)).toBe(panelMin);
-  expect(clampWidth(5000, 1400)).toBe(1400 - listMin);
+  expect(clampWidth(100, 1400)).toBe(panelMin());
+  expect(clampWidth(5000, 1400)).toBe(1400 - listMin());
   expect(clampWidth(5000, 2400)).toBe(1560);
-  expect(clampWidth(600, panelMin + listMin)).toBe(panelMin);
+  expect(clampWidth(600, panelMin() + listMin())).toBe(panelMin());
 });
 
 test("on very wide screens the panel takes what the capped list leaves", () => {
   expect(clampWidth(null, 3600)).toBe(2160);
   expect(clampWidth(null, 1800)).toBe(864);
+});
+
+test("the panel and list minimums grow with the root font size", () => {
+  expect(panelMin(20)).toBe(525);
+  expect(listMin(20)).toBe(650);
+  expect(clampWidth(100, 3000, true, 20)).toBe(525);
+  expect(clampWidth(null, 3000, true, 20)).toBe(1440);
+  expect(clampWidth(5000, 1600, true, 20)).toBe(950);
 });
 
 test("a board keeps a narrower panel so more columns fit", () => {

@@ -188,7 +188,7 @@ const ResizeHandle = ({ space, width }: { space: number; width: number }) => {
       aria-label="Resize issue panel"
       aria-orientation="vertical"
       aria-valuemax={clampWidth(space, space)}
-      aria-valuemin={panelMin}
+      aria-valuemin={panelMin()}
       aria-valuenow={width}
       className="hover:bg-ring/40 focus-visible:bg-ring absolute inset-y-0 left-0 z-20 w-1.5 cursor-col-resize touch-none outline-none"
       onDoubleClick={() => {

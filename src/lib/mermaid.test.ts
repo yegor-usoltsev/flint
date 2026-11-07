@@ -1,7 +1,13 @@
 import { expect, test } from "bun:test";
 
 import { diagramsIn } from "~/lib/markdown-diagrams";
-import { diagramConfig, dropGlobalRules, scopeDiagram } from "~/lib/mermaid";
+import {
+  diagramConfig,
+  diagramVars,
+  dropGlobalRules,
+  scopeDiagram,
+  smallestLabel,
+} from "~/lib/mermaid";
 
 const payload = "@keyframes enter { from { opacity: 0 } to { opacity: 0 } }";
 
@@ -52,4 +58,17 @@ test("diagram fences match backtick, tilde, longer, CRLF and nested fences", () 
     "graph LR\n  L-->M",
     "classDiagram",
   ]);
+});
+
+test("a diagram never shrinks its smallest label below 12 px", () => {
+  const svg =
+    '<svg><style>.label{font-size:13px}.edgeTerminals{font-size: 11px}</style><text font-size="10">1</text></svg>';
+
+  expect(smallestLabel(svg)).toBe(10);
+  expect(smallestLabel("<svg></svg>")).toBe(13);
+  expect(
+    smallestLabel("<svg><style>.c4-type{font-size: 0.75em}</style></svg>")
+  ).toBe(9.75);
+  expect(diagramVars({ height: 100, width: 1300 }).min).toBe("1200px");
+  expect(diagramVars({ height: 100, width: 1300 }, 10).min).toBe("1560px");
 });

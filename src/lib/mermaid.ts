@@ -8,6 +8,8 @@ import * as v from "valibot";
 let loading: Promise<Mermaid> | null = null;
 let theme: "dark" | "light" | undefined;
 let renders = 0;
+const labelPx = 13;
+const minLabelPx = 12;
 
 const palettes = {
   dark: {
@@ -57,7 +59,7 @@ export const diagramConfig = (
     ...palettes[wanted],
     background: "transparent",
     fontFamily,
-    fontSize: "13px",
+    fontSize: `${labelPx}px`,
   },
 });
 
@@ -163,6 +165,29 @@ export interface DiagramSize {
   height: number;
   width: number;
 }
+
+export const smallestLabel = (svg: string) => {
+  let smallest = labelPx;
+
+  for (const match of svg.matchAll(
+    /font-size(?::\s*(?<css>[\d.]+)(?<unit>px|em)|="(?<attr>[\d.]+)")/gu
+  )) {
+    const value = Number(match.groups?.["css"] ?? match.groups?.["attr"]);
+    const px = match.groups?.["unit"] === "em" ? value * labelPx : value;
+
+    if (px > 0 && px < smallest) {
+      smallest = px;
+    }
+  }
+
+  return smallest;
+};
+
+export const diagramVars = (size: DiagramSize, smallest = labelPx) => ({
+  min: `${(size.width * minLabelPx) / Math.min(smallest, labelPx)}px`,
+  ratio: `${size.width} / ${size.height}`,
+  width: `${size.width / 16}rem`,
+});
 
 const sizesKey = "flint:diagram-sizes";
 const sizeLimit = 200;
