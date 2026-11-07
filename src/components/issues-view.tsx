@@ -1297,13 +1297,20 @@ export const IssuesView = ({
     setSearch({ [key]: values.length === 0 ? undefined : values });
   };
 
+  const knownIn = (project: ProjectDetail) =>
+    withKnown(
+      search,
+      "status",
+      project.statuses.map((status) => status.id)
+    );
+
   return (
     <ProjectPage
       renderActions={(project) => (
         <ProjectActions
           onFilter={onFilter}
           project={project}
-          search={search}
+          search={knownIn(project)}
           setSearch={setSearch}
           view={view}
         />
@@ -1311,11 +1318,7 @@ export const IssuesView = ({
       className={cn("flex flex-col", view === "board" && "overflow-hidden")}
     >
       {(project) => {
-        const known = withKnown(
-          search,
-          "status",
-          project.statuses.map((status) => status.id)
-        );
+        const known = knownIn(project);
 
         return (
           <>
