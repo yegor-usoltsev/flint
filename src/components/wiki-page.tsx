@@ -409,6 +409,10 @@ const PageFilter = ({
             onChange(event.target.value);
           }}
           onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) {
+              return;
+            }
+
             const links = list.current === null ? [] : rowLinks(list.current);
 
             if (event.key === "Escape" && value !== "") {
@@ -661,14 +665,14 @@ const FilteredPages = ({
 
   const needle = query.trim().toLocaleLowerCase();
 
-  const recent =
-    sort === "edited"
-      ? recentPages(pages, folder).filter((page) =>
-          page.title.toLocaleLowerCase().includes(needle)
-        )
-      : [];
+  const edited = sort === "edited" ? recentPages(pages, folder) : [];
+  const showRecent = edited.length > 0;
 
-  const shown = sort === "edited" ? recent.length : filtered.nodes.length;
+  const recent = edited.filter((page) =>
+    page.title.toLocaleLowerCase().includes(needle)
+  );
+
+  const shown = showRecent ? recent.length : filtered.nodes.length;
 
   return (
     <div
@@ -679,12 +683,12 @@ const FilteredPages = ({
       role="presentation"
     >
       <PageFilter list={list} onChange={setQuery} value={query} />
-      {shown === 0 ? (
+      {shown === 0 && needle !== "" ? (
         <p className="text-muted-foreground px-4 py-3 text-sm">
           No pages match “{query.trim()}”
         </p>
       ) : null}
-      {sort === "edited" ? (
+      {showRecent ? (
         <RecentRows pages={recent} wiki={wiki} />
       ) : (
         <WikiDragDrop tree={tree} wiki={wiki}>
