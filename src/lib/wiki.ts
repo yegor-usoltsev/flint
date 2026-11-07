@@ -296,6 +296,29 @@ export const findNode = (
   return undefined;
 };
 
+export const filterTree = (nodes: WikiNode[], query: string) => {
+  const needle = query.trim().toLocaleLowerCase();
+  const open = new Set<string>();
+
+  const keep = (list: WikiNode[]): WikiNode[] =>
+    list.flatMap((node) => {
+      const children = keep(node.children);
+      const matches = node.title.toLocaleLowerCase().includes(needle);
+
+      if (children.length > 0) {
+        open.add(node.path);
+      }
+
+      if (matches) {
+        return [node];
+      }
+
+      return children.length > 0 ? [{ ...node, children }] : [];
+    });
+
+  return needle === "" ? { nodes, open } : { nodes: keep(nodes), open };
+};
+
 export const countNodes = (nodes: WikiNode[], kind: WikiNodeKind): number =>
   nodes.reduce(
     (sum, node) =>
