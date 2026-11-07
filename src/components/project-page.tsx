@@ -14,10 +14,12 @@ import { usePageTitle } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
 export const ProjectPage = ({
+  bounded,
   renderActions,
   children,
   className,
 }: {
+  bounded?: boolean;
   renderActions?: (project: ProjectDetail) => ReactNode;
   children: (project: ProjectDetail) => ReactNode;
   className?: string;
@@ -55,6 +57,7 @@ export const ProjectPage = ({
       actions={
         project.data === undefined ? undefined : renderActions?.(project.data)
       }
+      bounded={bounded}
       className={className}
       crumbs={[
         {

@@ -4,11 +4,14 @@ import { QueryClient } from "@tanstack/react-query";
 
 import {
   clampWidth,
+  closePanel,
+  issueOpening,
   listMin,
   openIssueRow,
   openPanel,
   panelIssue,
   panelMin,
+  panelShown,
   setIssueOpening,
   setPanelSpace,
   showFirstRow,
@@ -103,6 +106,17 @@ const firstRowClient = () => {
   return queryClient;
 };
 
+test("a wide window starts with the panel closed and the preference falls back to the last list width", () => {
+  withBrowser(() => {
+    syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
+    setPanelSpace(2000, true);
+    expect(panelShown()).toBe(false);
+
+    setPanelSpace(0, false);
+    expect(issueOpening()).toBe("panel");
+  });
+});
+
 test("an automatic preview stays out of the URL until the user opens it", () => {
   withBrowser((location) => {
     const queryClient = firstRowClient();
@@ -166,6 +180,21 @@ test("stepping from a panel issue that has no row in the list stays put", () => 
   });
 
   Reflect.deleteProperty(globalThis, "CSS");
+});
+
+test("without a preference, a click uses the panel only once the list is 120rem wide, and nothing opens by itself", () => {
+  withBrowser(() => {
+    syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
+    closePanel();
+
+    setPanelSpace(1900, true);
+    expect(openIssueRow("ENG-4")).toBe(false);
+
+    setPanelSpace(1920, true);
+    expect(panelShown()).toBe(false);
+    expect(openIssueRow("ENG-4")).toBe(true);
+    expect(panelIssue()).toBe("ENG-4");
+  });
 });
 
 test("a clicked row opens in the panel or on the page as the preference says", () => {

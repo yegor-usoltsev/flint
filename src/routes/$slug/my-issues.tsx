@@ -446,6 +446,7 @@ const MyIssues = () => {
 
   return (
     <Page
+      bounded={view === "list"}
       className={cn("flex flex-col", view === "board" && "overflow-hidden")}
       crumbs={[
         {
