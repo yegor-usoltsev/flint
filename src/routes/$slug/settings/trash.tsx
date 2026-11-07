@@ -218,7 +218,7 @@ const ExpiresLine = ({
   deletedAt: string;
   purgeAt: string;
 }) => (
-  <span className="text-muted-foreground pl-6 text-xs">
+  <span className="text-muted-foreground text-xs">
     Deleted {formatDate(deletedAt)}
     <span className="md:hidden">
       , deleted forever {expiresText(daysLeft(purgeAt))}
@@ -228,7 +228,6 @@ const ExpiresLine = ({
 
 const TrashRow = ({
   children,
-  deletedAt,
   deletedBy,
   isAdmin,
   name,
@@ -239,7 +238,6 @@ const TrashRow = ({
   purgeText,
 }: {
   children: ReactNode;
-  deletedAt: string;
   deletedBy: UserRef | null;
   isAdmin: boolean;
   name: string;
@@ -253,10 +251,7 @@ const TrashRow = ({
 
   return (
     <li className={cn(tableRow, "max-md:py-1.5")}>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex min-w-0 items-start gap-2">{children}</div>
-        <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
-      </div>
+      <div className="flex min-w-0 flex-1 items-start gap-2">{children}</div>
       <DeletedBy user={deletedBy} />
       <ExpiresIn purgeAt={purgeAt} />
       <div className="flex shrink-0 items-center justify-end gap-1 md:w-26">
@@ -331,7 +326,6 @@ const IssueRow = ({
 
   return (
     <TrashRow
-      deletedAt={issue.deletedAt}
       purgeAt={issue.purgeAt}
       deletedBy={issue.deletedBy}
       isAdmin={isAdmin}
@@ -352,13 +346,16 @@ const IssueRow = ({
       <span className="text-muted-foreground tracking-key shrink-0 tabular-nums">
         {issue.key}
       </span>
-      <Link
-        className="line-clamp-2 font-medium wrap-anywhere hover:underline"
-        params={{ issueKey: issue.key, slug }}
-        to="/$slug/issue/$issueKey"
-      >
-        {issue.title}
-      </Link>
+      <span className="flex min-w-0 flex-col">
+        <Link
+          className="line-clamp-2 font-medium wrap-anywhere hover:underline"
+          params={{ issueKey: issue.key, slug }}
+          to="/$slug/issue/$issueKey"
+        >
+          {issue.title}
+        </Link>
+        <ExpiresLine deletedAt={issue.deletedAt} purgeAt={issue.purgeAt} />
+      </span>
     </TrashRow>
   );
 };
@@ -414,7 +411,6 @@ const PageRow = ({
 
   return (
     <TrashRow
-      deletedAt={page.deletedAt}
       purgeAt={page.purgeAt}
       deletedBy={page.deletedBy}
       isAdmin={isAdmin}
@@ -438,6 +434,7 @@ const PageRow = ({
           {page.path}
           {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
         </span>
+        <ExpiresLine deletedAt={page.deletedAt} purgeAt={page.purgeAt} />
       </span>
     </TrashRow>
   );
