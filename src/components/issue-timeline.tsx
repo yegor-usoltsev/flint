@@ -814,9 +814,9 @@ const useHeldComments = (
 
   const held = comments?.filter(isHeld) ?? [];
 
-  const show = (pin: boolean) => {
+  const show = () => {
     if (comments !== undefined && current !== null) {
-      setSeen({ ...current, ids: allIds(comments), pin });
+      setSeen({ ...current, ids: allIds(comments), pin: false });
     }
 
     flashRemote(held.map((comment) => comment.id));
@@ -828,7 +828,7 @@ const useHeldComments = (
       comments !== undefined &&
       seenIds({ comments, known, me, reader }) !== known
     ) {
-      show(pinned());
+      show();
     }
   };
 
@@ -875,7 +875,7 @@ const useHeldComments = (
   const reveal = () => {
     const [first] = held;
 
-    show(false);
+    show();
 
     requestAnimationFrame(() => {
       byData("comment", first?.id ?? "")?.scrollIntoView({
