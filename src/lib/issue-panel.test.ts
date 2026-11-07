@@ -5,9 +5,11 @@ import { QueryClient } from "@tanstack/react-query";
 import {
   clampWidth,
   listMin,
+  openIssueRow,
   openPanel,
   panelIssue,
   panelMin,
+  setIssueOpening,
   setPanelSpace,
   showFirstRow,
   stepFromPanel,
@@ -156,4 +158,22 @@ test("stepping from a panel issue that has no row in the list stays put", () => 
   });
 
   Reflect.deleteProperty(globalThis, "CSS");
+});
+
+test("a clicked row opens in the panel or on the page as the preference says", () => {
+  withBrowser(() => {
+    syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
+    setPanelSpace(2000, true);
+
+    setIssueOpening("page");
+    expect(openIssueRow("ENG-1")).toBe(false);
+    expect(panelIssue()).not.toBe("ENG-1");
+
+    setIssueOpening("panel");
+    expect(openIssueRow("ENG-2")).toBe(true);
+    expect(panelIssue()).toBe("ENG-2");
+
+    setPanelSpace(600, true);
+    expect(openIssueRow("ENG-3")).toBe(false);
+  });
 });

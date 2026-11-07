@@ -69,13 +69,13 @@ export const ColorSwatches = ({
 }) => (
   <fieldset
     aria-label={label}
-    className="grid w-fit grid-cols-6 gap-1.5 sm:grid-cols-12"
+    className="grid w-fit grid-cols-6 gap-3 sm:grid-cols-12 sm:gap-1.5"
   >
     {colors.map((color) => (
       <button
         aria-label={colorLabel(color)}
         aria-pressed={color === value}
-        className="bg-swatch hit-area focus-visible:ring-ring/50 relative flex size-5.5 items-center justify-center rounded-full text-white outline-none focus-visible:ring-3 disabled:opacity-50"
+        className="bg-swatch hit-area focus-visible:ring-ring/50 relative flex size-8 items-center justify-center rounded-full text-white outline-none focus-visible:ring-3 disabled:opacity-50 sm:size-5.5"
         data-color={color}
         disabled={disabled}
         key={color}

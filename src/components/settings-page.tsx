@@ -1,4 +1,5 @@
 import { useLocation } from "@tanstack/react-router";
+import { cn } from "cn";
 import { SearchIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
@@ -29,6 +30,8 @@ import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { useAutosaveText } from "~/lib/use-autosave-text";
 import { useWorkspace } from "~/lib/use-workspace";
+
+const settingsCard = "bg-card shadow-raised rounded-lg border";
 
 export interface SettingsParent {
   label: string;
@@ -112,7 +115,7 @@ export const SettingsPage = ({
 }) => (
   <>
     <SettingsHeader label={title} parent={parent} />
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="settings-controls min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
         <div className="flex flex-col gap-1 px-0.5">
           <div className="flex items-start gap-4">
@@ -159,10 +162,12 @@ export const SettingsSection = ({
         {action}
       </div>
     )}
-    <div className="bg-card shadow-raised divide-y rounded-lg border px-4">
-      {children}
-    </div>
+    <div className={cn(settingsCard, "divide-y px-4")}>{children}</div>
   </section>
+);
+
+export const SettingsTable = ({ children }: { children: ReactNode }) => (
+  <div className={cn(settingsCard, "p-1")}>{children}</div>
 );
 
 export const SettingsRow = ({
@@ -170,13 +175,20 @@ export const SettingsRow = ({
   description,
   htmlFor,
   label,
+  stacked = false,
 }: {
   children?: ReactNode;
   description?: ReactNode;
   htmlFor?: string;
   label: ReactNode;
+  stacked?: boolean;
 }) => (
-  <div className="flex min-h-15 flex-wrap items-center gap-x-4 gap-y-2 py-3">
+  <div
+    className={cn(
+      "flex min-h-15 flex-wrap items-center gap-x-4 gap-y-2 py-3",
+      stacked && "max-sm:flex-col max-sm:items-stretch"
+    )}
+  >
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
       {htmlFor === undefined ? (
         <span className="font-medium">{label}</span>
@@ -193,6 +205,38 @@ export const SettingsRow = ({
     </div>
     {children}
   </div>
+);
+
+export const SettingsChoice = <Value extends string>({
+  items,
+  label,
+  onChange,
+  value,
+}: {
+  items: readonly { short: string; value: Value }[];
+  label: string;
+  onChange: (value: Value) => void;
+  value: Value;
+}) => (
+  <fieldset
+    aria-label={label}
+    className="bg-surface-3 flex rounded-lg p-0.5 max-sm:w-full"
+  >
+    {items.map((item) => (
+      <Button
+        aria-pressed={value === item.value}
+        className="max-sm:flex-1"
+        key={item.value}
+        onClick={() => {
+          onChange(item.value);
+        }}
+        size="sm"
+        variant={value === item.value ? "default" : "ghost"}
+      >
+        {item.short}
+      </Button>
+    ))}
+  </fieldset>
 );
 
 export const SettingsInput = ({

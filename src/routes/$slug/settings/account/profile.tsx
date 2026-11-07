@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { cn } from "cn";
 import { ArrowUpRightIcon } from "lucide-react";
 
 import {
@@ -96,7 +95,10 @@ const Profile = () => {
       <SettingsSection
         action={
           <a
-            className={cn(buttonVariants({ variant: "ghost" }))}
+            className={buttonVariants({
+              className: "max-sm:h-10",
+              variant: "ghost",
+            })}
             href={new URL("/user/settings", me.giteaUrl).href}
             rel="noreferrer"
             target="_blank"
@@ -130,6 +132,7 @@ const Profile = () => {
         <SettingsRow
           description="You lose access until an admin adds you again"
           label={`Leave ${workspace.name}`}
+          stacked
         >
           <LeaveWorkspace me={me} workspace={workspace} />
         </SettingsRow>
