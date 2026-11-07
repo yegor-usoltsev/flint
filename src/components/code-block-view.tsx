@@ -1,3 +1,4 @@
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   NodeViewContent,
@@ -15,12 +16,19 @@ import {
   SlidersHorizontalIcon,
   Trash2Icon,
   WorkflowIcon,
+  XIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { MouseEvent, ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { MouseEvent, ReactNode, RefObject, UIEvent } from "react";
 
 import { MediaViewer } from "~/components/media-viewer";
 import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogPortal,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,12 +57,14 @@ import {
   diagramQuery,
   diagramSize,
   diagramVars,
+  fitsColumn,
   parseDiagram,
   smallestLabel,
   svgSize,
   useDarkTheme,
 } from "~/lib/mermaid";
 import type { DiagramSize } from "~/lib/mermaid";
+import { rootRem } from "~/lib/rem";
 import { themeColors } from "~/lib/theme";
 
 const Toolbar = ({
@@ -77,14 +87,22 @@ const Toolbar = ({
 
 const ToolbarButton = ({
   children,
+  className,
   label,
   onClick,
 }: {
   children: ReactNode;
+  className?: string;
   label: string;
   onClick: () => void;
 }) => (
-  <Button aria-label={label} onClick={onClick} size="icon-xs" variant="ghost">
+  <Button
+    aria-label={label}
+    className={className}
+    onClick={onClick}
+    size="icon-xs"
+    variant="ghost"
+  >
     {children}
   </Button>
 );
@@ -251,11 +269,61 @@ const statusClass = "text-muted-foreground mt-1 px-1 font-sans text-xs";
 
 const coarsePointer = () => window.matchMedia("(pointer: coarse)").matches;
 
+const phoneQuery = "(width < 40rem)";
+
 const diagramFrame =
   "group-data-selected/code:ring-ring flex min-h-16 justify-center-safe overflow-x-auto rounded-lg border p-4 group-data-selected/code:ring-2";
 
+const DiagramSheet = ({
+  onClose,
+  src,
+}: {
+  onClose: () => void;
+  src: string | null;
+}) => (
+  <Dialog
+    onOpenChange={(open) => {
+      if (!open) {
+        onClose();
+      }
+    }}
+    open={src !== null}
+  >
+    <DialogPortal>
+      <DialogPrimitive.Popup className="bg-background fixed inset-0 z-50 flex flex-col outline-none">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b pr-1.5 pl-4">
+          <DialogTitle>Diagram</DialogTitle>
+          <DialogClose
+            render={
+              <Button
+                aria-label="Close"
+                className="size-11"
+                size="icon-lg"
+                variant="ghost"
+              />
+            }
+          >
+            <XIcon />
+          </DialogClose>
+        </div>
+        <section
+          aria-label="Diagram at full size"
+          className="focus-visible:ring-ring/50 flex min-h-0 flex-1 overflow-auto overscroll-contain p-4 outline-none focus-visible:ring-3 focus-visible:ring-inset"
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The diagram scrolls on both axes, so the region takes focus for keyboard scrolling.
+          tabIndex={0}
+        >
+          {src === null ? null : (
+            <img alt="Diagram" className="m-auto max-w-none" src={src} />
+          )}
+        </section>
+      </DialogPrimitive.Popup>
+    </DialogPortal>
+  </Dialog>
+);
+
 const useDiagramViewer = () => {
   const [src, setSrc] = useState<string | null>(null);
+  const [sheet, setSheet] = useState(false);
 
   useEffect(
     () => () => {
@@ -267,23 +335,29 @@ const useDiagramViewer = () => {
   );
 
   const open = (svg: string, dark: boolean) => {
-    const image = diagramImage(
-      svg,
-      dark ? themeColors.dark : themeColors.light
-    );
+    const phone = window.matchMedia(phoneQuery).matches;
+    const background = dark ? themeColors.dark : themeColors.light;
+    const image = diagramImage(svg, phone ? null : background);
 
     if (image !== null) {
+      setSheet(phone);
       setSrc(image);
     }
   };
 
-  const viewer = (
+  const close = () => {
+    setSrc(null);
+  };
+
+  const viewer = sheet ? (
+    <DiagramSheet onClose={close} src={src} />
+  ) : (
     <MediaViewer
       index={src === null ? null : 0}
       items={src === null ? [] : [{ kind: "image", name: "Diagram.svg", src }]}
       onIndex={(index) => {
         if (index === null) {
-          setSrc(null);
+          close();
         }
       }}
     />
@@ -300,6 +374,61 @@ const selectOnMouseDown =
     }
   };
 
+const scrollsOn = (element: HTMLElement) =>
+  element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
+
+const useDiagramFit = (
+  frame: RefObject<HTMLElement | null>,
+  size: DiagramSize | undefined,
+  smallest: number | undefined
+) => {
+  const [fit, setFit] = useState(false);
+  const [fade, setFade] = useState(false);
+
+  useEffect(() => {
+    const element = frame.current;
+
+    const measure = () => {
+      if (element === null) {
+        return;
+      }
+
+      const available = element.clientWidth - 2 * rootRem();
+
+      setFit(
+        size !== undefined &&
+          window.matchMedia(phoneQuery).matches &&
+          fitsColumn(size, available, smallest)
+      );
+
+      setFade(scrollsOn(element));
+    };
+
+    const observer = new ResizeObserver(measure);
+
+    if (element !== null) {
+      measure();
+      observer.observe(element);
+
+      for (const child of element.children) {
+        observer.observe(child);
+      }
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [frame, size, smallest]);
+
+  return {
+    fade,
+    fit,
+    handleScroll: (event: UIEvent<HTMLElement>) => {
+      setFade(scrollsOn(event.currentTarget));
+    },
+  };
+};
+
 const DiagramFrame = ({
   onExpand,
   onSelect,
@@ -311,10 +440,12 @@ const DiagramFrame = ({
   size: DiagramSize | undefined;
   svg: string | undefined;
 }) => {
+  const ref = useRef<HTMLElement>(null);
   const shown = svg === undefined || svg === "" ? undefined : svgSize(svg);
   const measured = shown ?? size;
 
   const smallest = svg === undefined ? undefined : smallestLabel(svg);
+  const { fade, fit, handleScroll } = useDiagramFit(ref, shown, smallest);
 
   const vars =
     measured === undefined ? undefined : diagramVars(measured, smallest);
@@ -351,37 +482,27 @@ const DiagramFrame = ({
     );
   }
 
-  if (onSelect === undefined) {
-    return (
-      <button
-        aria-label="Expand diagram"
-        className={cn(frame, "cursor-zoom-in")}
-        // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
-        dangerouslySetInnerHTML={{ __html: svg }}
-        disabled={svg === ""}
-        onClick={onExpand}
-        style={style}
-        type="button"
-      />
-    );
-  }
-
   return (
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events -- A click selects the block like any atom, a tap zooms it like an image; the toolbar's Expand and menu buttons reach both by keyboard.
     <section
       aria-label="Diagram"
       className={cn(
         frame,
-        "focus-visible:ring-ring/50 outline-none focus-visible:ring-3"
+        "focus-visible:ring-ring/50 outline-none focus-visible:ring-3",
+        onSelect === undefined && svg !== "" && "cursor-zoom-in"
       )}
+      data-fade={fade ? "" : undefined}
+      data-fit={fit ? "" : undefined}
       // oxlint-disable-next-line react/no-danger -- Mermaid renders with securityLevel "strict", which sanitizes labels with DOMPurify.
       dangerouslySetInnerHTML={{ __html: svg }}
       onClick={() => {
-        if (svg !== "" && coarsePointer()) {
+        if (svg !== "" && (onSelect === undefined || coarsePointer())) {
           onExpand();
         }
       }}
       onMouseDown={selectOnMouseDown(onSelect)}
+      ref={ref}
+      onScroll={handleScroll}
       style={style}
       // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A wide diagram scrolls inside its frame, so the frame takes focus for keyboard scrolling.
       tabIndex={0}
@@ -411,6 +532,7 @@ const Diagram = ({
 
   const svg = empty ? "" : diagram.data;
   const failed = diagram.isError && diagram.data === undefined;
+  const ready = svg !== undefined && svg !== "";
 
   const expand = () => {
     if (svg !== undefined) {
@@ -430,13 +552,35 @@ const Diagram = ({
           svg={svg}
         />
       )}
-      {menu === undefined ? null : (
-        <Toolbar className="pointer-coarse:opacity-100">
-          {svg === undefined || svg === "" ? null : (
-            <ToolbarButton label="Expand diagram" onClick={expand}>
+      {ready && !failed ? (
+        <Button
+          aria-label="Expand diagram"
+          className="absolute top-1 right-1 size-11 sm:hidden"
+          contentEditable={false}
+          onClick={expand}
+          size="icon-lg"
+          variant="outline"
+        >
+          <Maximize2Icon />
+        </Button>
+      ) : null}
+      {menu === undefined && !ready ? null : (
+        <Toolbar
+          className={cn(
+            "pointer-coarse:opacity-100",
+            menu === undefined && "max-sm:hidden",
+            menu !== undefined && "max-sm:top-2.5 max-sm:right-14"
+          )}
+        >
+          {ready ? (
+            <ToolbarButton
+              className="max-sm:hidden"
+              label="Expand diagram"
+              onClick={expand}
+            >
               <Maximize2Icon />
             </ToolbarButton>
-          )}
+          ) : null}
           {menu}
         </Toolbar>
       )}

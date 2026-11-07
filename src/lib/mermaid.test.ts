@@ -5,6 +5,7 @@ import {
   diagramConfig,
   diagramVars,
   dropGlobalRules,
+  fitsColumn,
   scopeDiagram,
   smallestLabel,
 } from "~/lib/mermaid";
@@ -73,4 +74,13 @@ test("a diagram never shrinks its smallest label below 12 px", () => {
   expect(smallestLabel('<svg><text font-size="0.1"></text></svg>')).toBe(6);
   expect(diagramVars({ height: 100, width: 1300 }).min).toBe("1200px");
   expect(diagramVars({ height: 100, width: 1300 }, 10).min).toBe("1560px");
+});
+
+test("a phone fits a diagram to the column unless its labels would fall below 45 %", () => {
+  const architecture = { height: 300, width: 636 };
+
+  expect(fitsColumn(architecture, 327)).toBe(true);
+  expect(fitsColumn(architecture, 280)).toBe(false);
+  expect(fitsColumn(architecture, 327, 9.75)).toBe(false);
+  expect(fitsColumn({ height: 50, width: 200 }, 327, 6)).toBe(true);
 });

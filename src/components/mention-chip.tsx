@@ -81,17 +81,13 @@ const IssueChip = ({ node }: ReactNodeViewProps) => {
           state={(previous) => ({ full: previous.full })}
           to="/$slug/issue/$issueKey"
         >
-          <span className="shrink-0 whitespace-nowrap">
+          <span>
             {status === undefined ? null : (
               <StatusIcon category={status.category} color={status.color} />
             )}
             <span className="text-muted-foreground">{key}</span>
           </span>
-          {issue === null ? null : (
-            <span className="truncate max-md:whitespace-normal">
-              {issue.title}
-            </span>
-          )}
+          {issue === null ? null : <span>{issue.title}</span>}
         </Link>
       )}
     </NodeViewWrapper>
@@ -119,9 +115,7 @@ const PageChip = ({ node }: ReactNodeViewProps) => {
           : wikiTarget(workspace, page.path))}
       >
         <FileTextIcon />
-        <span className="truncate max-md:whitespace-normal">
-          {page?.title ?? label}
-        </span>
+        <span>{page?.title ?? label}</span>
       </Link>
     </NodeViewWrapper>
   );
