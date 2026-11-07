@@ -22,8 +22,12 @@ import * as v from "valibot";
 
 import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog } from "~/components/conflict-dialog";
-import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
+import {
+  MarkdownField,
+  MarkdownView,
+  SourceToggle,
+} from "~/components/markdown-view";
 import { Keys } from "~/components/shortcuts-dialog";
 import { StatusIcon } from "~/components/status-icon";
 import {
@@ -81,6 +85,18 @@ interface Timeline {
 type EventItem = Extract<ActivityItem, { type: "event" }>;
 
 const draftKey = (issueId: string) => `new-comment:${issueId}`;
+
+const recentItems = 50;
+
+const itemTime = (item: ActivityItem | undefined) => {
+  if (item === undefined) {
+    return -Infinity;
+  }
+
+  return Date.parse(
+    item.type === "comment" ? item.comment.createdAt : item.createdAt
+  );
+};
 
 const composerClass =
   "bg-card shadow-raised flex flex-col gap-2 rounded-md border p-4 pb-3";
@@ -502,12 +518,10 @@ const CommentItem = ({
         ) : null}
       </header>
       {editing === null ? (
-        <MarkdownEditor
+        <MarkdownView
           attachments={`/issues/${issue.key}/attachments`}
           checkable={own && !save.isPending}
           className="text-prose pl-7"
-          editable={false}
-          label={`Comment by ${comment.author.displayName}`}
           onChange={(body) => {
             save.mutate({ body, version: comment.version });
           }}
@@ -515,7 +529,7 @@ const CommentItem = ({
         />
       ) : (
         <>
-          <MarkdownEditor
+          <MarkdownField
             autoFocus
             className="text-prose pl-7"
             label="Edit comment"
@@ -667,7 +681,7 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
 
   return (
     <div className={composerClass}>
-      <MarkdownEditor
+      <MarkdownField
         className="text-prose min-h-12"
         label="Comment"
         onChange={setBody}
@@ -965,12 +979,29 @@ export const IssueTimeline = ({
     me?.id
   );
 
-  const feed = runs(
-    activityFeed(
-      timeline.data?.events ?? [],
-      (timeline.data?.comments ?? []).filter((comment) => !isHeld(comment))
-    )
+  const [earlier, setEarlier] = useState<{
+    from: number;
+    issueId: string;
+  } | null>(null);
+
+  const items = activityFeed(
+    timeline.data?.events ?? [],
+    (timeline.data?.comments ?? []).filter((comment) => !isHeld(comment))
   );
+
+  const from =
+    earlier?.issueId === issue.id
+      ? earlier.from
+      : itemTime(items.at(-recentItems));
+
+  if (timeline.data !== undefined && earlier?.issueId !== issue.id) {
+    setEarlier({ from, issueId: issue.id });
+  }
+
+  const shown = items.filter((item) => itemTime(item) >= from);
+  const hidden = items.length - shown.length;
+
+  const feed = runs(shown);
 
   return (
     <section
@@ -986,27 +1017,42 @@ export const IssueTimeline = ({
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <ol className="flex flex-col gap-3">
-          {feed.map((entry) =>
-            Array.isArray(entry) ? (
-              <li key={entry[0]?.id}>
-                <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-2.5 before:w-px">
-                  {entry.map((item) => (
-                    <EventRow item={item} key={item.id} project={project} />
-                  ))}
-                </ol>
-              </li>
-            ) : (
-              <CommentItem
-                arrived={arrived(entry)}
-                comment={entry}
-                issue={issue}
-                key={entry.id}
-                own={editable && entry.author.id === me?.id}
-              />
-            )
-          )}
-        </ol>
+        <>
+          {hidden > 0 ? (
+            <Button
+              className="-ml-1.5 self-start"
+              onClick={() => {
+                setEarlier({ from: -Infinity, issueId: issue.id });
+              }}
+              size="sm"
+              variant="ghost"
+            >
+              <ArrowUpIcon data-icon="inline-start" />
+              Show {hidden} earlier
+            </Button>
+          ) : null}
+          <ol className="flex flex-col gap-3">
+            {feed.map((entry) =>
+              Array.isArray(entry) ? (
+                <li key={entry[0]?.id}>
+                  <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-2.5 before:w-px">
+                    {entry.map((item) => (
+                      <EventRow item={item} key={item.id} project={project} />
+                    ))}
+                  </ol>
+                </li>
+              ) : (
+                <CommentItem
+                  arrived={arrived(entry)}
+                  comment={entry}
+                  issue={issue}
+                  key={entry.id}
+                  own={editable && entry.author.id === me?.id}
+                />
+              )
+            )}
+          </ol>
+        </>
       )}
       {timeline.isPending ? null : (
         <div aria-hidden className="-mt-4" data-timeline-end={timelineId} />

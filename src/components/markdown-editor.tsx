@@ -1,5 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Extension, InputRule } from "@tiptap/core";
 import type { Editor } from "@tiptap/core";
 import { Placeholder } from "@tiptap/extensions";
@@ -8,10 +7,12 @@ import type { Selection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import {
   EditorContent,
+  NodeViewWrapper,
   ReactNodeViewRenderer,
   useEditor,
   useEditorState,
 } from "@tiptap/react";
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { cn } from "cn";
 import {
@@ -28,17 +29,11 @@ import {
   useRef,
   useState,
 } from "react";
-import type {
-  MouseEvent,
-  ReactNode,
-  Ref,
-  RefObject,
-  SyntheticEvent,
-} from "react";
+import type { ReactNode, Ref, RefObject, SyntheticEvent } from "react";
 // oxlint-disable-next-line react-doctor/no-flush-sync -- A keyboard submit reads text from the last render, so held text must render before it runs.
 import { flushSync } from "react-dom";
 
-import { codeBlockView as CodeBlockView } from "~/components/code-block-view";
+import { codeBlockView as CodeBlockView } from "~/components/code-block-node";
 import {
   createUploadTarget,
   endOf,
@@ -52,14 +47,13 @@ import type {
   UploadTarget,
   Uploader,
 } from "~/components/editor-uploads";
-import { MediaViewer } from "~/components/media-viewer";
-import type { ViewerItem } from "~/components/media-viewer";
-import { issueChipView, pageChipView } from "~/components/mention-chip";
+import { MarkdownFrame, useIssueKeys } from "~/components/markdown-view";
+import { IssueChip, PageChip } from "~/components/mention-chip";
 import { useMentionMenu } from "~/components/mention-menu";
 import { BlockKeys, useSlashMenu } from "~/components/slash-menu";
 import { TableKeys, useTableMenu } from "~/components/table-menu";
-import { api } from "~/lib/api";
-import type { Attachment } from "~/lib/api-types";
+import { lowlight } from "~/lib/code-languages";
+import { panelShown } from "~/lib/issue-panel";
 import { isSafeUrl, markdownExtensions } from "~/lib/markdown";
 import {
   createChangeGate,
@@ -75,11 +69,8 @@ import {
   mentionsKey,
   PageMention,
 } from "~/lib/markdown-mentions";
-import { mediaKind } from "~/lib/media-html";
-import { projectsQuery } from "~/lib/queries";
 import { uploadFile } from "~/lib/uploads";
 import { holdEdits } from "~/lib/use-draft";
-import { useWorkspace } from "~/lib/use-workspace";
 
 const TaskShortcut = Extension.create({
   addInputRules: () => [
@@ -272,29 +263,6 @@ export interface MarkdownEditorHandle {
   upload: (files: File[]) => void;
 }
 
-export const SourceToggle = ({
-  className,
-  onChange,
-  source,
-}: {
-  className?: string;
-  onChange: (source: boolean) => void;
-  source: boolean;
-}) => (
-  <button
-    className={cn(
-      "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring hit-area relative flex h-6 items-center gap-1 rounded-md px-1.5 text-xs outline-none focus-visible:ring-2",
-      className
-    )}
-    onClick={() => {
-      onChange(!source);
-    }}
-    type="button"
-  >
-    {source ? "Rich text" : "Markdown"}
-  </button>
-);
-
 const SourceArea = ({
   autoFocus,
   editable,
@@ -360,50 +328,6 @@ const SourceArea = ({
   );
 };
 
-const download = (href: string) => {
-  const anchor = document.createElement("a");
-
-  anchor.href = href;
-  anchor.download = "";
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-};
-
-// Links open on a plain click in editable and read-only bodies: app links in place, attachments as downloads, anything else in a new tab. A click that ends a text selection keeps the selection.
-const useLinkClicks = () => {
-  const navigate = useNavigate();
-
-  return (event: MouseEvent) => {
-    const anchor =
-      event.target instanceof Element
-        ? event.target.closest("a[href]:not([data-mention])")
-        : null;
-
-    if (
-      !(anchor instanceof HTMLAnchorElement) ||
-      event.button !== 0 ||
-      getSelection()?.isCollapsed === false
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-
-    const url = new URL(anchor.href);
-    const local = url.origin === location.origin;
-    const modified = event.metaKey || event.ctrlKey || event.shiftKey;
-
-    if (local && url.pathname.startsWith("/files/")) {
-      download(url.href);
-    } else if (local && !modified && !url.pathname.startsWith("/api/")) {
-      void navigate({ href: `${url.pathname}${url.search}${url.hash}` });
-    } else {
-      window.open(url.href, "_blank", "noopener,noreferrer");
-    }
-  };
-};
-
 const useUploader = (uploadTo: string | undefined): Uploader | null => {
   const queryClient = useQueryClient();
 
@@ -429,117 +353,6 @@ const useUploadTarget = (
   return upload === null ? null : createUploadTarget(upload, state);
 };
 
-const mediaSelector = ".media > :is(img, video, audio)";
-
-const viewerKind = (element: Element): ViewerItem["kind"] => {
-  if (element instanceof HTMLImageElement) {
-    return "image";
-  }
-
-  return element instanceof HTMLVideoElement ? "video" : "audio";
-};
-
-const viewerItem = (element: Element): ViewerItem => {
-  const src = element.getAttribute("src") ?? "";
-  const alt = element.getAttribute("alt") ?? "";
-
-  return {
-    element: element instanceof HTMLImageElement ? element : undefined,
-    kind: viewerKind(element),
-    name: alt === "" ? (src.split("/").at(-1) ?? src) : alt,
-    src,
-  };
-};
-
-const mediaTarget = (root: HTMLElement, target: EventTarget, kind: string) => {
-  if (!(target instanceof Element) || !root.contains(target)) {
-    return null;
-  }
-
-  const expand = target.closest(".media-expand");
-
-  if (expand !== null) {
-    return expand.parentElement?.parentElement?.firstElementChild ?? null;
-  }
-
-  return target.matches(mediaSelector) && viewerKind(target) === kind
-    ? target
-    : null;
-};
-
-const useMediaViewer = (editor: Editor, path: string | undefined) => {
-  const [shown, setShown] = useState<{
-    index: number;
-    media: ViewerItem[];
-  } | null>(null);
-
-  const attachments = useQuery({
-    enabled: shown !== null && path !== undefined,
-    queryFn: async () => await api<Attachment[]>(path ?? ""),
-    queryKey: ["attachments", path],
-  });
-
-  const files = new Map(
-    (attachments.data ?? []).map((attachment) => [attachment.url, attachment])
-  );
-
-  const media = (shown?.media ?? []).map((item) => {
-    const file = files.get(item.src);
-
-    return file === undefined
-      ? item
-      : { ...item, name: file.filename, size: file.size };
-  });
-
-  const inDocument = new Set(media.map((item) => item.src));
-
-  const others = [...files.values()].flatMap((file): ViewerItem[] =>
-    inDocument.has(file.url)
-      ? []
-      : [
-          {
-            kind: mediaKind(file) ?? "file",
-            name: file.filename,
-            size: file.size,
-            src: file.url,
-          },
-        ]
-  );
-
-  const show = (event: MouseEvent, kind: ViewerItem["kind"]) => {
-    const root = editor.view.dom;
-    const target = mediaTarget(root, event.target, kind);
-
-    if (target === null) {
-      return;
-    }
-
-    event.preventDefault();
-
-    const elements = [...root.querySelectorAll(mediaSelector)];
-
-    setShown({
-      index: elements.indexOf(target),
-      media: elements.map(viewerItem),
-    });
-  };
-
-  return {
-    show,
-    viewer: (
-      <MediaViewer
-        index={shown?.index ?? null}
-        items={[...media, ...others]}
-        onIndex={(index) => {
-          setShown((current) =>
-            index === null || current === null ? null : { ...current, index }
-          );
-        }}
-      />
-    ),
-  };
-};
-
 const EditorSurface = ({
   attachments,
   editor,
@@ -549,41 +362,45 @@ const EditorSurface = ({
   editor: Editor;
   hidden: boolean;
 }) => {
-  const onLinkClick = useLinkClicks();
-  const { show, viewer } = useMediaViewer(editor, attachments);
   const table = useTableMenu(editor);
 
   return (
     <>
-      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Delegates clicks on links and media inside the editor; links stay keyboard-reachable and the media toolbar opens the viewer by keyboard. */}
-      <div
-        className={hidden ? "hidden" : undefined}
-        onClick={(event) => {
-          onLinkClick(event);
-          show(event, "image");
-        }}
+      <MarkdownFrame
+        attachments={attachments}
+        hidden={hidden}
         onContextMenu={table.handleContextMenu}
-        onDoubleClick={(event) => {
-          show(event, "video");
-        }}
       >
         <EditorContent editor={editor} />
-      </div>
-      {viewer}
+      </MarkdownFrame>
       {table.menu}
     </>
   );
 };
 
-const useIssueKeys = () => {
-  const workspace = useWorkspace();
+const issueChipView = ReactNodeViewRenderer(
+  ({ node }: ReactNodeViewProps) => (
+    <NodeViewWrapper as="span">
+      <IssueChip issueKey={String(node.attrs["key"] ?? "")} />
+    </NodeViewWrapper>
+  ),
+  {
+    as: "span",
+    stopEvent: ({ event }) => event.type === "mousedown" && panelShown(),
+  }
+);
 
-  return (
-    useQuery(projectsQuery(workspace.slug))
-      .data?.map((project) => project.key)
-      .join(" ") ?? ""
-  );
-};
+const pageChipView = ReactNodeViewRenderer(
+  ({ node }: ReactNodeViewProps) => (
+    <NodeViewWrapper as="span">
+      <PageChip
+        href={String(node.attrs["href"] ?? "")}
+        label={String(node.attrs["label"] ?? "")}
+      />
+    </NodeViewWrapper>
+  ),
+  { as: "span" }
+);
 
 const useChanges = (
   value: string,
@@ -763,6 +580,7 @@ export const MarkdownEditor = ({
       // oxlint-disable-next-line react/refs -- Tiptap calls this on a checkbox click, not during render.
       ...markdownExtensions({
         codeBlockView,
+        lowlight,
         onReadOnlyChecked: () => live.current.checkable,
       }),
       // oxlint-disable-next-line react/refs -- The shortcut opens the file picker on a key press, not during render.

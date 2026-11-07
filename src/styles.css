@@ -551,10 +551,13 @@
 
 @layer components {
   .markdown {
-    @apply outline-none;
-    overflow-wrap: anywhere;
+    @apply relative outline-none;
+    overflow-wrap: break-word;
+    white-space: break-spaces;
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0;
 
-    &[contenteditable="true"] {
+    &:is([contenteditable="true"], [data-editable]) {
       @apply max-md:text-base;
     }
 
@@ -587,7 +590,7 @@
       @apply bg-surface-2 border-hairline rounded px-1 py-px font-mono text-[0.9em];
     }
     & pre {
-      @apply bg-surface-2 overflow-x-auto rounded-lg border px-3 py-2.5 font-mono text-[12.5px] leading-5;
+      @apply bg-surface-2 overflow-x-auto rounded-lg border px-3 py-2.5 font-mono text-[12.5px] leading-5 whitespace-pre-wrap;
     }
     & pre code {
       @apply border-0 bg-transparent p-0 text-inherit;
