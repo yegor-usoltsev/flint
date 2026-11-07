@@ -1,11 +1,12 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { TriangleAlertIcon } from "lucide-react";
+import { lazy, Suspense } from "react";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
 import { CenteredCard, FlintMark, SignIn } from "~/components/sign-in";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
-import { WorkspaceForm } from "~/components/workspace-dialog";
+import { Skeleton } from "~/components/ui/skeleton";
 import { signOut, useMe } from "~/lib/api";
 import type { Me } from "~/lib/api-types";
 import { pageHead } from "~/lib/site";
@@ -13,6 +14,12 @@ import { lastWorkspace } from "~/lib/workspace";
 
 const SearchSchema = v.object({
   error: v.fallback(v.optional(v.picklist(["login"])), undefined),
+});
+
+const WorkspaceForm = lazy(async () => {
+  const module = await import("~/components/workspace-dialog");
+
+  return { default: module.WorkspaceForm };
 });
 
 const CreateFirstWorkspace = ({ me }: { me: Me }) => (
@@ -25,7 +32,9 @@ const CreateFirstWorkspace = ({ me }: { me: Me }) => (
       </p>
     </div>
     <div className="w-full text-left">
-      <WorkspaceForm cta />
+      <Suspense fallback={<Skeleton aria-busy className="h-72 w-full" />}>
+        <WorkspaceForm cta />
+      </Suspense>
     </div>
     <p className="text-muted-foreground text-xs">
       Signed in as{" "}

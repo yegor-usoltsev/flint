@@ -1,4 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { mkdir, rename } from "node:fs/promises";
+import path from "node:path";
 
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
@@ -45,8 +47,25 @@ const cssLicenses = (): Plugin => ({
   name: "flint:css-licenses",
 });
 
+const privateSourcemaps = (): Plugin => ({
+  applyToEnvironment: (environment) => environment.name === "client",
+  name: "flint:private-sourcemaps",
+  writeBundle: async ({ dir = "" }, bundle) => {
+    await Promise.all(
+      Object.keys(bundle)
+        .filter((file) => file.endsWith(".map"))
+        .map(async (file) => {
+          const target = path.join(dir, "../sourcemaps", file);
+
+          await mkdir(path.dirname(target), { recursive: true });
+          await rename(path.join(dir, file), target);
+        })
+    );
+  },
+});
+
 export default defineConfig({
-  build: { license: true },
+  build: { license: true, sourcemap: "hidden" },
   define: { "process.env.FLINT_COMMIT": JSON.stringify(commit()) },
   plugins: [
     tailwindcss(),
@@ -80,6 +99,7 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     cssLicenses(),
+    privateSourcemaps(),
   ],
   optimizeDeps: { exclude: ["bun"] },
   resolve: { tsconfigPaths: true },
