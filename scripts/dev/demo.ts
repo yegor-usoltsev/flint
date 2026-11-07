@@ -27,7 +27,11 @@ import { addMember } from "~/server/members.server";
 import { createProject } from "~/server/projects.server";
 import { signIn } from "~/server/users.server";
 import { deletePage, putPage } from "~/server/wiki.server";
-import { createWorkspace, deleteWorkspace } from "~/server/workspaces.server";
+import {
+  createWorkspace,
+  deleteWorkspace,
+  updateWorkspace,
+} from "~/server/workspaces.server";
 
 import { GiteaEnvSchema, giteaClient } from "../gitea-client";
 import { setExternalTracker } from "../gitea-external-tracker";
@@ -807,6 +811,7 @@ const seedWorkspace = async () => {
     name: "Acme Corp",
     slug: draftSlug,
   });
+  await updateWorkspace(alice, draftSlug, { repositories: [repo] });
   await addMember(alice, draftSlug, { role: "member", username: "bob" });
   await addMember(alice, draftSlug, { role: "member", username: "carol" });
 

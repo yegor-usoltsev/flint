@@ -28,6 +28,37 @@ export const reservedSlugs = new Set([
   "wiki",
 ]);
 
+export const isRepositoryName = (name: string) => {
+  const [, repository = ""] = name.split("/");
+
+  return (
+    /^[\w.-]{1,40}(?:\/[\w.-]{1,100})?$/u.test(name) &&
+    !repository.includes("..") &&
+    !/\.(?:atom|git|rss|wiki)$/iu.test(repository)
+  );
+};
+
+export const maxRepositories = 100;
+
+export const maxRepositoryText = maxRepositories * 143;
+
+export const repositoryList = (text: string) =>
+  text.split(/[\s,]+/u).filter((name) => name !== "");
+
+export const repositoryProblem = (text: string) => {
+  const names = repositoryList(text);
+
+  if (names.length > maxRepositories) {
+    return `List at most ${maxRepositories} owners or repositories`;
+  }
+
+  const wrong = names.find((name) => !isRepositoryName(name));
+
+  return wrong === undefined
+    ? null
+    : `${wrong} is not a Gitea owner or owner/repository`;
+};
+
 export const slugProblem = (slug: string) => {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(slug)) {
     return "Use lowercase letters, digits and single dashes";

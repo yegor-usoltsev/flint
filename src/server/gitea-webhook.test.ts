@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import path from "node:path";
 
+import type { TransactionSQL } from "bun";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
@@ -13,7 +14,7 @@ import { Route as webhookRoute } from "~/routes/api/webhooks/gitea";
 import { db } from "~/server/db.server";
 import { createIssue } from "~/server/issues.server";
 import { createProject } from "~/server/projects.server";
-import { createWorkspace } from "~/server/workspaces.server";
+import { createWorkspace, updateWorkspace } from "~/server/workspaces.server";
 
 import {
   appRequest,
@@ -52,6 +53,8 @@ const setup = async () => {
   await createProject(root, "globex", { color: "red", key: "OPS", name: "O" });
   await createIssue(root, "ENG", newIssue());
   await createIssue(root, "OPS", newIssue());
+  await updateWorkspace(root, "acme", { repositories: ["flint-admin"] });
+  await updateWorkspace(root, "globex", { repositories: ["flint-admin"] });
 
   return { actor: root, root: await sessionCookieFor(rootId) };
 };
@@ -819,4 +822,159 @@ test("without a pull request an issue's CI follows its commit's branch head", as
       }),
     ],
   });
+});
+
+test("a workspace takes links only from the repositories it lists, a private one only by its full name", async () => {
+  const { actor, root } = await setup();
+
+  const kinds = async (key: string) => {
+    const links = await linksOf(root, key);
+
+    return links.map(({ kind }) => kind).toSorted();
+  };
+
+  await updateWorkspace(actor, "globex", { repositories: ["someone-else"] });
+  await deliver("pull_request", "pull-request-opened");
+
+  expect(await kinds("ENG-1")).toEqual(["pull_request"]);
+  expect(await kinds("OPS-1")).toEqual([]);
+
+  const push = await fixture("push-branch");
+  const hidden = push.replace('"private": false', '"private": true');
+
+  await send("push", hidden);
+
+  expect(await kinds("ENG-1")).toEqual([]);
+
+  await updateWorkspace(actor, "acme", {
+    repositories: ["Flint-Admin/demo-app"],
+  });
+  await send("push", hidden);
+
+  expect(await kinds("ENG-1")).toEqual(["branch", "commit", "commit"]);
+
+  await updateWorkspace(actor, "acme", { repositories: ["flint-admin"] });
+
+  expect(await kinds("ENG-1")).toEqual([]);
+});
+
+test("a repository that turns private leaves the workspaces listing only its owner, with its CI", async () => {
+  const { root } = await setup();
+
+  await deliver("pull_request", "pull-request-ci-opened");
+  await send("status", await statusBody());
+
+  expect(await ciOf(root)).toMatchObject({ checks: ["pending"] });
+
+  const success = await statusBody({ id: 2, state: "success" });
+
+  await send("status", success.replace('"private":false', '"private":true'));
+
+  expect(await linksOf(root, "ENG-1")).toEqual([]);
+  expect(await ciOf(root)).toMatchObject({ ciState: null });
+});
+
+test("a repository's next webhook corrects the visibility its links were stored with", async () => {
+  const { actor, root } = await setup();
+  const push = await fixture("push-branch");
+
+  await updateWorkspace(actor, "acme", {
+    repositories: ["flint-admin/demo-app"],
+  });
+  await send("push", push.replace('"private": false', '"private": true'));
+  await deliver("push", "push-tag");
+  await updateWorkspace(actor, "acme", { repositories: ["flint-admin"] });
+
+  expect(await linksOf(root, "ENG-1")).toHaveLength(3);
+});
+
+const blockedBy = async (pid: number): Promise<void> => {
+  const waiting = await db<unknown[]>`
+    select 1 from pg_stat_activity where ${pid} = any(pg_blocking_pids(pid))
+  `;
+
+  if (waiting.length === 0) {
+    await Bun.sleep(10);
+    await blockedBy(pid);
+  }
+};
+
+const backend = async (tx: TransactionSQL) => {
+  const [row] = await tx<{ pid: number }[]>`select pg_backend_pid() as pid`;
+
+  return row?.pid ?? 0;
+};
+
+test("a push racing a repository's removal from the list cannot leave its link behind", async () => {
+  const { root } = await setup();
+  let delivery: ReturnType<typeof deliver> | undefined;
+
+  await db.begin(async (tx) => {
+    await tx`
+      update workspaces set gitea_repositories = '{}' where slug = 'acme'
+    `;
+    delivery = deliver("push", "push-branch");
+    await blockedBy(await backend(tx));
+  });
+
+  expect(await delivery).toMatchObject({ status: 200 });
+  expect(await linksOf(root, "ENG-1")).toEqual([]);
+});
+
+test("a push to a linked branch and a repository's removal take their locks in the same order", async () => {
+  const { root } = await setup();
+
+  await deliver("push", "push-branch");
+
+  const push = await fixture("push-branch");
+
+  const next = push.replace(
+    /"after": "[0-9a-f]+"/u,
+    `"after": "${"f".repeat(40)}"`
+  );
+
+  let delivery: ReturnType<typeof send> | undefined;
+
+  await db.begin(async (tx) => {
+    await tx`
+      update workspaces set gitea_repositories = '{}' where slug = 'acme'
+    `;
+    delivery = send("push", next);
+    await blockedBy(await backend(tx));
+    await tx`
+      delete from git_links g using issues i, projects p, workspaces w
+      where g.issue_id = i.id and p.id = i.project_id
+        and w.id = p.workspace_id and w.slug = 'acme'
+    `;
+  });
+
+  expect(await delivery).toMatchObject({ status: 200 });
+  expect(await linksOf(root, "ENG-1")).toEqual([]);
+});
+
+test("a webhook reporting a repository private waits for a list change in flight", async () => {
+  const { actor, root } = await setup();
+
+  await updateWorkspace(actor, "acme", {
+    repositories: ["flint-admin/b4-capture"],
+  });
+  await deliver("pull_request", "pull-request-ci-opened");
+
+  const success = await statusBody({ id: 2, state: "success" });
+  let delivery: ReturnType<typeof send> | undefined;
+
+  await db.begin(async (tx) => {
+    await tx`
+      update workspaces set gitea_repositories = '{flint-admin}'
+      where slug = 'acme'
+    `;
+    delivery = send(
+      "status",
+      success.replace('"private":false', '"private":true')
+    );
+    await blockedBy(await backend(tx));
+  });
+
+  expect(await delivery).toMatchObject({ status: 200 });
+  expect(await linksOf(root, "ENG-1")).toEqual([]);
 });

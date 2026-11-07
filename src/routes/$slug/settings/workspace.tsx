@@ -22,8 +22,11 @@ import {
   forgetWorkspace,
   lastWorkspace,
   nextWorkspace,
+  repositoryList,
+  repositoryProblem,
   slugProblem,
   withoutWorkspace,
+  maxRepositoryText,
 } from "~/lib/workspace";
 
 const imageTypes = "image/png,image/jpeg,image/webp,image/avif";
@@ -251,6 +254,23 @@ const General = () => {
             prefix={`${host}/`}
             validate={(slug) => slugProblem(slug.toLowerCase())}
             value={workspace.slug}
+          />
+        </SettingsRow>
+        <SettingsRow
+          description="Owners or owner/repository names, separated by commas. Branches, commits and pull requests link to issues only from these; an owner covers its public repositories, a private one needs its full name."
+          htmlFor="workspace-repositories"
+          label="Gitea repositories"
+        >
+          <SettingsInput
+            disabled={!isAdmin}
+            emptyAllowed
+            id="workspace-repositories"
+            maxLength={maxRepositoryText}
+            onSave={async (list) => {
+              await update.mutateAsync({ repositories: repositoryList(list) });
+            }}
+            validate={repositoryProblem}
+            value={workspace.repositories.join(", ")}
           />
         </SettingsRow>
         <SettingsRow

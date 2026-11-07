@@ -241,6 +241,7 @@ export const SettingsChoice = <Value extends string>({
 
 export const SettingsInput = ({
   disabled,
+  emptyAllowed = false,
   id,
   maxLength,
   onSave,
@@ -249,6 +250,7 @@ export const SettingsInput = ({
   value,
 }: {
   disabled: boolean;
+  emptyAllowed?: boolean;
   id: string;
   maxLength: number;
   onSave: (value: string) => Promise<void>;
@@ -256,7 +258,7 @@ export const SettingsInput = ({
   validate?: (value: string) => string | null;
   value: string;
 }) => {
-  const field = useAutosaveText(value, onSave, validate);
+  const field = useAutosaveText(value, onSave, validate, emptyAllowed);
   const invalid = !disabled && field.problem !== null;
 
   const props = {
@@ -283,7 +285,7 @@ export const SettingsInput = ({
       }
     },
     readOnly: field.status === "saving",
-    required: true,
+    required: !emptyAllowed,
     spellCheck: false,
     value: disabled ? value : field.text,
   } as const;

@@ -10,6 +10,7 @@ import { colors } from "../src/lib/colors.ts";
 import type { Color } from "../src/lib/colors.ts";
 import { projectIcons } from "../src/lib/project-icons.ts";
 import type { ProjectIcon } from "../src/lib/project-icons.ts";
+import { repositoryList } from "../src/lib/workspace.ts";
 import {
   action,
   call,
@@ -115,18 +116,33 @@ const registerWorkspaces = (program: Command) => {
   workspaceOption(
     workspace
       .command("update")
-      .description("Rename a workspace, change its slug or color (admin)")
+      .description(
+        "Rename a workspace, change its slug, color or Gitea repositories (admin)"
+      )
       .option(nameFlag, "display name")
       .option("--slug <slug>", "new URL name")
+      .option(
+        "--repos <list>",
+        'Gitea owners or owner/repository names that may link to its issues, separated by commas; "" for none'
+      )
       .addOption(colorOption())
   ).action(
     action(
       async (
-        options: Scope & { color?: Color; name?: string; slug?: string }
+        options: Scope & {
+          color?: Color;
+          name?: string;
+          repos?: string;
+          slug?: string;
+        }
       ) => {
         const body = changes("PATCH /workspaces/:slug", {
           color: options.color,
           name: options.name,
+          repositories:
+            options.repos === undefined
+              ? undefined
+              : repositoryList(options.repos),
           slug: options.slug,
         });
 

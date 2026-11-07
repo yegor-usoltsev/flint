@@ -10,12 +10,14 @@ import { db } from "~/server/db.server";
 import { env } from "~/server/env.server";
 import { log } from "~/server/log.server";
 import { publish } from "~/server/realtime.server";
+import { repositoryListed } from "~/server/workspaces.server";
 
 const maxPayloadBytes = 5 * 1024 * 1024;
 
 const RepositorySchema = v.object({
   full_name: v.string(),
   html_url: v.string(),
+  private: v.optional(v.boolean(), true),
 });
 
 const CommitSchema = v.object({
@@ -162,8 +164,16 @@ const linkIssues = async (
   const issues = await tx<IssueRef[]>`
     select i.id, p.key || '-' || i.number as key,
       i.project_id as "projectId", p.workspace_id as "workspaceId"
-    from issues i join projects p on p.id = i.project_id
+    from issues i
+    join projects p on p.id = i.project_id
+    join workspaces w on w.id = p.workspace_id
     where p.key || '-' || i.number = any(${tx.array(keys, "text")})
+      and ${repositoryListed(
+        tx`w.gitea_repositories`,
+        repo.full_name,
+        repo.private
+      )}
+    for share of w
   `;
 
   const rows = keyed.flatMap(({ keys: itemKeys, link }) =>
@@ -180,6 +190,7 @@ const linkIssues = async (
               occurred_at: link.occurredAt,
               ref: link.ref ?? null,
               repo_full_name: repo.full_name,
+              repo_private: repo.private,
               repo_url: repo.html_url,
               state: link.state,
               title: link.title,
@@ -421,8 +432,52 @@ const handleStatus = async (
 const json = <Schema extends v.GenericSchema>(schema: Schema) =>
   v.pipe(v.string(), v.parseJson(), schema);
 
-const lockRepository = async (tx: TransactionSQL, repository: Repository) => {
+const unlinkUnlisted = async (tx: TransactionSQL, repository: Repository) => {
+  const issues = await tx<IssueRef[]>`
+    delete from git_links g
+    using issues i, projects p, workspaces w
+    where g.issue_id = i.id and p.id = i.project_id and w.id = p.workspace_id
+      and g.repo_full_name = ${repository.full_name}
+      and not ${repositoryListed(
+        tx`w.gitea_repositories`,
+        repository.full_name,
+        repository.private
+      )}
+    returning i.id, p.key || '-' || i.number as key,
+      i.project_id as "projectId", p.workspace_id as "workspaceId"
+  `;
+
+  await tx`
+    update git_links set repo_private = ${repository.private}
+    where repo_full_name = ${repository.full_name}
+      and repo_private <> ${repository.private}
+  `;
+
+  return issues;
+};
+
+const inRepository = async (
+  tx: TransactionSQL,
+  repository: Repository,
+  handle: () => Promise<Outcome>
+): Promise<Outcome> => {
   await tx`select pg_advisory_xact_lock(hashtextextended('gitea:' || ${repository.full_name}, 0))`;
+  await tx`
+    select w.id from workspaces w
+    where w.id in (
+      select p.workspace_id from git_links g
+      join issues i on i.id = g.issue_id
+      join projects p on p.id = i.project_id
+      where g.repo_full_name = ${repository.full_name}
+    )
+    for share
+  `;
+
+  const outcome = await handle();
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await -- Both run on the transaction's one connection, so they cannot overlap.
+  const unlinked = await unlinkUnlisted(tx, repository);
+
+  return { ...outcome, issues: [...outcome.issues, ...unlinked] };
 };
 
 const processEvent = async (
@@ -432,23 +487,32 @@ const processEvent = async (
 ): Promise<Outcome> => {
   if (event === "push") {
     const push = v.parse(json(PushSchema), payload);
-    await lockRepository(tx, push.repository);
 
-    return await handlePush(tx, push);
+    return await inRepository(
+      tx,
+      push.repository,
+      async () => await handlePush(tx, push)
+    );
   }
 
   if (event === "pull_request") {
     const pullRequest = v.parse(json(PullRequestSchema), payload);
-    await lockRepository(tx, pullRequest.repository);
 
-    return await handlePullRequest(tx, pullRequest);
+    return await inRepository(
+      tx,
+      pullRequest.repository,
+      async () => await handlePullRequest(tx, pullRequest)
+    );
   }
 
   if (event === "status") {
     const status = v.parse(json(StatusSchema), payload);
-    await lockRepository(tx, status.repository);
 
-    return await handleStatus(tx, status);
+    return await inRepository(
+      tx,
+      status.repository,
+      async () => await handleStatus(tx, status)
+    );
   }
 
   if (event !== "create" && event !== "delete") {
@@ -461,21 +525,21 @@ const processEvent = async (
     return ignored;
   }
 
-  await lockRepository(tx, ref.repository);
+  return await inRepository(tx, ref.repository, async () => {
+    if (event === "delete") {
+      return await deleteBranch(tx, ref.repository, ref.ref);
+    }
 
-  if (event === "delete") {
-    return await deleteBranch(tx, ref.repository, ref.ref);
-  }
+    const issues = await linkIssues(tx, ref.repository, [
+      {
+        link: branchLink(ref.repository, ref.ref, ref.sender?.login ?? null),
+        refs: [ref.ref],
+        texts: [],
+      },
+    ]);
 
-  const issues = await linkIssues(tx, ref.repository, [
-    {
-      link: branchLink(ref.repository, ref.ref, ref.sender?.login ?? null),
-      refs: [ref.ref],
-      texts: [],
-    },
-  ]);
-
-  return { issues, note: null, status: "processed" };
+    return { issues, note: null, status: "processed" };
+  });
 };
 
 const isSigned = (body: Uint8Array, signature: string | null) => {

@@ -16,7 +16,7 @@ export const isUuid = (value: string) =>
 export const UniqueViolationSchema = v.object({ errno: v.literal("23505") });
 
 export const workspaceColumns = db`
-  w.id, w.slug, w.name, w.color,
+  w.id, w.slug, w.name, w.color, w.gitea_repositories as repositories,
   case when w.logo_attachment_id is null then null
     else '/files/' || w.logo_attachment_id end as "logoUrl"
 `;

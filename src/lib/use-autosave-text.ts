@@ -2,10 +2,18 @@ import { useState } from "react";
 
 import { ApiError } from "~/lib/api";
 
-export const textToSave = (draft: string | null, value: string) => {
-  const text = draft?.trim() ?? "";
+export const textToSave = (
+  draft: string | null,
+  value: string,
+  emptyAllowed = false
+) => {
+  if (draft === null) {
+    return null;
+  }
 
-  return text === "" || text === value ? null : text;
+  const text = draft.trim();
+
+  return text === value || (text === "" && !emptyAllowed) ? null : text;
 };
 
 export const afterSave = (current: string | null, saved: string) =>
@@ -17,7 +25,8 @@ export const rejection = (error: ApiError) =>
 export const useAutosaveText = (
   value: string,
   save: (text: string) => Promise<void>,
-  validate: (text: string) => string | null = () => null
+  validate: (text: string) => string | null = () => null,
+  emptyAllowed = false
 ) => {
   const [draft, setDraft] = useState<string | null>(null);
   const [status, setStatus] = useState<"error" | "idle" | "saving">("idle");
@@ -28,7 +37,7 @@ export const useAutosaveText = (
       return;
     }
 
-    const text = textToSave(draft, value);
+    const text = textToSave(draft, value, emptyAllowed);
 
     if (text === null) {
       setDraft(null);

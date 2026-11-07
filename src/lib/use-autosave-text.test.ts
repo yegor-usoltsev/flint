@@ -10,6 +10,12 @@ test("only a changed, non-empty draft is saved", () => {
   expect(textToSave(" Acme Co ", "Acme")).toBe("Acme Co");
 });
 
+test("a field that may be empty saves a cleared draft, and still not an untouched one", () => {
+  expect(textToSave("  ", "acme", true)).toBe("");
+  expect(textToSave(null, "acme", true)).toBeNull();
+  expect(textToSave("", "", true)).toBeNull();
+});
+
 test("a successful save clears the draft unless it changed meanwhile", () => {
   expect(afterSave("Acme Co", "Acme Co")).toBeNull();
   expect(afterSave("Acme Corp", "Acme Co")).toBe("Acme Corp");

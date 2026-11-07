@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import type { Me } from "~/lib/api-types";
 import {
   followWorkspace,
+  repositoryProblem,
   slugProblem,
   nextWorkspace,
   withoutWorkspace,
@@ -35,6 +36,7 @@ test("the deleted workspace leaves the cached /me", () => {
         color: "blue",
         id: "a",
         logoUrl: null,
+        repositories: [],
         name: "A",
         role: "admin",
         slug: "a",
@@ -43,6 +45,7 @@ test("the deleted workspace leaves the cached /me", () => {
         color: "red",
         id: "b",
         logoUrl: null,
+        repositories: [],
         name: "B",
         role: "member",
         slug: "b",
@@ -80,4 +83,19 @@ test("a slug the server would reject gets the reason before saving", () => {
   expect(slugProblem("a--b")).toBe(
     "Use lowercase letters, digits and single dashes"
   );
+});
+
+test("a repository list takes only names Gitea can give, at most 100 of them", () => {
+  expect(repositoryProblem("acme, acme/my.app_2, Acme/Billing-API")).toBeNull();
+  expect(repositoryProblem("acme/app.git")).toBe(
+    "acme/app.git is not a Gitea owner or owner/repository"
+  );
+  expect(repositoryProblem("acme/app..x")).not.toBeNull();
+  expect(repositoryProblem("acme/docs.Wiki")).not.toBeNull();
+  expect(
+    repositoryProblem(Array.from({ length: 100 }, () => "a").join(","))
+  ).toBeNull();
+  expect(
+    repositoryProblem(Array.from({ length: 101 }, () => "a").join(","))
+  ).toBe("List at most 100 owners or repositories");
 });
