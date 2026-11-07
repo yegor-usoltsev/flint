@@ -356,7 +356,7 @@ const ListGroup = ({
 
   return (
     <section aria-labelledby={`group-${status.id}`} ref={ref}>
-      <h2 className="sticky top-0 z-10" id={`group-${status.id}`}>
+      <h2 className="bg-background sticky top-0 z-10" id={`group-${status.id}`}>
         <button
           aria-expanded={open}
           className={cn(
