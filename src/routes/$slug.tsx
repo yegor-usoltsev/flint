@@ -90,7 +90,7 @@ const WorkspaceLayout = () => {
   const me = useMe();
   const workspace = me.data?.workspaces.find((item) => item.slug === slug);
 
-  const connected = useRealtime(
+  const connection = useRealtime(
     slug,
     workspace === undefined ? undefined : me.data?.id
   );
@@ -180,7 +180,7 @@ const WorkspaceLayout = () => {
   }
 
   return (
-    <RealtimeStatus value={connected}>
+    <RealtimeStatus value={connection}>
       <CreateIssueProvider>
         <SidebarProvider
           className="h-svh"
