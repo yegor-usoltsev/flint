@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 import { api, ApiError } from "~/lib/api";
 import type { Issue, IssueSummary } from "~/lib/api-types";
@@ -65,7 +66,28 @@ type IssueData = Issue | IssueSummary[] | InfiniteData<IssueSummary[]>;
 const queues = new Map<string, Queue>();
 let reconcile = false;
 
+const pendingListeners = new Set<() => void>();
+
 export const hasPendingIssueWrites = () => queues.size > 0;
+
+const pendingCount = () => queues.size;
+
+const notifyPending = () => {
+  for (const listener of pendingListeners) {
+    listener();
+  }
+};
+
+const subscribePending = (listener: () => void) => {
+  pendingListeners.add(listener);
+
+  return () => {
+    pendingListeners.delete(listener);
+  };
+};
+
+export const usePendingIssueWrites = () =>
+  useSyncExternalStore(subscribePending, pendingCount, () => 0);
 
 const mapIssues = (
   data: IssueData | undefined,
@@ -248,6 +270,7 @@ const send = async (queryClient: QueryClient, queue: Queue): Promise<void> => {
 
   if (write === undefined) {
     queues.delete(queue.base.id);
+    notifyPending();
 
     if (reconcile && queues.size === 0) {
       reconcile = false;
@@ -302,6 +325,7 @@ const queueFor = (issue: IssueSummary) =>
 const start = (queryClient: QueryClient, queue: Queue) => {
   if (!queues.has(queue.base.id)) {
     queues.set(queue.base.id, queue);
+    notifyPending();
     void send(queryClient, queue);
   }
 };

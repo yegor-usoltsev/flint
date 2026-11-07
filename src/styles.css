@@ -273,30 +273,46 @@
 @keyframes remote-flash {
   0%,
   40% {
-    background-color: var(--remote-change);
+    background-color: color-mix(
+      in oklab,
+      var(--remote-change) 60%,
+      transparent
+    );
   }
 }
 
 @keyframes remote-flash-again {
   0%,
   40% {
-    background-color: var(--remote-change);
+    background-color: color-mix(
+      in oklab,
+      var(--remote-change) 60%,
+      transparent
+    );
   }
 }
 
 @utility remote-flash {
-  animation: remote-flash 2.4s var(--ease-out);
+  animation: remote-flash 1.6s var(--ease-out);
 
   @media (prefers-reduced-motion: reduce) {
-    background-color: var(--remote-change) !important;
+    background-color: color-mix(
+      in oklab,
+      var(--remote-change) 60%,
+      transparent
+    ) !important;
   }
 }
 
 @utility remote-flash-again {
-  animation: remote-flash-again 2.4s var(--ease-out);
+  animation: remote-flash-again 1.6s var(--ease-out);
 
   @media (prefers-reduced-motion: reduce) {
-    background-color: var(--remote-change) !important;
+    background-color: color-mix(
+      in oklab,
+      var(--remote-change) 60%,
+      transparent
+    ) !important;
   }
 }
 

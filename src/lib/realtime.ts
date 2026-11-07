@@ -44,14 +44,31 @@ export const eventKeys = (slug: string, event: RealtimeEvent) =>
     workspace: [["me"], ["workspaces", slug], ["projects"]],
   })[event.entity] satisfies QueryKey[];
 
-export const RealtimeStatus = createContext(true);
+export type Connection = "connecting" | "live" | "offline";
 
-export const useRealtimeConnected = () => use(RealtimeStatus);
+export const connectionState = (live: boolean, online: boolean): Connection => {
+  if (!online) {
+    return "offline";
+  }
 
-export const useRealtime = (slug: string, userId: string | undefined) => {
+  return live ? "live" : "connecting";
+};
+
+export const RealtimeStatus = createContext<Connection>("live");
+
+export const useConnection = () => use(RealtimeStatus);
+
+const isOnline = () =>
+  typeof navigator === "undefined" ? true : navigator.onLine;
+
+export const useRealtime = (
+  slug: string,
+  userId: string | undefined
+): Connection => {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [connected, setConnected] = useState(true);
+  const [live, setLive] = useState(false);
+  const [online, setOnline] = useState(isOnline);
 
   useEffect(() => {
     const pending = new Map<string, QueryKey>();
@@ -175,7 +192,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
         ? undefined
         : subscribeRealtime(slug, userId, (message) => {
             if (message.type === "open") {
-              setConnected(true);
+              setLive(true);
               void retryFailedDrafts();
 
               for (const query of queryClient.getQueryCache().getAll()) {
@@ -184,7 +201,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
 
               schedule();
             } else if (message.type === "error") {
-              setConnected(false);
+              setLive(false);
               void queryClient.invalidateQueries({
                 queryKey: meQuery.queryKey,
               });
@@ -222,17 +239,24 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
             }
           });
 
-    const online = () => {
-      void retryFailedDrafts();
+    const reachable = () => {
+      setOnline(isOnline());
+
+      if (isOnline()) {
+        void retryFailedDrafts();
+      }
     };
 
-    window.addEventListener("online", online);
+    window.addEventListener("online", reachable);
+    window.addEventListener("offline", reachable);
 
     return () => {
       active = false;
       cancelNotices();
-      window.removeEventListener("online", online);
+      window.removeEventListener("online", reachable);
+      window.removeEventListener("offline", reachable);
       unsubscribe?.();
+      setLive(false);
 
       for (const timer of timers) {
         clearTimeout(timer);
@@ -240,5 +264,5 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
     };
   }, [queryClient, router, slug, userId]);
 
-  return connected;
+  return connectionState(live, online);
 };

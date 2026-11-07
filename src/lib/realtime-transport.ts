@@ -1,13 +1,18 @@
 import {
   heartbeatMs,
   leaseMs,
+  openStream,
   realtimeUrl,
-  watchStall,
 } from "~/lib/realtime-shared";
 import type {
   RealtimeMessage,
   RealtimeSubscription,
 } from "~/lib/realtime-shared";
+
+interface Link {
+  close: () => void;
+  reconnect: () => void;
+}
 
 interface WorkerTimers {
   startup?: ReturnType<typeof setTimeout>;
@@ -19,60 +24,17 @@ export const subscribeRealtime = (
   userId: string,
   receive: (message: RealtimeMessage) => void
 ) => {
-  let stop: (() => void) | null = null;
+  let link: Link | null = null;
   let direct = typeof SharedWorker === "undefined";
   let hidden = false;
 
-  const connectDirect = () => {
-    const controller = new AbortController();
-    const source = new EventSource(realtimeUrl(slug, userId));
-    let retry: ReturnType<typeof setTimeout> | undefined;
+  const connectDirect = (): Link => {
+    const stream = openStream(realtimeUrl(slug, userId), receive);
 
-    watchStall(source, () => {
-      controller.abort();
-      receive({ type: "error" });
-      stop = connectDirect();
-    });
-
-    source.addEventListener(
-      "open",
-      () => {
-        receive({ type: "open" });
-      },
-      { signal: controller.signal }
-    );
-
-    source.addEventListener(
-      "message",
-      ({ data }: MessageEvent<string>) => {
-        receive({ data, type: "message" });
-      },
-      { signal: controller.signal }
-    );
-
-    source.addEventListener(
-      "error",
-      () => {
-        receive({ type: "error" });
-
-        if (source.readyState === EventSource.CLOSED) {
-          source.close();
-          retry = setTimeout(() => {
-            stop = connectDirect();
-          }, 3000);
-        }
-      },
-      { signal: controller.signal }
-    );
-
-    return () => {
-      controller.abort();
-      clearTimeout(retry);
-      source.close();
-    };
+    return { close: stream.close, reconnect: stream.reconnect };
   };
 
-  const connectShared = () => {
+  const connectShared = (): Link => {
     const worker = new SharedWorker(
       new URL("realtime-worker.ts", import.meta.url),
       { type: "module" }
@@ -106,7 +68,7 @@ export const subscribeRealtime = (
       close();
       direct = true;
       receive({ type: "error" });
-      stop = connectDirect();
+      link = connectDirect();
     };
 
     timers.startup = setTimeout(fallback, 5000);
@@ -141,24 +103,31 @@ export const subscribeRealtime = (
     worker.port.start();
     post({ slug, type: "subscribe", userId });
 
-    return close;
+    return {
+      close,
+      reconnect: () => {
+        if (!stopped) {
+          post({ type: "reconnect" });
+        }
+      },
+    };
   };
 
   const disconnect = () => {
-    stop?.();
-    stop = null;
+    link?.close();
+    link = null;
   };
 
   const connect = () => {
-    if (hidden || document.hidden || stop !== null) {
+    if (hidden || document.hidden || link !== null) {
       return;
     }
 
     try {
-      stop = direct ? connectDirect() : connectShared();
+      link = direct ? connectDirect() : connectShared();
     } catch {
       direct = true;
-      stop = connectDirect();
+      link = connectDirect();
     }
   };
 
@@ -168,6 +137,10 @@ export const subscribeRealtime = (
     } else {
       connect();
     }
+  };
+
+  const online = () => {
+    link?.reconnect();
   };
 
   const pagehide = () => {
@@ -184,8 +157,10 @@ export const subscribeRealtime = (
   document.addEventListener("visibilitychange", visibility);
   window.addEventListener("pagehide", pagehide);
   window.addEventListener("pageshow", pageshow);
+  window.addEventListener("online", online);
 
   return () => {
+    window.removeEventListener("online", online);
     document.removeEventListener("visibilitychange", visibility);
     window.removeEventListener("pagehide", pagehide);
     window.removeEventListener("pageshow", pageshow);

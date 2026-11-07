@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ChevronDownIcon, CloudOffIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, SearchIcon } from "lucide-react";
 import { Fragment, use } from "react";
 import type { ReactElement, ReactNode } from "react";
 
@@ -22,7 +22,6 @@ import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "~/components/ui/sidebar";
 import { Skeleton } from "~/components/ui/skeleton";
 import { PagePane } from "~/lib/page-pane";
-import { useRealtimeConnected } from "~/lib/realtime";
 
 export interface Crumb {
   label: string;
@@ -31,14 +30,6 @@ export interface Crumb {
 }
 
 const noCrumbs: Crumb[] = [];
-
-const Disconnected = () => (
-  <output className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
-    <CloudOffIcon aria-hidden className="size-3.5" />
-    <span className="hidden sm:inline">Reconnecting…</span>
-    <span className="sr-only sm:hidden">Reconnecting</span>
-  </output>
-);
 
 const SearchButton = () => {
   const openPalette = useOpenPalette();
@@ -145,7 +136,6 @@ export const Page = ({
   switcher?: ReactNode;
   title: string;
 }) => {
-  const connected = useRealtimeConnected();
   const pane = use(PagePane);
   const scope = crumbs.findLast((crumb) => crumb.short !== undefined);
 
@@ -200,7 +190,6 @@ export const Page = ({
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        {connected ? null : <Disconnected />}
         <SearchButton />
         {actions === undefined ? null : (
           <div className="flex shrink-0 items-center gap-2 md:gap-1">

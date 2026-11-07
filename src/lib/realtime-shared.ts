@@ -5,7 +5,7 @@ export type RealtimeMessage =
 
 export type RealtimeSubscription =
   | { type: "subscribe"; slug: string; userId: string }
-  | { type: "ping" | "unsubscribe" };
+  | { type: "ping" | "reconnect" | "unsubscribe" };
 
 export const realtimeUrl = (slug: string, userId: string) =>
   `/api/v1/workspaces/${encodeURIComponent(slug)}/stream?userId=${encodeURIComponent(userId)}`;
@@ -39,10 +39,99 @@ export const watchStall = (source: EventSource, stalled: () => void) => {
   }, stallMs / 3);
 };
 
+export const retryBaseMs = 1000;
+export const retryMaxMs = 30_000;
+
+export const retryDelay = (
+  attempt: number,
+  // oxlint-disable-next-line sonarjs/pseudo-random -- Jitter only spreads reconnects; it guards nothing.
+  random = Math.random()
+) =>
+  Math.round(
+    Math.min(retryMaxMs, retryBaseMs * 2 ** attempt) * (1 - random / 4)
+  );
+
+export interface RealtimeStream {
+  close: () => void;
+  isOpen: () => boolean;
+  reconnect: () => void;
+}
+
+export const openStream = (
+  url: string,
+  emit: (message: RealtimeMessage) => void
+): RealtimeStream => {
+  let source: EventSource | null = null;
+  let retry: ReturnType<typeof setTimeout> | null = null;
+  let attempt = 0;
+  let closed = false;
+
+  const connect = () => {
+    retry = null;
+
+    let current: EventSource;
+
+    try {
+      current = new EventSource(url);
+    } catch {
+      closed = true;
+      emit({ type: "unsupported" });
+
+      return;
+    }
+
+    const lost = () => {
+      if (source !== current || closed) {
+        return;
+      }
+
+      current.close();
+      source = null;
+      emit({ type: "error" });
+      retry = setTimeout(connect, retryDelay(attempt));
+      attempt += 1;
+    };
+
+    source = current;
+    watchStall(current, lost);
+    current.addEventListener("open", () => {
+      attempt = 0;
+      emit({ type: "open" });
+    });
+    current.addEventListener("message", ({ data }: MessageEvent<string>) => {
+      emit({ data, type: "message" });
+    });
+    current.addEventListener("error", lost);
+  };
+
+  connect();
+
+  return {
+    close: () => {
+      closed = true;
+
+      if (retry !== null) {
+        clearTimeout(retry);
+      }
+
+      source?.close();
+      source = null;
+    },
+    isOpen: () => source?.readyState === EventSource.OPEN,
+    reconnect: () => {
+      attempt = 0;
+
+      if (!closed && retry !== null) {
+        clearTimeout(retry);
+        connect();
+      }
+    },
+  };
+};
+
 interface Stream {
+  handle?: RealtimeStream;
   ports: Set<MessagePort>;
-  source: EventSource | null;
-  retry?: ReturnType<typeof setTimeout>;
   url: string;
 }
 
@@ -63,8 +152,7 @@ export const createRealtimeHub = () => {
     stream.ports.delete(port);
 
     if (stream.ports.size === 0) {
-      clearTimeout(stream.retry);
-      stream.source?.close();
+      stream.handle?.close();
       streams.delete(stream.url);
     }
   };
@@ -73,43 +161,6 @@ export const createRealtimeHub = () => {
     for (const port of stream.ports) {
       port.postMessage(message, []);
     }
-  };
-
-  const connect = (stream: Stream) => {
-    let source: EventSource;
-
-    try {
-      source = new EventSource(stream.url);
-    } catch {
-      send(stream, { type: "unsupported" });
-
-      return;
-    }
-
-    stream.source = source;
-    watchStall(source, () => {
-      send(stream, { type: "error" });
-      connect(stream);
-    });
-    source.addEventListener("open", () => {
-      send(stream, { type: "open" });
-    });
-
-    source.addEventListener("message", (message: MessageEvent<string>) => {
-      send(stream, { data: message.data, type: "message" });
-    });
-
-    source.addEventListener("error", () => {
-      send(stream, { type: "error" });
-
-      if (source.readyState === EventSource.CLOSED && stream.ports.size > 0) {
-        source.close();
-        stream.source = null;
-        stream.retry = setTimeout(() => {
-          connect(stream);
-        }, 3000);
-      }
-    });
   };
 
   const sweep = setInterval(() => {
@@ -135,6 +186,8 @@ export const createRealtimeHub = () => {
 
         if (data.type === "unsubscribe") {
           detach(port);
+        } else if (data.type === "reconnect") {
+          subscriber.stream?.handle?.reconnect();
         } else if (data.type === "ping") {
           port.postMessage({ type: "pong" } satisfies RealtimeMessage);
         } else if (
@@ -145,7 +198,6 @@ export const createRealtimeHub = () => {
 
           const stream = streams.get(url) ?? {
             ports: new Set<MessagePort>(),
-            source: null,
             url,
           };
 
@@ -155,9 +207,13 @@ export const createRealtimeHub = () => {
 
           if (!streams.has(url)) {
             streams.set(url, stream);
-            connect(stream);
-          } else if (stream.source?.readyState === EventSource.OPEN) {
+            stream.handle = openStream(url, (message) => {
+              send(stream, message);
+            });
+          } else if (stream.handle?.isOpen() === true) {
             port.postMessage({ type: "open" } satisfies RealtimeMessage);
+          } else {
+            stream.handle?.reconnect();
           }
         }
       }
