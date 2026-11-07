@@ -97,19 +97,22 @@ const leaveAll = () => {
   changed.clear();
 };
 
+let listening = false;
+
 const start = () => {
   timer = setInterval(beat, heartbeatMs);
-  document.addEventListener("visibilitychange", beat);
-  window.addEventListener("pageshow", beat);
-  window.addEventListener("pagehide", leaveAll);
+
+  if (!listening) {
+    listening = true;
+    document.addEventListener("visibilitychange", beat);
+    window.addEventListener("pageshow", beat);
+    window.addEventListener("pagehide", leaveAll);
+  }
 };
 
 const stop = () => {
   clearInterval(timer ?? undefined);
   timer = null;
-  document.removeEventListener("visibilitychange", beat);
-  window.removeEventListener("pageshow", beat);
-  window.removeEventListener("pagehide", leaveAll);
 };
 
 export const viewTarget = (slug: string, targetId: string) => {

@@ -65,10 +65,15 @@ test("an event during the snapshot request makes it fetch again", async () => {
   unsubscribe();
 });
 
-test("a remount in the same tick sends one beacon with the final targets", async () => {
+test("a remount in the same tick sends one beacon, and a pagehide right after unmount still leaves", async () => {
+  const pagehide: (() => void)[] = [];
+
   const listeners = {
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === "pagehide") {
+        pagehide.push(listener);
+      }
+    },
   };
 
   const browser = {
@@ -98,7 +103,14 @@ test("a remount in the same tick sends one beacon with the final targets", async
   );
 
   leave();
+
+  for (const listener of pagehide) {
+    listener();
+  }
+
   await Bun.sleep(5);
+
+  const last = beacon.mock.calls.at(-1)?.[1];
 
   for (const [name, descriptor] of saved) {
     if (descriptor === undefined) {
@@ -110,4 +122,6 @@ test("a remount in the same tick sends one beacon with the final targets", async
 
   expect(bodies).toHaveLength(1);
   expect(bodies[0]).toContain('"targetIds":["issue"]');
+  expect(beacon).toHaveBeenCalledTimes(2);
+  expect(await last?.text()).toContain('"targetIds":[]');
 });
