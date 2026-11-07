@@ -9,6 +9,7 @@ import {
   SettingsPage,
   SettingsRow,
   SettingsSection,
+  useSettingsSave,
 } from "~/components/settings-page";
 import { Button } from "~/components/ui/button";
 import { WorkspaceLogo } from "~/components/workspace-logo";
@@ -63,7 +64,6 @@ const useSaveWorkspace = (workspace: Workspace) => {
         body: changes,
         params: { slug: workspace.slug },
       }),
-    onError: notifyError("Workspace not saved"),
     onSuccess: store,
   });
 
@@ -100,6 +100,13 @@ const LogoSetting = ({
   workspace: Workspace;
 }) => {
   const input = useRef<HTMLInputElement>(null);
+  const { saveInBackground } = useSettingsSave();
+
+  const change = (file: File | null) => {
+    saveInBackground(async () => {
+      await logo.mutateAsync(file);
+    });
+  };
 
   return (
     <SettingsRow description="Square, at least 256 px" label="Logo">
@@ -110,7 +117,7 @@ const LogoSetting = ({
               <Button
                 disabled={logo.isPending}
                 onClick={() => {
-                  logo.mutate(null);
+                  change(null);
                 }}
                 variant="ghost"
               >
@@ -135,7 +142,7 @@ const LogoSetting = ({
                 event.target.value = "";
 
                 if (file !== undefined) {
-                  logo.mutate(file);
+                  change(file);
                 }
               }}
               ref={input}
@@ -147,6 +154,38 @@ const LogoSetting = ({
         <WorkspaceLogo
           className="text-prose size-10 rounded-lg"
           workspace={workspace}
+        />
+      </div>
+    </SettingsRow>
+  );
+};
+
+const ColorSetting = ({
+  disabled,
+  update,
+  workspace,
+}: {
+  disabled: boolean;
+  update: ReturnType<typeof useSaveWorkspace>["update"];
+  workspace: Workspace;
+}) => {
+  const { saveInBackground } = useSettingsSave();
+
+  return (
+    <SettingsRow
+      description="Without a logo the initial shows on this color"
+      label="Color"
+    >
+      <div className="max-sm:w-full">
+        <ColorSwatches
+          disabled={disabled}
+          label="Workspace color"
+          onChange={(color) => {
+            saveInBackground(async () => {
+              await update.mutateAsync({ color });
+            });
+          }}
+          value={workspace.color}
         />
       </div>
     </SettingsRow>
@@ -253,21 +292,11 @@ const General = () => {
             value={workspace.slug}
           />
         </SettingsRow>
-        <SettingsRow
-          description="Without a logo the initial shows on this color"
-          label="Color"
-        >
-          <div className="max-sm:w-full">
-            <ColorSwatches
-              disabled={!isAdmin}
-              label="Workspace color"
-              onChange={(color) => {
-                update.mutate({ color });
-              }}
-              value={workspace.color}
-            />
-          </div>
-        </SettingsRow>
+        <ColorSetting
+          disabled={!isAdmin}
+          update={update}
+          workspace={workspace}
+        />
       </SettingsSection>
       {isAdmin ? (
         <SettingsSection title="Danger zone">

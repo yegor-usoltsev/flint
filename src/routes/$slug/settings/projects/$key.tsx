@@ -11,6 +11,7 @@ import {
   SettingsPage,
   SettingsRow,
   SettingsSection,
+  useSettingsSave,
 } from "~/components/settings-page";
 import { buttonVariants } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -42,9 +43,8 @@ const useProjectUpdate = (project: ProjectDetail) => {
 
       return previous;
     },
-    onError: (error, _changes, previous) => {
+    onError: (_error, _changes, previous) => {
       queryClient.setQueryData(queryKey, previous);
-      notifyError("Project not saved")(error);
     },
     onSuccess: async (saved) => {
       queryClient.setQueryData(queryKey, saved);
@@ -58,6 +58,7 @@ const useProjectUpdate = (project: ProjectDetail) => {
 const ProjectIconPicker = ({ project }: { project: ProjectDetail }) => {
   const workspace = useWorkspace();
   const update = useProjectUpdate(project);
+  const { saveInBackground } = useSettingsSave();
 
   return (
     <IconPicker
@@ -66,7 +67,9 @@ const ProjectIconPicker = ({ project }: { project: ProjectDetail }) => {
       icon={project.icon}
       label="Project icon"
       onChange={(change) => {
-        update.mutate(change);
+        saveInBackground(async () => {
+          await update.mutateAsync(change);
+        });
       }}
     />
   );

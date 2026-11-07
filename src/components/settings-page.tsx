@@ -1,9 +1,8 @@
-import { useLocation } from "@tanstack/react-router";
 import { cn } from "cn";
 import { SearchIcon } from "lucide-react";
+import { createContext, useContext, useReducer, useRef } from "react";
 import type { ReactElement, ReactNode } from "react";
 
-import { SaveState } from "~/components/conflict-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -28,8 +27,10 @@ import {
 } from "~/components/ui/input-group";
 import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger } from "~/components/ui/sidebar";
-import { useAutosaveText } from "~/lib/use-autosave-text";
-import { useWorkspace } from "~/lib/use-workspace";
+import { ApiError } from "~/lib/api";
+import { idleSave, savedForMs, saveStatus, trackSave } from "~/lib/save-status";
+import type { SaveEvent, SaveTrack } from "~/lib/save-status";
+import { rejection, useAutosaveText } from "~/lib/use-autosave-text";
 
 const settingsCard = "bg-card shadow-raised rounded-lg border";
 
@@ -38,65 +39,158 @@ export interface SettingsParent {
   link: ReactElement;
 }
 
+type SaveRun = () => Promise<void>;
+
+const SaveContext = createContext<((run: SaveRun) => Promise<void>) | null>(
+  null
+);
+
+const useSaveScope = () => {
+  const [state, dispatch] = useReducer<
+    SaveTrack<SaveRun>,
+    [SaveEvent<SaveRun>]
+  >(trackSave, idleSave);
+
+  const latest = useRef(0);
+
+  const save = async (run: SaveRun) => {
+    latest.current += 1;
+    const { current } = latest;
+    dispatch({ type: "start" });
+
+    try {
+      await run();
+      dispatch({ type: "succeed" });
+      setTimeout(() => {
+        if (latest.current === current) {
+          dispatch({ type: "expire" });
+        }
+      }, savedForMs);
+    } catch (error) {
+      dispatch(
+        error instanceof ApiError && rejection(error) !== null
+          ? { type: "reject" }
+          : { run, type: "fail" }
+      );
+      throw error;
+    }
+  };
+
+  return { save, state };
+};
+
+const ignore = () => null;
+
+export const useSettingsSave = () => {
+  const scope = useContext(SaveContext);
+
+  const save =
+    scope ??
+    (async (run: SaveRun) => {
+      await run();
+    });
+
+  return {
+    save,
+    saveInBackground: (run: SaveRun) => {
+      save(run).catch(ignore);
+    },
+  };
+};
+
+const SaveStatus = ({
+  onRetry,
+  state,
+}: {
+  onRetry: (run: SaveRun) => void;
+  state: SaveTrack<SaveRun>;
+}) => {
+  const status = saveStatus(state);
+  const { failed } = state;
+
+  return (
+    <output className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+      {status === "saving" ? "Saving…" : null}
+      {status === "saved" ? "Saved" : null}
+      {status === "failed" && failed !== null ? (
+        <button
+          className="text-destructive hit-area relative underline-offset-2 hover:underline"
+          onClick={() => {
+            onRetry(failed);
+          }}
+          type="button"
+        >
+          Couldn’t save · Retry
+        </button>
+      ) : null}
+    </output>
+  );
+};
+
+const SaveScope = ({
+  children,
+}: {
+  children: (status: ReactNode) => ReactNode;
+}) => {
+  const { save, state } = useSaveScope();
+
+  return (
+    <SaveContext value={save}>
+      {children(
+        <SaveStatus
+          onRetry={(run) => {
+            save(run).catch(ignore);
+          }}
+          state={state}
+        />
+      )}
+    </SaveContext>
+  );
+};
+
 export const SettingsHeader = ({
   label,
   parent,
 }: {
   label?: string;
   parent?: SettingsParent;
-}) => {
-  const workspace = useWorkspace();
-
-  const account = useLocation({
-    select: (location) =>
-      /\/settings\/account(?:\/|$)/u.test(location.pathname),
-  });
-
-  return (
-    <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-      <SidebarTrigger className="-ml-1" />
-      <Separator
-        className="mr-1 data-vertical:h-4 data-vertical:self-center"
-        orientation="vertical"
-      />
-      <Breadcrumb className="min-w-0 flex-1">
-        <BreadcrumbList className="flex-nowrap">
-          <BreadcrumbItem className="min-w-12 max-md:hidden">
-            <span className="truncate">
-              {account ? "Account" : workspace.name}
-            </span>
+}) => (
+  <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+    <SidebarTrigger className="-ml-1" />
+    <Separator
+      className="mr-1 data-vertical:h-4 data-vertical:self-center"
+      orientation="vertical"
+    />
+    <Breadcrumb className="min-w-0 flex-1">
+      <BreadcrumbList className="flex-nowrap">
+        {parent === undefined ? (
+          <BreadcrumbItem className="md:hidden">Settings</BreadcrumbItem>
+        ) : (
+          <BreadcrumbItem className="min-w-6 shrink-[100]">
+            <BreadcrumbLink
+              className="hit-area relative min-w-0"
+              render={parent.link}
+            >
+              <span className="block truncate">{parent.label}</span>
+            </BreadcrumbLink>
           </BreadcrumbItem>
-          {parent === undefined ? null : (
-            <>
+        )}
+        {label === undefined ? null : (
+          <>
+            {parent === undefined ? null : (
               <BreadcrumbSeparator className="max-md:hidden" />
-              <BreadcrumbItem className="min-w-6 shrink-[100]">
-                <BreadcrumbLink
-                  className="hit-area relative min-w-0"
-                  render={parent.link}
-                >
-                  <span className="block truncate">{parent.label}</span>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-            </>
-          )}
-          {parent === undefined ? (
-            <BreadcrumbItem className="md:hidden">Settings</BreadcrumbItem>
-          ) : null}
-          {label === undefined ? null : (
-            <>
-              <BreadcrumbSeparator className="max-md:hidden" />
-              <BreadcrumbItem className="min-w-12 max-md:hidden">
-                <span className="text-foreground truncate font-medium">
-                  {label}
-                </span>
-              </BreadcrumbItem>
-            </>
-          )}
-        </BreadcrumbList>
-      </Breadcrumb>
-    </header>
-  );
-};
+            )}
+            <BreadcrumbItem className="min-w-12 max-md:hidden">
+              <span className="text-foreground truncate font-medium">
+                {label}
+              </span>
+            </BreadcrumbItem>
+          </>
+        )}
+      </BreadcrumbList>
+    </Breadcrumb>
+  </header>
+);
 
 export const SettingsPage = ({
   actions,
@@ -116,25 +210,34 @@ export const SettingsPage = ({
   <>
     <SettingsHeader label={title} parent={parent} />
     <div className="settings-controls min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
-        <div className="flex flex-col gap-1 px-0.5">
-          <div className="flex items-start gap-4">
-            {leading}
-            <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">
-              {title}
-            </h1>
-            {actions === undefined ? null : (
-              <div className="flex h-8 shrink-0 items-center gap-2">
-                {actions}
+      <SaveScope>
+        {(status) => (
+          <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
+            <div className="flex flex-col gap-1 px-0.5">
+              <div className="flex items-start gap-4">
+                {leading}
+                <div className="flex min-h-8 min-w-0 flex-1 items-baseline gap-3">
+                  <h1 className="min-w-0 truncate text-2xl font-semibold">
+                    {title}
+                  </h1>
+                  {status}
+                </div>
+                {actions === undefined ? null : (
+                  <div className="flex h-8 shrink-0 items-center gap-2">
+                    {actions}
+                  </div>
+                )}
               </div>
-            )}
+              {description === undefined ? null : (
+                <p className="text-muted-foreground text-pretty">
+                  {description}
+                </p>
+              )}
+            </div>
+            {children}
           </div>
-          {description === undefined ? null : (
-            <p className="text-muted-foreground text-pretty">{description}</p>
-          )}
-        </div>
-        {children}
-      </div>
+        )}
+      </SaveScope>
     </div>
   </>
 );
@@ -149,22 +252,39 @@ export const SettingsSection = ({
   children: ReactNode;
   description?: ReactNode;
   title?: string;
-}) => (
-  <section className="flex flex-col gap-3">
-    {title === undefined ? null : (
-      <div className="flex items-end gap-4 px-0.5">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="text-prose font-medium">{title}</h2>
-          {description === undefined ? null : (
-            <p className="text-muted-foreground text-pretty">{description}</p>
-          )}
-        </div>
-        {action}
-      </div>
-    )}
+}) => {
+  const card = (
     <div className={cn(settingsCard, "divide-y px-4")}>{children}</div>
-  </section>
-);
+  );
+
+  if (title === undefined) {
+    return <section className="flex flex-col gap-3">{card}</section>;
+  }
+
+  return (
+    <SaveScope>
+      {(status) => (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-end gap-4 px-0.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex items-baseline gap-3">
+                <h2 className="text-prose font-medium">{title}</h2>
+                {status}
+              </div>
+              {description === undefined ? null : (
+                <p className="text-muted-foreground text-pretty">
+                  {description}
+                </p>
+              )}
+            </div>
+            {action}
+          </div>
+          {card}
+        </section>
+      )}
+    </SaveScope>
+  );
+};
 
 export const SettingsTable = ({ children }: { children: ReactNode }) => (
   <div className={cn(settingsCard, "p-1")}>{children}</div>
@@ -256,7 +376,18 @@ export const SettingsInput = ({
   validate?: (value: string) => string | null;
   value: string;
 }) => {
-  const field = useAutosaveText(value, onSave, validate);
+  const { save } = useSettingsSave();
+
+  const field = useAutosaveText(
+    value,
+    async (text) => {
+      await save(async () => {
+        await onSave(text);
+      });
+    },
+    validate
+  );
+
   const invalid = !disabled && field.problem !== null;
 
   const props = {
@@ -300,17 +431,15 @@ export const SettingsInput = ({
           <InputGroupInput {...props} />
         </InputGroup>
       )}
-      {field.status === "idle" || disabled ? null : (
-        <div id={`${id}-problem`}>
-          <SaveState
-            onRetry={() => {
-              void field.flush();
-            }}
-            problem={field.problem}
-            status={field.status}
-          />
-        </div>
-      )}
+      {invalid ? (
+        <p
+          className="text-destructive text-xs"
+          id={`${id}-problem`}
+          role="alert"
+        >
+          {field.problem}
+        </p>
+      ) : null}
     </div>
   );
 };

@@ -254,7 +254,7 @@ const TrashRow = ({
   return (
     <li className={cn(tableRow, "max-md:py-1.5")}>
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex min-w-0 items-center gap-2">{children}</div>
+        <div className="flex min-w-0 items-start gap-2">{children}</div>
         <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
       </div>
       <DeletedBy user={deletedBy} />
@@ -347,13 +347,13 @@ const IssueRow = ({
     >
       <CircleDotIcon
         aria-hidden
-        className="text-muted-foreground size-4 shrink-0"
+        className="text-muted-foreground mt-0.5 size-4 shrink-0"
       />
       <span className="text-muted-foreground tracking-key shrink-0 tabular-nums">
         {issue.key}
       </span>
       <Link
-        className="font-medium wrap-anywhere hover:underline md:truncate"
+        className="line-clamp-2 font-medium wrap-anywhere hover:underline"
         params={{ issueKey: issue.key, slug }}
         to="/$slug/issue/$issueKey"
       >
@@ -428,9 +428,12 @@ const PageRow = ({
       pending={restore.isPending || purge.isPending}
       purgeText={`The ${page.kind}${inside(page.descendants)} are deleted for everyone with their history and attachments. This cannot be undone.`}
     >
-      <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
+      <Icon
+        aria-hidden
+        className="text-muted-foreground mt-2 size-4 shrink-0"
+      />
       <span className="flex min-w-0 flex-col py-1.5">
-        <span className="font-medium wrap-anywhere md:truncate">
+        <span className="line-clamp-2 font-medium wrap-anywhere">
           {page.title}
         </span>
         <span className="text-muted-foreground text-xs wrap-anywhere md:truncate">
