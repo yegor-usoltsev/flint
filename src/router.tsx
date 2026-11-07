@@ -33,6 +33,10 @@ export const getRouter = () => {
     defaultPendingMs: 300,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
+    defaultViewTransition: typeof CSS !== "undefined" &&
+      CSS.supports("selector(:active-view-transition-type(a))") && {
+        types: ({ pathChanged }) => (pathChanged ? ["page"] : false),
+      },
     routeTree,
     scrollRestoration: true,
     ssr: { nonce: getGlobalStartContext()?.nonce },

@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import {
   Link,
+  linkOptions,
   Navigate,
   useLocation,
   useNavigate,
@@ -67,6 +68,7 @@ import { useContextIssue } from "~/lib/issue-focus";
 import {
   stepFromPanel,
   useWideEntry,
+  panelVisible,
   usePanel,
   usePanelFits,
   usePanelOpen,
@@ -984,9 +986,24 @@ const PanelScreen = ({
   const { data } = issue;
   const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
-  const { picked } = usePanel();
+  const panel = usePanel();
+  const navigate = useNavigate();
 
-  useOpenIssue(workspace.slug, data, editable && !picked);
+  const fullPage = linkOptions({
+    params: { issueKey, slug: workspace.slug },
+    state: {
+      from: origin === undefined ? undefined : { ...origin, panel: issueKey },
+      full: true,
+    },
+    to: "/$slug/issue/$issueKey",
+  });
+
+  useOpenIssue(workspace.slug, data, editable && !panel.picked);
+  useHotkey("o", () => {
+    if (panelVisible(panel)) {
+      void navigate(fullPage);
+    }
+  });
 
   return (
     <>
@@ -1000,19 +1017,12 @@ const PanelScreen = ({
           </h2>
           {ready ? <PresenceAvatars targetId={data.id} /> : null}
           {origin === undefined ? null : <PanelSteps />}
-          <Hint label="Open full page">
+          <Hint hotkey={{ keys: "o" }} label="Open full page">
             <Link
+              aria-keyshortcuts="O"
               aria-label="Open full page"
               className={buttonVariants({ size: "icon-sm", variant: "ghost" })}
-              params={{ issueKey, slug: workspace.slug }}
-              state={{
-                from:
-                  origin === undefined
-                    ? undefined
-                    : { ...origin, panel: issueKey },
-                full: true,
-              }}
-              to="/$slug/issue/$issueKey"
+              {...fullPage}
             >
               <Maximize2Icon />
             </Link>
