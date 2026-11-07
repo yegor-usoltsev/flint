@@ -8,7 +8,14 @@ import {
   TagIcon,
   Trash2Icon,
 } from "lucide-react";
-import { Fragment, useId, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
@@ -54,7 +61,7 @@ import type {
   ProjectDetail,
   UserRef,
 } from "~/lib/api-types";
-import { seenIds } from "~/lib/held-comments";
+import { followsEnd, seenIds } from "~/lib/held-comments";
 import { newId } from "~/lib/ids";
 import { formatRelative } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
@@ -72,6 +79,8 @@ interface Timeline {
 }
 
 type EventItem = Extract<ActivityItem, { type: "event" }>;
+
+const draftKey = (issueId: string) => `new-comment:${issueId}`;
 
 const composerClass =
   "bg-card shadow-raised flex flex-col gap-2 rounded-md border p-4 pb-3";
@@ -560,10 +569,10 @@ const CommentItem = ({
 const CommentBox = ({ issue }: { issue: Issue }) => {
   const me = useMe().data;
   const cache = useTimelineCache(issue);
-  const [stored, setBody, readBody] = useStoredText(`new-comment:${issue.id}`);
+  const [stored, setBody, readBody] = useStoredText(draftKey(issue.id));
   const body = stored ?? "";
   const [source, setSource] = useState(false);
-  const uploading = useUploading(`new-comment:${issue.id}`);
+  const uploading = useUploading(draftKey(issue.id));
   const editor = useRef<MarkdownEditorHandle>(null);
 
   useCommands([
@@ -638,7 +647,7 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
         label="Comment"
         onChange={setBody}
         draft={{
-          key: `new-comment:${issue.id}`,
+          key: draftKey(issue.id),
           read: () => readBody() ?? "",
         }}
         onSubmit={submit}
@@ -727,10 +736,11 @@ const endInView = (element: HTMLElement | null) => {
 };
 
 interface Seen {
-  comments: Comment[];
+  data: Timeline;
   ids: ReadonlySet<string>;
   initial: ReadonlySet<string>;
   issueId: string;
+  pin: boolean;
 }
 
 const allIds = (comments: Comment[]) =>
@@ -739,36 +749,58 @@ const allIds = (comments: Comment[]) =>
 const byData = (name: string, id: string) =>
   document.querySelector<HTMLElement>(`[data-${name}="${CSS.escape(id)}"]`);
 
+const scrollerOf = (element: HTMLElement | null) => {
+  for (
+    let parent = element?.parentElement ?? null;
+    parent !== null;
+    parent = parent.parentElement
+  ) {
+    if (/auto|scroll/u.test(getComputedStyle(parent).overflowY)) {
+      return parent;
+    }
+  }
+
+  return document.scrollingElement;
+};
+
 const useHeldComments = (
   issueId: string,
-  comments: Comment[] | undefined,
+  data: Timeline | undefined,
   me: string | undefined
 ) => {
   const timelineId = useId();
   const [seen, setSeen] = useState<Seen | null>(null);
   const current = seen?.issueId === issueId ? seen : null;
   const known = current?.ids ?? null;
+  const comments = data?.comments;
+  const endOf = () => byData("timeline-end", timelineId);
 
-  if (
-    comments !== undefined &&
-    (current === null || current.comments !== comments)
-  ) {
+  const reader = () => ({
+    draft: readStoredText(draftKey(issueId)) ?? "",
+    endInView: endInView(endOf()),
+    focused:
+      byData("composer", timelineId)?.contains(document.activeElement) === true,
+  });
+
+  const pinned = () => {
+    const scroller = scrollerOf(endOf());
+
+    return (
+      scroller !== null &&
+      followsEnd(
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight,
+        reader()
+      )
+    );
+  };
+
+  if (data !== undefined && (current === null || current.data !== data)) {
     setSeen({
-      comments,
-      ids: seenIds({
-        comments,
-        known,
-        me,
-        reader: () => ({
-          draft: readStoredText(`new-comment:${issueId}`) ?? "",
-          endInView: endInView(byData("timeline-end", timelineId)),
-          focused:
-            byData("composer", timelineId)?.contains(document.activeElement) ===
-            true,
-        }),
-      }),
-      initial: current?.initial ?? allIds(comments),
+      data,
+      ids: seenIds({ comments: data.comments, known, me, reader }),
+      initial: current?.initial ?? allIds(data.comments),
       issueId,
+      pin: current !== null && pinned(),
     });
   }
 
@@ -782,14 +814,68 @@ const useHeldComments = (
 
   const held = comments?.filter(isHeld) ?? [];
 
-  const reveal = () => {
-    const [first] = held;
-
+  const show = (pin: boolean) => {
     if (comments !== undefined && current !== null) {
-      setSeen({ ...current, comments, ids: allIds(comments) });
+      setSeen({ ...current, ids: allIds(comments), pin });
     }
 
     flashRemote(held.map((comment) => comment.id));
+  };
+
+  const recheck = () => {
+    if (
+      held.length > 0 &&
+      comments !== undefined &&
+      seenIds({ comments, known, me, reader }) !== known
+    ) {
+      show(pinned());
+    }
+  };
+
+  useEffect(() => {
+    const end = endOf();
+    const composer = byData("composer", timelineId);
+    const scroller = scrollerOf(end);
+    let frame = requestAnimationFrame(recheck);
+
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(recheck);
+    };
+
+    const observer = new IntersectionObserver(later, {
+      root: scroller === document.scrollingElement ? null : scroller,
+    });
+
+    if (end !== null) {
+      observer.observe(end);
+    }
+
+    composer?.addEventListener("focusout", later);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      composer?.removeEventListener("focusout", later);
+    };
+  });
+
+  useLayoutEffect(() => {
+    if (current?.pin !== true) {
+      return;
+    }
+
+    const scroller = scrollerOf(byData("timeline-end", timelineId));
+
+    if (scroller !== null) {
+      scroller.scrollTop = scroller.scrollHeight;
+    }
+  }, [current, timelineId]);
+
+  const reveal = () => {
+    const [first] = held;
+
+    show(false);
 
     requestAnimationFrame(() => {
       byData("comment", first?.id ?? "")?.scrollIntoView({
@@ -850,7 +936,7 @@ export const IssueTimeline = ({
 
   const { arrived, held, isHeld, reveal, timelineId } = useHeldComments(
     issue.id,
-    timeline.data?.comments,
+    timeline.data,
     me?.id
   );
 
@@ -875,7 +961,7 @@ export const IssueTimeline = ({
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <ol className="flex flex-col gap-3" data-timeline-end={timelineId}>
+        <ol className="flex flex-col gap-3">
           {feed.map((entry) =>
             Array.isArray(entry) ? (
               <li key={entry[0]?.id}>
@@ -896,6 +982,9 @@ export const IssueTimeline = ({
             )
           )}
         </ol>
+      )}
+      {timeline.isPending ? null : (
+        <div aria-hidden className="-mt-4" data-timeline-end={timelineId} />
       )}
       {timeline.isPending ? null : (
         <NewComments count={held.length} onReveal={reveal} />
