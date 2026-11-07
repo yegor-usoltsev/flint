@@ -9,10 +9,21 @@ import { membersQuery } from "~/lib/queries";
 
 const heartbeatMs = 25_000;
 
+const events = new Map<string, number>();
+
+const fetchPresence = async (slug: string): Promise<Presence[]> => {
+  const seen = events.get(slug);
+
+  const presence = await request("GET /workspaces/:slug/presence", {
+    params: { slug },
+  });
+
+  return events.get(slug) === seen ? presence : await fetchPresence(slug);
+};
+
 export const presenceQuery = (slug: string) =>
   queryOptions({
-    queryFn: async () =>
-      await request("GET /workspaces/:slug/presence", { params: { slug } }),
+    queryFn: async () => await fetchPresence(slug),
     queryKey: ["workspaces", slug, "presence"],
     staleTime: Number.POSITIVE_INFINITY,
   });
@@ -22,6 +33,7 @@ export const applyPresence = (
   slug: string,
   event: RealtimeEvent
 ) => {
+  events.set(slug, (events.get(slug) ?? 0) + 1);
   queryClient.setQueryData<Presence[]>(
     presenceQuery(slug).queryKey,
     (current) =>
