@@ -1,7 +1,12 @@
-import { afterEach, beforeEach, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, spyOn, test } from "bun:test";
 import { setImmediate as settle } from "node:timers/promises";
 
-import { createRealtimeHub, leaseMs, stallMs } from "~/lib/realtime-shared";
+import {
+  createRealtimeHub,
+  leaseMs,
+  retryDelay,
+  stallMs,
+} from "~/lib/realtime-shared";
 import type { RealtimeMessage } from "~/lib/realtime-shared";
 import { subscribeRealtime } from "~/lib/realtime-transport";
 
@@ -50,6 +55,7 @@ class Worker extends EventTarget {
 beforeEach(() => {
   jest.useFakeTimers();
   Source.instances.length = 0;
+  Source.behavior.blocked = false;
   Worker.behavior.mode = "working";
   replace("EventSource", Source);
   hub = createRealtimeHub();
@@ -296,7 +302,11 @@ test("a stream that goes silent while open reconnects in the worker and the dire
   jest.advanceTimersByTime(stallMs * 2);
   expect(Source.instances[2]?.readyState).toBe(Source.CLOSED);
   expect(Source.instances).toHaveLength(4);
-  expect(tab.messages).toEqual([{ type: "open" }, { type: "error" }]);
+  expect(tab.messages).toEqual([
+    { type: "connecting" },
+    { type: "open" },
+    { type: "error" },
+  ]);
 });
 
 test("a stream from a server that never sends named pings is not treated as stalled", () => {
@@ -304,4 +314,118 @@ test("a stream from a server that never sends named pings is not treated as stal
   Source.instances[0]?.open();
   jest.advanceTimersByTime(stallMs * 3);
   expect(Source.instances).toHaveLength(1);
+});
+
+const failAfter = (wait: number) => {
+  Source.instances.at(-1)?.fail();
+  const count = Source.instances.length;
+
+  jest.advanceTimersByTime(wait - 1);
+  expect(Source.instances).toHaveLength(count);
+  jest.advanceTimersByTime(1);
+  expect(Source.instances).toHaveLength(count + 1);
+};
+
+test("reconnects back off from 1 s to 30 s with jitter and reset once open", () => {
+  expect(
+    [0, 1, 2, 3, 4, 5, 6].map((attempt) => retryDelay(attempt, 0))
+  ).toEqual([1000, 2000, 4000, 8000, 16_000, 30_000, 30_000]);
+  expect(retryDelay(0, 1)).toBe(750);
+  expect(retryDelay(9, 0.5)).toBe(26_250);
+
+  const random = spyOn(Math, "random").mockReturnValue(0);
+
+  cleanups.push(() => {
+    random.mockRestore();
+  });
+  client(undefined);
+
+  failAfter(1000);
+  failAfter(2000);
+  failAfter(4000);
+  Source.instances.at(-1)?.open();
+  failAfter(1000);
+});
+
+test("going online retries a waiting stream at once in the worker and the direct fallback", async () => {
+  const random = spyOn(Math, "random").mockReturnValue(0);
+
+  cleanups.push(() => {
+    random.mockRestore();
+  });
+
+  const tab = client(Worker);
+
+  await settle();
+  Source.instances[0]?.fail();
+  await settle();
+  jest.advanceTimersByTime(1000);
+  Source.instances[1]?.fail();
+  await settle();
+  expect(Source.instances).toHaveLength(2);
+  tab.window.dispatchEvent(new Event("online"));
+  await settle();
+  expect(Source.instances).toHaveLength(3);
+  tab.window.dispatchEvent(new Event("online"));
+  await settle();
+  expect(Source.instances).toHaveLength(3);
+  Source.instances[2]?.open();
+  tab.window.dispatchEvent(new Event("online"));
+  await settle();
+  expect(Source.instances[2]?.readyState).toBe(Source.CLOSED);
+  expect(Source.instances).toHaveLength(4);
+  tab.stop();
+  await settle();
+
+  const direct = client(undefined);
+
+  Source.instances[4]?.fail();
+  expect(Source.instances).toHaveLength(5);
+  direct.window.dispatchEvent(new Event("online"));
+  expect(Source.instances).toHaveLength(6);
+  direct.window.dispatchEvent(new Event("online"));
+  expect(Source.instances).toHaveLength(6);
+  Source.instances[5]?.open();
+  direct.window.dispatchEvent(new Event("online"));
+  expect(Source.instances[5]?.readyState).toBe(Source.CLOSED);
+  expect(Source.instances).toHaveLength(7);
+  expect(direct.messages).toEqual([
+    { type: "connecting" },
+    { type: "error" },
+    { type: "open" },
+  ]);
+});
+
+test("forced retries keep backing off until a stream opens", () => {
+  const random = spyOn(Math, "random").mockReturnValue(0);
+
+  cleanups.push(() => {
+    random.mockRestore();
+  });
+
+  const tab = client(undefined);
+
+  failAfter(1000);
+  tab.window.dispatchEvent(new Event("online"));
+  failAfter(2000);
+  failAfter(4000);
+});
+
+test("tabs joining a stream the browser cannot open learn it is unsupported", async () => {
+  Source.behavior.blocked = true;
+
+  const a = await subscribe();
+  const b = await subscribe();
+
+  expect(a.messages).toContainEqual({ type: "unsupported" });
+  expect(b.messages).toContainEqual({ type: "unsupported" });
+});
+
+test("a tab joining a stream that waits to retry reconnects it at once", async () => {
+  await subscribe();
+  Source.instances[0]?.fail();
+  await settle();
+  expect(Source.instances).toHaveLength(1);
+  await subscribe();
+  expect(Source.instances).toHaveLength(2);
 });
