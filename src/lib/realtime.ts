@@ -127,8 +127,15 @@ export const useRealtime = (
     };
 
     const refresh = async (filters: QueryFilters) => {
+      const preloads = queryClient
+        .getQueryCache()
+        .findAll({ ...filters, fetchStatus: "fetching", type: "inactive" });
+
       await queryClient.cancelQueries(filters);
       await queryClient.invalidateQueries(filters);
+      await Promise.allSettled(
+        preloads.map(async (query) => await query.fetch())
+      );
     };
 
     const flush = () => {
