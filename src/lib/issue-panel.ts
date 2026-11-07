@@ -15,6 +15,7 @@ import { rootRem } from "~/lib/rem";
 export const panelMin = (rem = rootRem()) => 26.25 * rem;
 export const listMin = (rem = rootRem()) => 32.5 * rem;
 const listMax = (rem: number) => 90 * rem;
+const panelByDefault = (rem: number) => 120 * rem;
 const panelMaxShare = 0.65;
 const defaultShare = 0.48;
 const boardShare = 0.32;
@@ -41,6 +42,7 @@ interface PanelState {
   open: boolean;
   opening: IssueOpening | null;
   picked: boolean;
+  roomy: boolean;
   scope: PanelScope;
   width: number | null;
 }
@@ -52,6 +54,7 @@ let state: PanelState = {
   open: false,
   opening: null,
   picked: false,
+  roomy: false,
   scope: "list",
   width: null,
 };
@@ -72,7 +75,7 @@ const load = () => {
 
   state = {
     ...state,
-    open: open === null ? window.innerWidth >= splitByDefault : open === "true",
+    open: open === "true",
     opening: isOpening(opening) ? opening : null,
     width: Number.isFinite(width) && width > 0 ? width : null,
   };
@@ -89,13 +92,15 @@ const update = (patch: Partial<PanelState>) => {
     next.issue === state.issue &&
     next.open === state.open;
 
+  const sameRoom = next.roomy === state.roomy;
+
   const sameLayout =
     next.opening === state.opening &&
     next.picked === state.picked &&
     next.scope === state.scope &&
     next.width === state.width;
 
-  if (sameView && sameLayout) {
+  if (sameView && sameLayout && sameRoom) {
     return;
   }
 
@@ -127,6 +132,7 @@ const serverState: PanelState = {
   open: false,
   opening: null,
   picked: false,
+  roomy: false,
   scope: "list",
   width: null,
 };
@@ -230,7 +236,11 @@ export const setPanelSpace = (
 ) => {
   const fits = space >= panelMin(rem) + listMin(rem);
 
-  update({ available: enabled && fits, fits });
+  update({
+    available: enabled && fits,
+    fits,
+    roomy: enabled && space >= panelByDefault(rem),
+  });
 };
 
 let workspace: string | null = null;
@@ -314,7 +324,7 @@ export const peekIssue = (key: string) => {
 export const showInPanel = (key: string) => panelShown() && openPanel(key);
 
 const effectiveOpening = (current: PanelState): IssueOpening =>
-  current.opening ?? (current.open ? "panel" : "page");
+  current.opening ?? (current.open || current.roomy ? "panel" : "page");
 
 export const useIssueOpening = () =>
   useSyncExternalStore(

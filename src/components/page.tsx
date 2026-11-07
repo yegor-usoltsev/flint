@@ -129,6 +129,7 @@ export const PagePending = () => (
 
 export const Page = ({
   actions,
+  bounded = false,
   children,
   className,
   crumbs = noCrumbs,
@@ -137,6 +138,7 @@ export const Page = ({
   title,
 }: {
   actions?: ReactNode;
+  bounded?: boolean;
   children: ReactNode;
   className?: string;
   crumbs?: Crumb[];
@@ -150,70 +152,75 @@ export const Page = ({
 
   return (
     <>
-      <header
-        className="flex h-11 shrink-0 items-center gap-2 border-b px-3"
-        ref={header}
-      >
-        {pane === "detail" ? null : (
-          <>
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              className="mr-1 data-vertical:h-4 data-vertical:self-center"
-              orientation="vertical"
-            />
-          </>
-        )}
-        <Breadcrumb
-          aria-label={pane === "detail" ? "Page breadcrumb" : "breadcrumb"}
-          className="@container min-w-0 flex-1"
+      <header className="flex h-11 shrink-0 border-b" ref={header}>
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2 px-3",
+            bounded && "max-w-list mx-auto"
+          )}
         >
-          <BreadcrumbList className="flex-nowrap">
-            {crumbs.map((crumb, index) => {
-              const hidden = cn(
-                (crumb !== scope || switcher !== undefined) && "max-md:hidden",
-                index === crumbs.length - 1
-                  ? "md:@max-3xs:hidden"
-                  : "md:@max-lg:hidden"
-              );
-
-              return (
-                <Fragment key={crumb.label}>
-                  <BreadcrumbItem
-                    className={cn("min-w-6 shrink-[100]", hidden)}
-                  >
-                    <BreadcrumbLink
-                      className="hit-area relative min-w-0"
-                      render={crumb.link}
-                    >
-                      <span className="block max-w-60 truncate max-md:hidden">
-                        {crumb.label}
-                      </span>
-                      <span className="block max-w-20 truncate md:hidden">
-                        {crumb.short}
-                      </span>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className={hidden} />
-                </Fragment>
-              );
-            })}
-            <BreadcrumbItem className="min-w-24">
-              <PageTitle
-                header={header}
-                short={short}
-                switcher={switcher}
-                title={title}
+          {pane === "detail" ? null : (
+            <>
+              <SidebarTrigger className="-ml-1" />
+              <Separator
+                className="mr-1 data-vertical:h-4 data-vertical:self-center"
+                orientation="vertical"
               />
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <SearchButton />
-        {actions === undefined ? null : (
-          <div className="flex shrink-0 items-center gap-2 md:gap-1">
-            {actions}
-          </div>
-        )}
-        {pane === "list" ? null : <PanelToggle />}
+            </>
+          )}
+          <Breadcrumb
+            aria-label={pane === "detail" ? "Page breadcrumb" : "breadcrumb"}
+            className="@container min-w-0 flex-1"
+          >
+            <BreadcrumbList className="flex-nowrap">
+              {crumbs.map((crumb, index) => {
+                const hidden = cn(
+                  (crumb !== scope || switcher !== undefined) &&
+                    "max-md:hidden",
+                  index === crumbs.length - 1
+                    ? "md:@max-3xs:hidden"
+                    : "md:@max-lg:hidden"
+                );
+
+                return (
+                  <Fragment key={crumb.label}>
+                    <BreadcrumbItem
+                      className={cn("min-w-6 shrink-[100]", hidden)}
+                    >
+                      <BreadcrumbLink
+                        className="hit-area relative min-w-0"
+                        render={crumb.link}
+                      >
+                        <span className="block max-w-60 truncate max-md:hidden">
+                          {crumb.label}
+                        </span>
+                        <span className="block max-w-20 truncate md:hidden">
+                          {crumb.short}
+                        </span>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator className={hidden} />
+                  </Fragment>
+                );
+              })}
+              <BreadcrumbItem className="min-w-24">
+                <PageTitle
+                  header={header}
+                  short={short}
+                  switcher={switcher}
+                  title={title}
+                />
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <SearchButton />
+          {actions === undefined ? null : (
+            <div className="flex shrink-0 items-center gap-2 md:gap-1">
+              {actions}
+            </div>
+          )}
+          {pane === "list" ? null : <PanelToggle />}
+        </div>
       </header>
       <div className={cn("min-h-0 flex-1 overflow-y-auto", className)}>
         {children}

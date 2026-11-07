@@ -9,7 +9,7 @@
 @theme inline {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --container-document: 52.0625rem;
-  --container-list: 90rem;
+  --container-list: 96rem;
   --shadow-focus-bar: inset 2px 0 0 var(--primary);
   --font-sans:
     "Inter Variable", "SF Pro Display", -apple-system, system-ui, "Segoe UI",
@@ -355,6 +355,34 @@
 
 @utility fade-right {
   mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+}
+
+@utility fade-edges {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--fade-start, 0px),
+    black calc(100% - var(--fade-end, 0px)),
+    transparent
+  );
+}
+
+@utility fade-edges-start {
+  @media (width >= 48rem) {
+    --fade-start: 1rem;
+  }
+}
+
+@utility fade-edges-end {
+  --fade-end: 0.75rem;
+
+  @media (width >= 48rem) {
+    --fade-end: 1rem;
+  }
+}
+
+@utility board-columns {
+  grid-auto-columns: minmax(17rem, 24rem);
 }
 
 @utility fade-x {

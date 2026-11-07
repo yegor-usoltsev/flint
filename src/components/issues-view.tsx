@@ -93,7 +93,6 @@ import {
   membersQuery,
   useWorkingSet,
 } from "~/lib/queries";
-import { rootRem } from "~/lib/rem";
 import { useRemoteFlash } from "~/lib/remote-flash";
 import { useUpdateIssue } from "~/lib/use-update-issue";
 import type { IssuePatch } from "~/lib/use-update-issue";
@@ -226,7 +225,7 @@ const Sortable = ({
 };
 
 export const rowClass =
-  "group/row group/issue relative flex min-h-11 w-full cursor-default flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2 py-2 text-left outline-none select-none hover:bg-row-focus focus-visible:bg-row-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover data-selected:focus-visible:bg-row-selected-hover data-menu-target:bg-row-focus data-current:bg-row-focus data-current:shadow-focus-bar data-selected:data-menu-target:bg-row-selected-hover md:h-11 md:min-h-0 md:flex-nowrap md:py-0";
+  "group/row group/issue relative flex min-h-11 w-full cursor-default flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2 py-2 text-left outline-none select-none hover:bg-row-focus focus-visible:bg-row-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover data-selected:focus-visible:bg-row-selected-hover data-menu-target:bg-row-focus data-current:bg-row-focus data-current:shadow-focus-bar data-selected:data-menu-target:bg-row-selected-hover md:h-9 md:min-h-0 md:flex-nowrap md:py-0 md:pointer-coarse:h-11";
 
 export const RowCheck = ({ id }: { id: string }) => {
   const selected = useSelected(id);
@@ -252,23 +251,7 @@ export const RowCheck = ({ id }: { id: string }) => {
 };
 
 export const listClass =
-  "@container/list flex max-w-list flex-col gap-1 px-2 pt-2 pb-16";
-
-const IssueStatus = ({
-  issue,
-  lookup,
-}: {
-  issue: IssueSummary;
-  lookup: IssueLookup;
-}) => {
-  const status = lookup.statuses.get(issue.statusId);
-
-  if (status === undefined) {
-    return null;
-  }
-
-  return <StatusIcon category={status.category} color={status.color} />;
-};
+  "@container/list mx-auto flex w-full max-w-list flex-col px-2 pb-16";
 
 export const RowContent = ({
   assignee = true,
@@ -288,37 +271,34 @@ export const RowContent = ({
     <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
       {issue.key}
     </span>
-    <IssueStatus issue={issue} lookup={lookup} />
     <span
       className={cn(
-        "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate @min-[80rem]/list:max-w-160",
+        "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate",
         (!assignee || issue.assigneeId === null) && "max-md:w-full"
       )}
     >
       {issue.title}
     </span>
-    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden @max-[80rem]/list:empty:hidden md:@max-3xl/list:hidden @min-[80rem]/list:w-80 @min-[80rem]/list:max-w-none @min-[80rem]/list:shrink-0 @max-4xl/list:[&>:nth-child(n+2)]:hidden">
-      <IssueLabels issue={issue} lookup={lookup} />
+    <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:hidden @5xl/list:hidden">
+      <IssueLabels issue={issue} lookup={lookup} max={1} />
     </span>
-    {issue.labelIds.length > 1 ? (
-      <span className="text-muted-foreground shrink-0 text-xs tabular-nums md:@max-3xl/list:hidden @4xl/list:hidden">
-        +{issue.labelIds.length - 1}
-      </span>
-    ) : null}
-    <span className="contents @min-[80rem]/list:flex @min-[80rem]/list:w-20 @min-[80rem]/list:items-center @min-[80rem]/list:justify-end @min-[80rem]/list:gap-2.5">
+    <span className="hidden w-64 shrink-0 items-center justify-end gap-1 overflow-hidden @5xl/list:flex">
+      <IssueLabels issue={issue} lookup={lookup} max={2} />
+    </span>
+    <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1">
       <PullRequestIcon state={issue.pullRequestState} />
       <CiIcon state={issue.ciState} />
+    </span>
+    <span className="contents md:flex md:w-10 md:shrink-0 md:justify-end">
       <Checklist issue={issue} />
     </span>
     {assignee ? (
-      <Assignee
-        className="order-first self-start md:order-none md:self-auto"
-        issue={issue}
-        lookup={lookup}
-      />
+      <span className="order-first self-start md:order-none md:flex md:w-6 md:shrink-0 md:justify-end md:self-auto">
+        <Assignee issue={issue} lookup={lookup} />
+      </span>
     ) : null}
     <time
-      className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0"
+      className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0 md:w-16"
       dateTime={issue.updatedAt}
     >
       <span className="sr-only">Updated </span>
@@ -346,12 +326,19 @@ const ListGroup = ({
   const shown = open ? ids : ids.filter((id) => id === dragging);
 
   return (
-    <section aria-labelledby={`group-${status.id}`} ref={ref}>
-      <h2 className="bg-background sticky top-0 z-10" id={`group-${status.id}`}>
+    <section
+      aria-labelledby={`group-${status.id}`}
+      className="not-first:mt-2"
+      ref={ref}
+    >
+      <h2
+        className="bg-background sticky top-0 z-10 border-b"
+        id={`group-${status.id}`}
+      >
         <button
           aria-expanded={open}
           className={cn(
-            "bg-group-header hover:bg-group-header-hover focus-visible:bg-group-header-hover hit-area relative flex h-9 w-full items-center gap-2 rounded-md px-2 text-left font-medium outline-none",
+            "hover:bg-row-focus focus-visible:bg-row-focus hit-area focus-visible:ring-ring relative flex h-8 w-full items-center gap-2 px-2 text-left font-medium outline-none focus-visible:ring-1 focus-visible:ring-inset",
             isDropTarget && "bg-row-selected"
           )}
           onClick={() => {
@@ -466,13 +453,13 @@ const BoardColumn = ({
     <section
       aria-labelledby={`column-${status.id}`}
       className={cn(
-        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:w-(--column) md:max-w-none",
+        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:w-auto md:max-w-none",
         isDropTarget && "bg-row-selected"
       )}
       data-column={status.id}
       ref={ref}
     >
-      <header className="flex h-[50px] shrink-0 items-center gap-2 px-3">
+      <header className="flex h-[50px] shrink-0 items-center gap-2 px-3 max-md:sr-only">
         <StatusIcon category={status.category} color={status.color} />
         <h2 className="truncate font-medium" id={`column-${status.id}`}>
           {status.name}
@@ -482,7 +469,7 @@ const BoardColumn = ({
         </span>
         <Button
           aria-label={`New issue in ${status.name}`}
-          className="ml-auto"
+          className="ml-auto max-md:hidden"
           onClick={() => {
             onCreate(status);
           }}
@@ -492,7 +479,7 @@ const BoardColumn = ({
           <PlusIcon />
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.25 pb-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.25 pb-2 max-md:pt-2.25">
         {ids.map((id, index) => {
           const issue = issues.get(id);
 
@@ -510,6 +497,17 @@ const BoardColumn = ({
           );
         })}
         {footer(status)}
+        <Button
+          aria-label={`New issue in ${status.name}`}
+          className="h-11 justify-start md:hidden"
+          onClick={() => {
+            onCreate(status);
+          }}
+          variant="ghost"
+        >
+          <PlusIcon data-icon="inline-start" />
+          New issue
+        </Button>
       </div>
     </section>
   );
@@ -670,39 +668,55 @@ const jumpLabel = (more: boolean, range: ColumnRange | null) => {
   return range === null ? action : `${action}, ${rangeLabel(range)} shown`;
 };
 
-const columnGapRem = 0.5;
-const columnMinRem = 15;
-const columnMaxRem = 25;
-const buttonStripRem = 3;
+const ColumnRangeButton = ({
+  board,
+  more,
+  range,
+}: {
+  board: RefObject<HTMLDivElement | null>;
+  more: boolean;
+  range: ColumnRange | null;
+}) => (
+  <Button
+    aria-label={jumpLabel(more, range)}
+    className="absolute right-4 bottom-4 z-10 max-md:hidden"
+    onClick={() => {
+      const element = board.current;
 
-const useColumnWidth = (
-  board: RefObject<HTMLDivElement | null>,
-  count: number
-) => {
-  const [layout, setLayout] = useState({ fits: true, step: 0, width: 288 });
+      const next =
+        more && range !== null
+          ? element?.querySelectorAll<HTMLElement>("[data-column]")[range.last]
+          : undefined;
+
+      element?.scrollTo({
+        behavior: "smooth",
+        left: next === undefined ? 0 : next.offsetLeft - element.offsetLeft,
+      });
+    }}
+    size="pill"
+    variant="outline"
+  >
+    <span className="tabular-nums">
+      {range === null ? "Columns" : rangeLabel(range)}
+    </span>
+    {more ? (
+      <ChevronRightIcon data-icon="inline-end" />
+    ) : (
+      <ChevronLeftIcon data-icon="inline-end" />
+    )}
+  </Button>
+);
+
+const useOverflowing = (board: RefObject<HTMLDivElement | null>) => {
+  const [overflowing, setOverflowing] = useState(false);
 
   useLayoutEffect(() => {
     const element = board.current;
 
     const measure = () => {
-      const rem = rootRem();
-      const gap = columnGapRem * rem;
-      const columnMin = columnMinRem * rem;
-      const columnMax = columnMaxRem * rem;
-      const inner = (element?.clientWidth ?? 0) - gap * 2;
-      const all = (inner - gap * (count - 1)) / count;
-
-      if (all >= columnMin) {
-        setLayout({ fits: true, step: 0, width: Math.min(all, columnMax) });
-
-        return;
-      }
-
-      const room = inner - buttonStripRem * rem;
-      const shown = Math.max(1, Math.floor((room + gap) / (columnMin + gap)));
-      const width = Math.min((room - gap * (shown - 1)) / shown, columnMax);
-
-      setLayout({ fits: false, step: shown * (width + gap), width });
+      setOverflowing(
+        element !== null && element.scrollWidth > element.clientWidth + 1
+      );
     };
 
     const observer = new ResizeObserver(measure);
@@ -710,41 +724,26 @@ const useColumnWidth = (
     if (element !== null) {
       measure();
       observer.observe(element);
+
+      for (const child of element.children) {
+        observer.observe(child);
+      }
     }
 
     return () => {
       observer.disconnect();
     };
-  }, [board, count]);
+  }, [board]);
 
-  return layout;
+  return overflowing;
 };
 
 const Board = ({ columns, statuses, ...props }: ViewProps) => {
-  const frame = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
   const range = useColumnRange(board, statuses);
   const more = range === null || range.last < range.count;
-  const layout = useColumnWidth(frame, statuses.length);
-  const shownWidth = useRef(layout.width);
-
-  useLayoutEffect(() => {
-    const element = board.current;
-    const previous = shownWidth.current;
-
-    shownWidth.current = layout.width;
-
-    if (
-      element !== null &&
-      previous !== layout.width &&
-      window.matchMedia("(min-width: 48rem)").matches
-    ) {
-      const gap = columnGapRem * rootRem();
-      const first = Math.round(element.scrollLeft / (previous + gap));
-
-      element.scrollLeft = first * (layout.width + gap);
-    }
-  }, [layout.width]);
+  const scrolled = range !== null && range.first > 1;
+  const overflowing = useOverflowing(board);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -754,15 +753,15 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
         statuses={statuses}
         total={props.total}
       />
-      <div className="flex min-h-0 flex-1" ref={frame}>
+      <div className="relative flex min-h-0 flex-1">
         <div
           className={cn(
-            "flex min-h-0 min-w-0 flex-1 snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto p-2 md:snap-none",
-            more && "max-md:fade-right"
+            "board-columns fade-edges min-h-0 min-w-0 flex-1 snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto p-2 max-md:flex md:grid md:snap-none md:grid-flow-col",
+            overflowing && more && "fade-edges-end",
+            overflowing && scrolled && "fade-edges-start"
           )}
           data-board
           ref={board}
-          style={{ "--column": `${layout.width}px` }}
         >
           {statuses.map((status) => (
             <BoardColumn
@@ -773,38 +772,9 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
             />
           ))}
         </div>
-        {layout.fits ? null : (
-          <div className="flex w-12 shrink-0 flex-col items-center gap-1.5 pt-4.5 max-md:hidden">
-            <Button
-              aria-label={jumpLabel(more, range)}
-              onClick={() => {
-                const element = board.current;
-
-                element?.scrollTo({
-                  behavior: "smooth",
-                  left: more ? element.scrollLeft + layout.step : 0,
-                });
-              }}
-              size="icon-round"
-              variant="outline"
-            >
-              {more ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-            </Button>
-            {range === null ? null : (
-              <span
-                aria-hidden
-                className="text-muted-foreground flex flex-col items-center text-xs tabular-nums"
-              >
-                <span>
-                  {range.first === range.last
-                    ? range.first
-                    : `${range.first}–${range.last}`}
-                </span>
-                <span>of {range.count}</span>
-              </span>
-            )}
-          </div>
-        )}
+        {overflowing ? (
+          <ColumnRangeButton board={board} more={more} range={range} />
+        ) : null}
       </div>
     </div>
   );
@@ -1376,6 +1346,7 @@ export const IssuesView = ({
 
   return (
     <ProjectPage
+      bounded={view === "list"}
       renderActions={(project) => (
         <ProjectActions
           onFilter={onFilter}

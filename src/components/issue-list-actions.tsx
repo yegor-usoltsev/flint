@@ -123,63 +123,68 @@ const DisplayOptions = <Order extends string>({
   orders,
   view,
   viewKey,
-}: ListControls<Order>) => (
-  <Popover>
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <PopoverTrigger
-            render={
-              <Button
-                aria-label="Display options"
-                size="icon-round"
-                variant="ghost"
-              />
-            }
+}: ListControls<Order>) => {
+  const current = layouts.find((layout) => layout.value === view) ?? layouts[0];
+
+  return (
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                <Button
+                  aria-label={`Display options, ${current.label}`}
+                  size="pill"
+                  variant="ghost"
+                />
+              }
+            />
+          }
+        >
+          <current.icon data-icon="inline-start" />
+          {current.label}
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Display options</TooltipContent>
+      </Tooltip>
+      <PopoverContent align="end" aria-label="Display options" className="w-76">
+        <div className="grid grid-cols-2 gap-2">
+          {layouts.map((layout) => (
+            <button
+              aria-keyshortcuts="Meta+B"
+              aria-pressed={layout.value === view}
+              className="text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:border-input aria-pressed:text-foreground focus-visible:ring-ring hit-area relative flex h-8 items-center justify-center gap-1.5 rounded-lg border font-medium outline-none focus-visible:ring-2"
+              key={layout.value}
+              onClick={() => {
+                rememberView(viewKey, layout.value);
+              }}
+              type="button"
+            >
+              <layout.icon aria-hidden className="size-3.5" />
+              {layout.label}
+            </button>
+          ))}
+        </div>
+        {orders.length > 1 ? (
+          <OptionSelect
+            label="Ordering"
+            onChange={onOrder}
+            options={orders}
+            value={order}
           />
-        }
-      >
-        <SlidersHorizontalIcon />
-      </TooltipTrigger>
-      <TooltipContent side="bottom">Display options</TooltipContent>
-    </Tooltip>
-    <PopoverContent align="end" aria-label="Display options" className="w-76">
-      <div className="grid grid-cols-2 gap-2">
-        {layouts.map((layout) => (
-          <button
-            aria-keyshortcuts="Meta+B"
-            aria-pressed={layout.value === view}
-            className="text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:border-input aria-pressed:text-foreground focus-visible:ring-ring hit-area relative flex h-8 items-center justify-center gap-1.5 rounded-lg border font-medium outline-none focus-visible:ring-2"
-            key={layout.value}
-            onClick={() => {
-              rememberView(viewKey, layout.value);
-            }}
-            type="button"
-          >
-            <layout.icon aria-hidden className="size-3.5" />
-            {layout.label}
-          </button>
-        ))}
-      </div>
-      {orders.length > 1 ? (
+        ) : null}
         <OptionSelect
-          label="Ordering"
-          onChange={onOrder}
-          options={orders}
-          value={order}
+          label="Completed issues"
+          onChange={(completed) => {
+            onClosed(completed === "all");
+          }}
+          options={completedOptions}
+          value={closed ? "all" : "recent"}
         />
-      ) : null}
-      <OptionSelect
-        label="Completed issues"
-        onChange={(completed) => {
-          onClosed(completed === "all");
-        }}
-        options={completedOptions}
-        value={closed ? "all" : "recent"}
-      />
-    </PopoverContent>
-  </Popover>
-);
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const RadioSub = <Value extends string>({
   label,
