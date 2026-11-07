@@ -132,10 +132,10 @@ export const useRealtime = (
         .findAll({ ...filters, fetchStatus: "fetching", type: "inactive" });
 
       await queryClient.cancelQueries(filters);
-      await queryClient.invalidateQueries(filters);
-      await Promise.allSettled(
-        preloads.map(async (query) => await query.fetch())
-      );
+      await Promise.allSettled([
+        queryClient.invalidateQueries(filters),
+        ...preloads.map(async (query) => await query.fetch()),
+      ]);
     };
 
     const flush = () => {

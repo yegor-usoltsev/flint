@@ -49,9 +49,12 @@ export const loadProject = async (
     void queryClient.query(issueQuery(project.id, issueKey)).catch(() => null);
   }
 
+  if (early !== null) {
+    queryClient.setQueryData(issuesQuery(project).queryKey, await early);
+  }
+
   const issues = await queryClient.query({
     ...issuesQuery(project),
-    ...(early && { queryFn: async () => await early }),
     staleTime: "static",
   });
 
