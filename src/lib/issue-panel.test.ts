@@ -27,16 +27,18 @@ test("the panel width stays between its minimum and what leaves the list its min
   expect(clampWidth(600, panelMin() + listMin())).toBe(panelMin());
 });
 
-test("on very wide screens the panel takes what the capped list leaves", () => {
-  expect(clampWidth(null, 3600)).toBe(2160);
+test("from 120rem the list keeps 60rem and the panel takes the rest", () => {
+  expect(clampWidth(null, 3600)).toBe(2640);
+  expect(clampWidth(null, 1920)).toBe(960);
   expect(clampWidth(null, 1800)).toBe(864);
+  expect(clampWidth(5000, 3600)).toBe(2640);
 });
 
 test("the panel and list minimums grow with the root font size", () => {
   expect(panelMin(20)).toBe(525);
   expect(listMin(20)).toBe(650);
   expect(clampWidth(100, 3000, true, 20)).toBe(525);
-  expect(clampWidth(null, 3000, true, 20)).toBe(1440);
+  expect(clampWidth(null, 3000, true, 20)).toBe(1800);
   expect(clampWidth(5000, 1600, true, 20)).toBe(950);
 });
 

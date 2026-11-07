@@ -263,6 +263,52 @@ export const useStatusCollapsed = (statusId: string) =>
     () => false
   );
 
+const railsKey = "expanded-rails";
+
+const railListeners = new Set<() => void>();
+
+const storedRails = () => {
+  try {
+    return (localStorage.getItem(railsKey) ?? "")
+      .split("\n")
+      .filter((id) => id !== "");
+  } catch {
+    return [];
+  }
+};
+
+export const setRailExpanded = (statusId: string, expanded: boolean) => {
+  const ids = storedRails().filter((id) => id !== statusId);
+
+  try {
+    localStorage.setItem(
+      railsKey,
+      (expanded ? [...ids, statusId] : ids).join("\n")
+    );
+  } catch {
+    return;
+  }
+
+  for (const listener of railListeners) {
+    listener();
+  }
+};
+
+const subscribeRails = (listener: () => void) => {
+  railListeners.add(listener);
+
+  return () => {
+    railListeners.delete(listener);
+  };
+};
+
+export const useRailExpanded = (statusId: string) =>
+  useSyncExternalStore(
+    subscribeRails,
+    () => storedRails().includes(statusId),
+    () => false
+  );
+
 export type IssueOrigin =
   | { panel?: string; projectKey: string; search: IssueSearch; view: ViewKind }
   | { panel?: string; search?: MineSearch; view: "mine" };

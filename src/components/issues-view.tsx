@@ -21,6 +21,7 @@ import { cn } from "cn";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronsLeftIcon,
   ListIcon,
   ListFilterIcon,
   PlusIcon,
@@ -79,6 +80,8 @@ import {
   setStatusCollapsed,
   shownStatuses,
   useProjectView,
+  setRailExpanded,
+  useRailExpanded,
   useStatusCollapsed,
   sortKeyBetween,
   withKnown,
@@ -93,6 +96,7 @@ import {
   membersQuery,
   useWorkingSet,
 } from "~/lib/queries";
+import { rootRem } from "~/lib/rem";
 import { useRemoteFlash } from "~/lib/remote-flash";
 import { useUpdateIssue } from "~/lib/use-update-issue";
 import type { IssuePatch } from "~/lib/use-update-issue";
@@ -433,6 +437,15 @@ const CardContent = ({
   </>
 );
 
+const toggleRail = (button: HTMLElement, id: string, expanded: boolean) => {
+  const column = button.closest("section");
+
+  setRailExpanded(id, expanded);
+  requestAnimationFrame(() => {
+    column?.querySelector<HTMLElement>("[data-rail-toggle]")?.focus();
+  });
+};
+
 const BoardColumn = ({
   assignee,
   footer,
@@ -441,74 +454,123 @@ const BoardColumn = ({
   lookup,
   onCreate,
   onOpen,
+  railed,
   status,
   total,
 }: Omit<ViewProps, "columns" | "dragging" | "statuses"> & {
   ids: string[];
+  railed: boolean;
   status: Status;
 }) => {
-  const { isDropTarget, ref } = useColumn(status);
+  const closed = railed && isClosedStatus(status);
+  const expanded = useRailExpanded(status.id);
+  const rail = closed && !expanded;
+  const { isDropTarget, ref } = useColumn(status, rail);
 
   return (
     <section
       aria-labelledby={`column-${status.id}`}
       className={cn(
-        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:w-auto md:max-w-none",
+        "bg-surface-1 flex w-[340px] max-w-[85vw] shrink-0 snap-start flex-col rounded-md transition-colors duration-150 md:w-auto md:max-w-96 md:min-w-60 md:flex-1 md:basis-0",
+        rail && "md:w-10 md:min-w-0 md:flex-none",
         isDropTarget && "bg-row-selected"
       )}
       data-column={status.id}
       ref={ref}
     >
-      <header className="flex h-[50px] shrink-0 items-center gap-2 px-3 max-md:sr-only">
-        <StatusIcon category={status.category} color={status.color} />
-        <h2 className="truncate font-medium" id={`column-${status.id}`}>
-          {status.name}
-        </h2>
-        <span className="text-muted-foreground tabular-nums">
-          {total(status, ids.length)}
-        </span>
-        <Button
-          aria-label={`New issue in ${status.name}`}
-          className="ml-auto max-md:hidden"
-          onClick={() => {
-            onCreate(status);
+      {rail ? (
+        <button
+          aria-expanded={false}
+          className="hover:bg-surface-2 focus-visible:ring-ring flex min-h-0 flex-1 flex-col items-center gap-2 rounded-md py-4 outline-none focus-visible:ring-2"
+          data-rail-toggle
+          onClick={(event) => {
+            toggleRail(event.currentTarget, status.id, true);
           }}
-          size="icon-xs"
-          variant="ghost"
+          type="button"
         >
-          <PlusIcon />
-        </Button>
-      </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.25 pb-2 max-md:pt-2.25">
-        {ids.map((id, index) => {
-          const issue = issues.get(id);
-
-          return issue === undefined ? null : (
-            <Sortable
-              className={cardClass}
-              group={status.id}
-              index={index}
-              issue={issue}
-              key={id}
-              onOpen={onOpen}
+          <StatusIcon category={status.category} color={status.color} />
+          <span
+            className="font-medium [writing-mode:vertical-rl]"
+            id={`column-${status.id}`}
+          >
+            {status.name}
+          </span>
+          <span className="text-muted-foreground tabular-nums">
+            {total(status, ids.length)}
+          </span>
+        </button>
+      ) : (
+        <>
+          <header className="flex h-[50px] shrink-0 items-center gap-2 px-3 max-md:sr-only">
+            <StatusIcon category={status.category} color={status.color} />
+            <h2 className="truncate font-medium" id={`column-${status.id}`}>
+              {status.name}
+            </h2>
+            <span className="text-muted-foreground tabular-nums">
+              {total(status, ids.length)}
+            </span>
+            <Button
+              aria-label={`New issue in ${status.name}`}
+              className="ml-auto max-md:hidden"
+              onClick={() => {
+                onCreate(status);
+              }}
+              size="icon-xs"
+              variant="ghost"
             >
-              <CardContent assignee={assignee} issue={issue} lookup={lookup} />
-            </Sortable>
-          );
-        })}
-        {footer(status)}
-        <Button
-          aria-label={`New issue in ${status.name}`}
-          className="h-11 justify-start md:hidden"
-          onClick={() => {
-            onCreate(status);
-          }}
-          variant="ghost"
-        >
-          <PlusIcon data-icon="inline-start" />
-          New issue
-        </Button>
-      </div>
+              <PlusIcon />
+            </Button>
+            {closed ? (
+              <Button
+                aria-expanded
+                aria-label={`Collapse ${status.name}`}
+                data-rail-toggle
+                onClick={(event) => {
+                  toggleRail(event.currentTarget, status.id, false);
+                }}
+                size="icon-xs"
+                variant="ghost"
+              >
+                <ChevronsLeftIcon />
+              </Button>
+            ) : null}
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.25 pb-2 max-md:pt-2.25">
+            {ids.map((id, index) => {
+              const issue = issues.get(id);
+
+              return issue === undefined ? null : (
+                <Sortable
+                  className={cardClass}
+                  group={status.id}
+                  index={index}
+                  issue={issue}
+                  key={id}
+                  onOpen={onOpen}
+                >
+                  <CardContent
+                    assignee={assignee}
+                    issue={issue}
+                    lookup={lookup}
+                  />
+                </Sortable>
+              );
+            })}
+            {footer(status)}
+            <Button
+              aria-label={`New issue in ${status.name}`}
+              className="h-11 justify-start md:hidden"
+              onClick={() => {
+                onCreate(status);
+              }}
+              variant="ghost"
+            >
+              <PlusIcon data-icon="inline-start" />
+              New issue
+            </Button>
+          </div>
+        </>
+      )}
     </section>
   );
 };
@@ -738,8 +800,44 @@ const useOverflowing = (board: RefObject<HTMLDivElement | null>) => {
   return overflowing;
 };
 
+const railsBelow = 100;
+
+const useRailed = (board: RefObject<HTMLDivElement | null>) => {
+  const [railed, setRailed] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = board.current;
+    const tablet = matchMedia("(min-width: 48rem)");
+
+    const measure = () => {
+      setRailed(
+        element !== null &&
+          tablet.matches &&
+          element.clientWidth < railsBelow * rootRem()
+      );
+    };
+
+    const observer = new ResizeObserver(measure);
+
+    if (element !== null) {
+      measure();
+      observer.observe(element);
+    }
+
+    tablet.addEventListener("change", measure);
+
+    return () => {
+      observer.disconnect();
+      tablet.removeEventListener("change", measure);
+    };
+  }, [board]);
+
+  return railed;
+};
+
 const Board = ({ columns, statuses, ...props }: ViewProps) => {
   const board = useRef<HTMLDivElement>(null);
+  const railed = useRailed(board);
   const range = useColumnRange(board, statuses);
   const more = range === null || range.last < range.count;
   const scrolled = range !== null && range.first > 1;
@@ -756,7 +854,7 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
       <div className="relative flex min-h-0 flex-1">
         <div
           className={cn(
-            "board-columns fade-edges min-h-0 min-w-0 flex-1 snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto p-2 max-md:flex md:grid md:snap-none md:grid-flow-col",
+            "fade-edges flex min-h-0 min-w-0 flex-1 snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto p-2 md:snap-proximity",
             overflowing && more && "fade-edges-end",
             overflowing && scrolled && "fade-edges-start"
           )}
@@ -767,6 +865,7 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
             <BoardColumn
               ids={columns[status.id] ?? []}
               key={status.id}
+              railed={railed}
               status={status}
               {...props}
             />

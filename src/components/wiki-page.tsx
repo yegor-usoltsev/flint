@@ -256,19 +256,26 @@ const RowLink = ({
     data-wiki-row={node.path}
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle without an explicit role the button role.
     role="link"
+    title={
+      use(PagePane) === "list" && node.page?.kind === "page"
+        ? `${node.title} · ${formatDate(node.page.updatedAt)}`
+        : undefined
+    }
   >
     <NodeIcon kind={node.page?.kind} />
-    <span className="truncate">{node.title}</span>
-    <span className="text-muted-foreground hidden w-0 flex-1 truncate font-mono text-xs opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
-      {node.path}
-    </span>
     <span
       className={cn(
-        "text-muted-foreground ml-auto flex shrink-0 items-center gap-2 text-xs",
-        use(PagePane) === "list" && "max-[100rem]:hidden"
+        "flex h-11 min-w-0 flex-1 items-center gap-x-3 overflow-hidden",
+        use(PagePane) === "list" && "flex-wrap"
       )}
     >
-      <RowMeta node={node} />
+      <span className="h-11 max-w-full truncate leading-11">{node.title}</span>
+      <span className="text-muted-foreground hidden w-0 flex-1 truncate font-mono text-xs leading-11 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
+        {node.path}
+      </span>
+      <span className="text-muted-foreground ml-auto flex h-11 shrink-0 items-center gap-2 text-xs">
+        <RowMeta node={node} />
+      </span>
     </span>
   </Link>
 );
@@ -1944,7 +1951,7 @@ const WikiScreen = ({
     <WikiShown value={split ? (shown ?? null) : null}>
       <div className="flex min-h-0 flex-1">
         {split ? (
-          <div className="flex w-68 shrink-0 flex-col border-r">
+          <div className="flex w-68 shrink-0 flex-col border-r min-[160rem]:w-80">
             <PagePane value="list">
               <WikiIndex compact crumbs={crumbs} wiki={wiki} />
             </PagePane>

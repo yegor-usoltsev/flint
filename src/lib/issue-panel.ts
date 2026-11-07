@@ -14,7 +14,7 @@ import { rootRem } from "~/lib/rem";
 
 export const panelMin = (rem = rootRem()) => 26.25 * rem;
 export const listMin = (rem = rootRem()) => 32.5 * rem;
-const listMax = (rem: number) => 90 * rem;
+const wideList = (rem: number) => 60 * rem;
 const panelByDefault = (rem: number) => 120 * rem;
 const panelMaxShare = 0.65;
 const defaultShare = 0.48;
@@ -202,22 +202,22 @@ export const clampWidth = (
   space: number,
   capList = true,
   rem = rootRem()
-) =>
-  Math.round(
+) => {
+  const wide = capList && space >= panelByDefault(rem);
+  const share = capList ? space * defaultShare : space * boardShare;
+  const fallback = wide ? space - wideList(rem) : share;
+
+  const most = wide
+    ? Math.max(fallback, space * panelMaxShare)
+    : space * panelMaxShare;
+
+  return Math.round(
     Math.min(
-      Math.max(
-        width ??
-          (capList
-            ? Math.max(space * defaultShare, space - listMax(rem))
-            : space * boardShare),
-        panelMin(rem)
-      ),
-      Math.max(
-        panelMin(rem),
-        Math.min(space * panelMaxShare, space - listMin(rem))
-      )
+      Math.max(width ?? fallback, panelMin(rem)),
+      Math.max(panelMin(rem), Math.min(most, space - listMin(rem)))
     )
   );
+};
 
 export const setPanelWidth = (width: number | null) => {
   if (width === null) {

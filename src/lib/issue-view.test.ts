@@ -11,6 +11,7 @@ import {
   IssueSearchSchema,
   isFiltered,
   orderIssues,
+  setRailExpanded,
   sortKeyBetween,
   withKnown,
   withKnownLabels,
@@ -200,4 +201,27 @@ test("a filter on a deleted project or renamed status is ignored", () => {
     project: ["ENG"],
     status: ["Todo"],
   });
+});
+
+test("setRailExpanded does not throw when storage is blocked", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    get: () => {
+      throw new DOMException("blocked", "SecurityError");
+    },
+  });
+
+  try {
+    expect(() => {
+      setRailExpanded("done", true);
+    }).not.toThrow();
+  } finally {
+    if (original === undefined) {
+      Reflect.deleteProperty(globalThis, "localStorage");
+    } else {
+      Object.defineProperty(globalThis, "localStorage", original);
+    }
+  }
 });
