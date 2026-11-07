@@ -16,7 +16,7 @@ export const isTheme = (value: unknown): value is Theme =>
 const storageKey = "theme";
 const darkQuery = "(prefers-color-scheme: dark)";
 
-export const themeColors = { dark: "#121316", light: "#f8f8f9" } as const;
+export const themeColors = { dark: "#131211", light: "#faf9f8" } as const;
 
 export const themeScript = `{const t=localStorage.getItem("${storageKey}");document.documentElement.classList.toggle("dark",t==="dark"||(t!=="light"&&matchMedia("${darkQuery}").matches))}`;
 
