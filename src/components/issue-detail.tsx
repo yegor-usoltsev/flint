@@ -371,15 +371,17 @@ const Description = ({
           }
 
           setPressing(true);
-          window.addEventListener(
-            "pointerup",
-            () => {
-              setTimeout(() => {
-                setPressing(false);
-              }, 0);
-            },
-            { once: true }
-          );
+
+          const release = () => {
+            window.removeEventListener("pointerup", release);
+            window.removeEventListener("pointercancel", release);
+            setTimeout(() => {
+              setPressing(false);
+            }, 0);
+          };
+
+          window.addEventListener("pointerup", release);
+          window.addEventListener("pointercancel", release);
         }}
       >
         <MarkdownEditor
