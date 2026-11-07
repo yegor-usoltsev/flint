@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import type { CommitStatusState, PullRequestState } from "~/lib/api-types";
+import type {
+  CommitStatusState,
+  GitLink,
+  PullRequestState,
+} from "~/lib/api-types";
 import type { Color } from "~/lib/colors";
 
 export const pullRequestStyles = {
@@ -97,3 +101,41 @@ export const isWebUrl = (url: string) => /^https?:\/\//iu.test(url);
 
 export const newPullRequestUrl = (repoUrl: string, branch: string) =>
   `${repoUrl}/pulls/new/${branch.split("/").map(encodeURIComponent).join("/")}`;
+
+const countOf = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+
+export const developmentSummary = (links: GitLink[]) => {
+  const pulls = links.filter((link) => link.kind === "pull_request");
+  const branches = links.filter((link) => link.kind === "branch");
+  const [lead] = [...pulls, ...branches, ...links];
+
+  if (lead === undefined) {
+    return null;
+  }
+
+  let text = countOf(links.length, "commit", "commits");
+
+  if (lead.kind === "pull_request") {
+    text = [
+      `PR #${lead.externalId}`,
+      lead.state === null || lead.state === "deleted"
+        ? null
+        : pullRequestLabel(lead.state).toLowerCase(),
+      pulls.length > 1 ? `+${pulls.length - 1}` : null,
+    ]
+      .filter((part) => part !== null)
+      .join(" ");
+  } else if (lead.kind === "branch") {
+    text = countOf(branches.length, "branch", "branches");
+  }
+
+  return {
+    checks:
+      lead.ciState === null
+        ? null
+        : ciStyles[lead.ciState].summary.toLowerCase(),
+    lead,
+    text,
+  };
+};
