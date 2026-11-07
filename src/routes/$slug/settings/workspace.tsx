@@ -274,6 +274,7 @@ const General = () => {
           <SettingsRow
             description="Deletes the workspace and everything in it"
             label="Delete workspace"
+            stacked
           >
             <DeleteWorkspace workspace={workspace} />
           </SettingsRow>

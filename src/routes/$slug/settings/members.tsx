@@ -8,6 +8,7 @@ import { LoadFailed } from "~/components/load-failed";
 import {
   SettingsFilter,
   SettingsPage,
+  SettingsTable,
   TableEmpty,
   tableDate,
   tableGroup,
@@ -342,7 +343,7 @@ const MemberRow = ({
         </span>
         {formatDate(member.joinedAt)}
       </span>
-      <div className="flex w-7 shrink-0 justify-end">
+      <div className="flex w-7 shrink-0 justify-end max-sm:w-10">
         {canManage && !isSelf ? (
           <RemoveMember member={member} slug={slug} />
         ) : null}
@@ -425,52 +426,54 @@ const Members = () => {
           onChange={setFilter}
           value={filter}
         />
-        <div aria-hidden className={tableHead}>
-          <span className="flex-1 pl-9">Name</span>
-          <span className="w-28 md:w-32">Role</span>
-          <span className={tableDate}>Joined</span>
-          <span className="w-7" />
-        </div>
-        {members.isPending ? <Skeleton className="h-20 w-full" /> : null}
-        {members.isError && members.data === undefined ? (
-          <LoadFailed
-            error={members.error}
-            onRetry={() => {
-              void members.refetch();
-            }}
-            title="Members could not load"
-          />
-        ) : null}
-        {shown?.length === 0 ? (
-          <TableEmpty
-            description="Add people by their Gitea username."
-            filter={filter.trim()}
-            onClearFilter={() => {
-              setFilter("");
-            }}
-            title="No members"
-          />
-        ) : null}
-        {shown === undefined ? null : (
-          <div className="flex flex-col gap-2">
-            <MemberGroup
-              canManage={isAdmin}
-              heading={shown.some((member) => member.pending)}
-              label="Active"
-              meId={me?.id}
-              members={shown.filter((member) => !member.pending)}
-              slug={workspace.slug}
-            />
-            <MemberGroup
-              canManage={isAdmin}
-              heading
-              label="Invited"
-              meId={me?.id}
-              members={shown.filter((member) => member.pending)}
-              slug={workspace.slug}
-            />
+        <SettingsTable>
+          <div aria-hidden className={tableHead}>
+            <span className="flex-1 pl-9">Name</span>
+            <span className="w-28 md:w-32">Role</span>
+            <span className={tableDate}>Joined</span>
+            <span className="w-7 max-sm:w-10" />
           </div>
-        )}
+          {members.isPending ? <Skeleton className="h-20 w-full" /> : null}
+          {members.isError && members.data === undefined ? (
+            <LoadFailed
+              error={members.error}
+              onRetry={() => {
+                void members.refetch();
+              }}
+              title="Members could not load"
+            />
+          ) : null}
+          {shown?.length === 0 ? (
+            <TableEmpty
+              description="Add people by their Gitea username."
+              filter={filter.trim()}
+              onClearFilter={() => {
+                setFilter("");
+              }}
+              title="No members"
+            />
+          ) : null}
+          {shown === undefined ? null : (
+            <div className="flex flex-col gap-2">
+              <MemberGroup
+                canManage={isAdmin}
+                heading={shown.some((member) => member.pending)}
+                label="Active"
+                meId={me?.id}
+                members={shown.filter((member) => !member.pending)}
+                slug={workspace.slug}
+              />
+              <MemberGroup
+                canManage={isAdmin}
+                heading
+                label="Invited"
+                meId={me?.id}
+                members={shown.filter((member) => member.pending)}
+                slug={workspace.slug}
+              />
+            </div>
+          )}
+        </SettingsTable>
       </div>
     </SettingsPage>
   );

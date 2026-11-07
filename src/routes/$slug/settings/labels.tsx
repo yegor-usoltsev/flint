@@ -11,6 +11,7 @@ import { LoadFailed } from "~/components/load-failed";
 import {
   SettingsFilter,
   SettingsPage,
+  SettingsTable,
   TableEmpty,
   tableHead,
   tableNumber,
@@ -274,7 +275,7 @@ const LabelRow = ({
       />
       <input
         aria-label={`Name of ${label.name}`}
-        className="hover:border-input focus-visible:border-ring focus-visible:ring-ring/50 h-8 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2.5 text-base outline-none focus-visible:ring-3 md:text-sm"
+        className="hover:border-input focus-visible:border-ring focus-visible:ring-ring/50 h-8 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2.5 text-base outline-none focus-visible:ring-3 max-sm:h-10 md:text-sm"
         maxLength={40}
         onBlur={() => {
           void name.flush();
@@ -346,77 +347,79 @@ const Labels = () => {
     >
       <div className="flex flex-col gap-2">
         {empty ? null : (
-          <>
-            <SettingsFilter
-              label="Filter by name"
-              onChange={setFilter}
-              value={filter}
-            />
+          <SettingsFilter
+            label="Filter by name"
+            onChange={setFilter}
+            value={filter}
+          />
+        )}
+        <SettingsTable>
+          {empty ? null : (
             <div aria-hidden className={tableHead}>
               <span className="flex-1 pl-20 pointer-coarse:pl-14">Name</span>
               <span className={tableNumber}>Issues</span>
-              <span className="w-7" />
+              <span className="w-7 max-sm:w-10" />
             </div>
-          </>
-        )}
-        {labels.isPending ? <Skeleton className="h-20 w-full" /> : null}
-        {labels.isError && labels.data === undefined ? (
-          <LoadFailed
-            error={labels.error}
-            onRetry={() => {
-              void labels.refetch();
-            }}
-            title="Labels could not load"
-          />
-        ) : null}
-        {shown?.length === 0 && !creating ? (
-          <TableEmpty
-            action={
-              <Button
-                onClick={() => {
-                  setCreating(true);
-                }}
-              >
-                New label
-              </Button>
-            }
-            description="Add labels like Bug or Feature to sort issues."
-            filter={filter.trim()}
-            onClearFilter={() => {
-              setFilter("");
-            }}
-            title="No labels yet"
-          />
-        ) : null}
-        {shown === undefined || shown.length === 0 ? null : (
-          <SortableList
-            onMove={(id, index) => {
-              reorder.move(labels.data ?? [], id, index);
-            }}
-          >
-            <ul aria-label="Labels">
-              {shown.map((label, index) => (
-                <LabelRow
-                  index={index}
-                  key={label.id}
-                  label={label}
-                  slug={workspace.slug}
-                  moving={reorder.moving}
-                  sorting={words === ""}
-                />
-              ))}
-            </ul>
-          </SortableList>
-        )}
-        {creating && labels.data !== undefined ? (
-          <CreateLabel
-            count={labels.data.length}
-            onDone={() => {
-              setCreating(false);
-            }}
-            slug={workspace.slug}
-          />
-        ) : null}
+          )}
+          {labels.isPending ? <Skeleton className="h-20 w-full" /> : null}
+          {labels.isError && labels.data === undefined ? (
+            <LoadFailed
+              error={labels.error}
+              onRetry={() => {
+                void labels.refetch();
+              }}
+              title="Labels could not load"
+            />
+          ) : null}
+          {shown?.length === 0 && !creating ? (
+            <TableEmpty
+              action={
+                <Button
+                  onClick={() => {
+                    setCreating(true);
+                  }}
+                >
+                  New label
+                </Button>
+              }
+              description="Add labels like Bug or Feature to sort issues."
+              filter={filter.trim()}
+              onClearFilter={() => {
+                setFilter("");
+              }}
+              title="No labels yet"
+            />
+          ) : null}
+          {shown === undefined || shown.length === 0 ? null : (
+            <SortableList
+              onMove={(id, index) => {
+                reorder.move(labels.data ?? [], id, index);
+              }}
+            >
+              <ul aria-label="Labels">
+                {shown.map((label, index) => (
+                  <LabelRow
+                    index={index}
+                    key={label.id}
+                    label={label}
+                    slug={workspace.slug}
+                    moving={reorder.moving}
+                    sorting={words === ""}
+                  />
+                ))}
+              </ul>
+            </SortableList>
+          )}
+          {creating && labels.data !== undefined ? (
+            <CreateLabel
+              count={labels.data.length}
+              onDone={() => {
+                setCreating(false);
+              }}
+              slug={workspace.slug}
+            />
+          ) : null}
+        </SettingsTable>
       </div>
     </SettingsPage>
   );

@@ -33,7 +33,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { useMe } from "~/lib/api";
 import type { IssueSummary } from "~/lib/api-types";
 import { selectByClick } from "~/lib/issue-focus";
-import { interceptIssueClick, usePanelShows } from "~/lib/issue-panel";
+import { interceptRowClick, usePanelShows } from "~/lib/issue-panel";
 import { useSelected, useSelectionScope } from "~/lib/issue-selection";
 import { useMyIssues } from "~/lib/my-issues";
 import { loadMyIssues, preload } from "~/lib/preload";
@@ -124,11 +124,11 @@ const IssueRow = ({
       data-selected={selected ? "true" : undefined}
       onClick={(event) => {
         if (!selectByClick(event, issue.id)) {
-          interceptIssueClick(event, issue.key);
+          interceptRowClick(event, issue.key);
         }
       }}
       params={{ issueKey: issue.key, slug }}
-      state={{ from: { view: "mine" } }}
+      state={{ from: { view: "mine" }, full: true }}
       to="/$slug/issue/$issueKey"
     >
       {selected ? <span className="sr-only">Selected,</span> : null}

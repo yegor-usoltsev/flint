@@ -2,6 +2,7 @@ import { useMatches } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 export const site = {
+  cliGuide: "https://github.com/yegor-usoltsev/flint/blob/main/cli/README.md",
   description: "Issue tracker and knowledge base",
   name: "Flint",
 } as const;

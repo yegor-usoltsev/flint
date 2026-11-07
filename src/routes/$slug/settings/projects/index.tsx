@@ -10,6 +10,7 @@ import { ProjectIcon } from "~/components/project-icon";
 import {
   SettingsFilter,
   SettingsPage,
+  SettingsTable,
   TableEmpty,
   tableDate,
   tableHead,
@@ -69,9 +70,9 @@ const ProjectRow = ({
         <span className="flex min-w-0 flex-1 items-center gap-2">
           <ProjectIcon color={project.color} icon={project.icon} />
           <span className="truncate font-medium">{project.name}</span>
-          <span className="text-muted-foreground tracking-key">
-            {project.key}
-          </span>
+        </span>
+        <span className="text-muted-foreground tracking-key w-12 shrink-0">
+          {project.key}
         </span>
         <span className={tableNumber}>
           {project.openIssues}
@@ -144,7 +145,7 @@ const Projects = () => {
             value={filter}
           />
         )}
-        <div>
+        <SettingsTable>
           {projects.data?.length === 0 ? null : (
             <div aria-hidden className={tableHead}>
               <span
@@ -155,6 +156,7 @@ const Projects = () => {
               >
                 Name
               </span>
+              <span className="w-12 shrink-0">Key</span>
               <span className={tableNumber}>Open</span>
               <span className={tableDate}>Created</span>
               <span className="w-4" />
@@ -199,7 +201,7 @@ const Projects = () => {
               ))}
             </ul>
           </SortableList>
-        </div>
+        </SettingsTable>
       </div>
     </SettingsPage>
   );

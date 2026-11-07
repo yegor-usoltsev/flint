@@ -128,6 +128,7 @@ const ProjectSettings = ({ project }: { project: ProjectDetail }) => {
           <SettingsRow
             description="Deletes its issues, comments and attachments"
             label="Delete project"
+            stacked
           >
             <ConfirmDelete
               action="Delete project"
@@ -168,7 +169,10 @@ const ProjectSettingsPage = () => {
       }}
       actions={
         <Link
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            className: "max-sm:h-10",
+            variant: "outline",
+          })}
           params={{ key: key.toUpperCase(), slug: workspace.slug }}
           to="/$slug/project/$key"
         >
