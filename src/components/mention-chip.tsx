@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 
 import { StatusIcon } from "~/components/status-icon";
 import { isNotFound } from "~/lib/api";
-import { findIssueByKey } from "~/lib/issue-focus";
+import { findIssueByKey, findListedIssueByKey } from "~/lib/issue-focus";
 import { interceptIssueClick } from "~/lib/issue-panel";
 import { docPath } from "~/lib/markdown-mentions";
 import { issueQuery, projectQuery, projectsQuery } from "~/lib/queries";
@@ -15,11 +15,21 @@ import { wikiPagesQuery, wikiTarget, workspaceWiki } from "~/lib/wiki";
 const useCachedIssueByKey = (key: string) => {
   const queryClient = useQueryClient();
 
-  return useSyncExternalStore(
-    (onChange) => queryClient.getQueryCache().subscribe(onChange),
-    () => findIssueByKey(queryClient, key),
-    () => null
-  );
+  const subscribe = (onChange: () => void) =>
+    queryClient.getQueryCache().subscribe(onChange);
+
+  return {
+    cached: useSyncExternalStore(
+      subscribe,
+      () => findIssueByKey(queryClient, key),
+      () => null
+    ),
+    listed: useSyncExternalStore(
+      subscribe,
+      () => findListedIssueByKey(queryClient, key) !== null,
+      () => false
+    ),
+  };
 };
 
 export const useMentionedIssue = (key: string) => {
@@ -30,11 +40,11 @@ export const useMentionedIssue = (key: string) => {
     (item) => item.key === prefix
   );
 
-  const cached = useCachedIssueByKey(key);
+  const { cached, listed } = useCachedIssueByKey(key);
 
   const detail = useQuery({
     ...issueQuery(project?.id ?? "", key),
-    enabled: project !== undefined && cached === null,
+    enabled: project !== undefined && !listed,
     retry: false,
     staleTime: Infinity,
   });
