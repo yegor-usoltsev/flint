@@ -624,9 +624,13 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
     },
     onSuccess: (saved) => {
       cache.update((comments) =>
-        comments.map((item) =>
-          item.id === saved.id && item.version <= saved.version ? saved : item
-        )
+        comments.some((item) => item.id === saved.id)
+          ? comments.map((item) =>
+              item.id === saved.id && item.version <= saved.version
+                ? saved
+                : item
+            )
+          : [...comments, saved]
       );
     },
   });
