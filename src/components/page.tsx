@@ -153,7 +153,7 @@ const PhoneContext = ({
 }) => {
   if (syncing) {
     return (
-      <BreadcrumbItem className="max-w-full md:hidden">
+      <BreadcrumbItem className="min-w-6 shrink-[100] md:hidden">
         <SyncText />
       </BreadcrumbItem>
     );
