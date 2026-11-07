@@ -32,7 +32,7 @@ flint issue status "In Review" ENG-12          # status first, then one or more 
 
 Branches, commits and pull requests that mention `ENG-12` appear on the issue with their CI checks, but Flint never changes the issue itself. Set In Progress and assign yourself when you start, In Review when the pull request opens, and Done when it merges or the work ships. Dropped work, or a pull request closed unmerged, is Canceled with a comment saying why. Before handing back, fix any status, assignee or checklist item that no longer matches.
 
-Before filing an issue, search with `flint issue list -q` and `flint search`; if an open issue covers the problem, comment there. Copy priority and labels from similar issues, never create a label for one issue, and put the evidence and the open decision in the description.
+Before filing an issue, search with `flint issue list -q` and `flint search`; if an open issue covers the problem, comment there. Copy priority and labels from similar issues, never create a label for one issue, and put the evidence and the open decision in the description. New issues start in Todo, so pass `-s Backlog` for work nobody starts now.
 
 ## Files
 

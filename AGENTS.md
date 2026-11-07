@@ -14,7 +14,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun with Gitea sign-in. [R
 
 ## Pull requests
 
-- CodeRabbit, cubic and Greptile review every non-draft PR except Renovate's within minutes of each push; CodeRabbit allows about 10 reviews an hour. Wait for CI and the reviews, then read their comments with `gh api --paginate repos/{owner}/{repo}/pulls/<n>/comments`.
+- CodeRabbit, cubic and Greptile review every non-draft PR except Renovate's within minutes of each push; CodeRabbit allows about 10 reviews an hour. Wait for CI and the reviews, then read their comments with `gh api --paginate repos/{owner}/{repo}/pulls/<n>/comments`. When CodeRabbit's summary stops short of the latest head, comment `@coderabbitai review`.
 - Verify each finding against the code. Fix real defects in one commit per round; decline the rest (nits, style, rules the code already follows, speculation) with one line of evidence and resolve the thread. The bots answer replies, so do not argue twice.
 - Stop after two fix rounds, as open nits do not block a merge. Merge with `gh pr merge --squash` once CI is green and no comment shows a real defect.
 
