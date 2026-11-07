@@ -1,6 +1,7 @@
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
+import { totalCountHeader } from "~/lib/endpoints";
 import type {
   Body as EndpointBody,
   Endpoint,
@@ -49,14 +50,21 @@ export const errorResponse = (
     { headers: noStore, status }
   );
 
-declare const createdBody: unique symbol;
+declare const typedBody: unique symbol;
 
-export type Created<Value> = Response & { readonly [createdBody]: Value };
+export type JsonResponse<Value> = Response & { readonly [typedBody]: Value };
 
 export const created = <Value extends object>(body: Value) =>
   // SAFETY: the brand only records the body type for endpoint checks.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- See the SAFETY note.
-  Response.json(body, { headers: noStore, status: 201 }) as Created<Value>;
+  Response.json(body, { headers: noStore, status: 201 }) as JsonResponse<Value>;
+
+export const withTotal = <Value extends object>(body: Value, total: number) =>
+  // SAFETY: the brand only records the body type for endpoint checks.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- See the SAFETY note.
+  Response.json(body, {
+    headers: { ...noStore, [totalCountHeader]: String(total) },
+  }) as JsonResponse<Value>;
 
 export const methodNotAllowed = () =>
   errorResponse(405, "method_not_allowed", "Method not allowed");
@@ -239,7 +247,7 @@ export const apiHandler =
 
 type EndpointResult<E extends Endpoint> =
   ResponseOf<E> extends object
-    ? Created<ResponseOf<E>> | ResponseOf<E>
+    ? JsonResponse<ResponseOf<E>> | ResponseOf<E>
     : ResponseOf<E>;
 
 interface EndpointContext<E extends Endpoint> extends ApiContext<

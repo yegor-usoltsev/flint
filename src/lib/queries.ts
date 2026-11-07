@@ -65,12 +65,27 @@ export const assignedIssuesQuery = (project: Project, userId: string) =>
     queryKey: ["issues", project.id, "assigned", userId],
   });
 
+const filterParams = (search: IssueSearch) =>
+  filterKeys.flatMap((key) =>
+    (search[key] ?? []).map((value) => [key, String(value)])
+  );
+
+export const filteredIssuesQuery = (project: Project, search: IssueSearch) => {
+  const filters = filterParams(search);
+
+  return queryOptions({
+    queryFn: async () =>
+      await api<IssueSummary[]>(
+        `/projects/${project.key}/issues?${new URLSearchParams(filters).toString()}`
+      ),
+    queryKey: ["issues", project.id, "filtered", filters],
+  });
+};
+
 const closedPage = 50;
 
 export const closedIssuesQuery = (project: Project, search: IssueSearch) => {
-  const filters = filterKeys.flatMap((key) =>
-    (search[key] ?? []).map((value) => [key, String(value)])
-  );
+  const filters = filterParams(search);
 
   return infiniteQueryOptions({
     getNextPageParam: (last: IssueSummary[], pages) =>

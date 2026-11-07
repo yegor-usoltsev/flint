@@ -75,6 +75,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
+import { maxIssueLimit } from "~/lib/endpoints";
 import { closeIssueMenu, selectByClick, toggleRow } from "~/lib/issue-focus";
 import { openIssueRow, openPanel, usePanelShows } from "~/lib/issue-panel";
 import {
@@ -99,6 +100,7 @@ import {
 import type { IssueSearch, Order, ViewKind } from "~/lib/issue-view";
 import {
   closedIssuesQuery,
+  filteredIssuesQuery,
   issueCountsQuery,
   issueQuery,
   issuesQuery,
@@ -839,7 +841,31 @@ const placement = (columns: Columns, id: string) => {
   );
 };
 
-const useClosedIssues = (project: ProjectDetail, search: IssueSearch) => {
+const useWorkingSet = (project: ProjectDetail, search: IssueSearch) => {
+  const issues = useQuery(issuesQuery(project));
+
+  const narrow =
+    isFiltered(search) && (issues.data?.length ?? 0) >= maxIssueLimit;
+
+  const filtered = useQuery({
+    ...filteredIssuesQuery(project, search),
+    enabled: narrow,
+  });
+
+  const working = (narrow ? filtered.data : undefined) ?? issues.data;
+
+  return {
+    issues,
+    truncated: (working?.length ?? 0) >= maxIssueLimit,
+    working,
+  };
+};
+
+const useClosedIssues = (
+  project: ProjectDetail,
+  search: IssueSearch,
+  truncated: boolean
+) => {
   const enabled = search.closed === true;
 
   const closed = useInfiniteQuery({
@@ -847,16 +873,20 @@ const useClosedIssues = (project: ProjectDetail, search: IssueSearch) => {
     enabled,
   });
 
-  const counts = useQuery({ ...issueCountsQuery(project, search), enabled });
+  const counts = useQuery({
+    ...issueCountsQuery(project, search),
+    enabled: enabled || truncated,
+  });
 
   const totals = new Map(
     counts.data?.map((count) => [count.statusId, count.count])
   );
 
-  const total = (status: Status, loaded: number) =>
-    enabled && isClosedStatus(status)
-      ? Math.max(loaded, totals.get(status.id) ?? 0)
-      : loaded;
+  const total = (status: Status, loaded: number) => {
+    const counted = isClosedStatus(status) ? enabled : truncated;
+
+    return counted ? Math.max(loaded, totals.get(status.id) ?? 0) : loaded;
+  };
 
   const hasOlder = (status: Status, loaded: number) => {
     if (!enabled || !isClosedStatus(status) || !closed.hasNextPage) {
@@ -866,7 +896,10 @@ const useClosedIssues = (project: ProjectDetail, search: IssueSearch) => {
     return counts.data === undefined || loaded < total(status, loaded);
   };
 
-  return { closed, hasOlder, total };
+  const isCut = (status: Status, loaded: number) =>
+    truncated && !isClosedStatus(status) && loaded < total(status, loaded);
+
+  return { closed, hasOlder, isCut, total };
 };
 
 const Issues = ({
@@ -883,9 +916,13 @@ const Issues = ({
   const workspace = useWorkspace();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const issues = useQuery(issuesQuery(project));
+  const { issues, truncated, working } = useWorkingSet(project, search);
 
-  const { closed, hasOlder, total } = useClosedIssues(project, search);
+  const { closed, hasOlder, isCut, total } = useClosedIssues(
+    project,
+    search,
+    truncated
+  );
 
   const members = useQuery(membersQuery(workspace.slug));
   const labels = useQuery(labelsQuery(workspace.slug));
@@ -898,7 +935,7 @@ const Issues = ({
   const order: Order = search.order ?? "manual";
 
   const all = mergeIssues(
-    issues.data,
+    working,
     search.closed === true ? closed.data?.pages : undefined
   );
 
@@ -1042,26 +1079,35 @@ const Issues = ({
 
   const statuses = shownStatuses(project.statuses, search);
 
-  const footer = (status: Status) => (
-    <>
-      {visible.length === 0 && status.id === statuses[0]?.id ? (
-        <FirstIssue statusId={status.id} />
-      ) : null}
-      {hasOlder(status, columns[status.id]?.length ?? 0) ? (
-        <Button
-          className="m-1.5 self-start"
-          disabled={closed.isFetchingNextPage}
-          onClick={() => {
-            void closed.fetchNextPage();
-          }}
-          size="sm"
-          variant="ghost"
-        >
-          {closed.isFetchingNextPage ? "Loading…" : "Load older issues"}
-        </Button>
-      ) : null}
-    </>
-  );
+  const footer = (status: Status) => {
+    const loaded = columns[status.id]?.length ?? 0;
+
+    return (
+      <>
+        {visible.length === 0 && status.id === statuses[0]?.id ? (
+          <FirstIssue statusId={status.id} />
+        ) : null}
+        {isCut(status, loaded) ? (
+          <p className="text-muted-foreground m-1.5 text-xs">
+            Showing {loaded} of {total(status, loaded)}. Filter to see the rest.
+          </p>
+        ) : null}
+        {hasOlder(status, loaded) ? (
+          <Button
+            className="m-1.5 self-start"
+            disabled={closed.isFetchingNextPage}
+            onClick={() => {
+              void closed.fetchNextPage();
+            }}
+            size="sm"
+            variant="ghost"
+          >
+            {closed.isFetchingNextPage ? "Loading…" : "Load older issues"}
+          </Button>
+        ) : null}
+      </>
+    );
+  };
 
   const onOpen: OpenIssue = (issue, how) => {
     if (issue.version === 0) {

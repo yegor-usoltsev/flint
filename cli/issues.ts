@@ -13,6 +13,7 @@ import type {
 } from "../src/lib/api-types.ts";
 import { branchName } from "../src/lib/branch.ts";
 import { setChecklistItem } from "../src/lib/checklist.ts";
+import { maxIssueLimit } from "../src/lib/endpoints.ts";
 import type { Body } from "../src/lib/endpoints.ts";
 import { attachmentMarkdown } from "../src/lib/media-html.ts";
 import { priorities } from "../src/lib/priorities.ts";
@@ -20,6 +21,7 @@ import type { Priority } from "../src/lib/priorities.ts";
 import {
   action,
   call,
+  callWithTotal,
   CliError,
   collect,
   confirm,
@@ -512,18 +514,28 @@ const listIssues = async (options: ListOptions): Promise<Output> => {
     await workspaceOf(config, options);
   }
 
-  const issues =
+  const { result: issues, total } =
     project === undefined
-      ? await call(config, "GET /workspaces/:slug/issues", {
+      ? await callWithTotal(config, "GET /workspaces/:slug/issues", {
           params: { slug: await workspaceOf(config, options) },
           query,
         })
-      : await call(config, "GET /projects/:key/issues", {
+      : await callWithTotal(config, "GET /projects/:key/issues", {
           params: { key: project },
           query,
         });
 
-  return { result: issues, text: async () => await issueRows(lookup, issues) };
+  const offset = query.offset ?? 0;
+  const end = offset + issues.length;
+
+  return {
+    note:
+      total === undefined || end >= total
+        ? undefined
+        : `Showing ${offset + 1}-${end} of ${total} issues; pass --offset ${end} for the next page or narrow the filters`,
+    result: issues,
+    text: async () => await issueRows(lookup, issues),
+  };
 };
 
 interface CreateOptions extends PropertyOptions, Scope {
@@ -832,8 +844,11 @@ export const registerIssues = (program: Command) => {
       "title text, an exact key or full-text search"
     )
     .option("--closed", "list completed and canceled issues, newest first")
-    .option("--limit <n>", "page size with --closed (default 50, max 200)")
-    .option("--offset <n>", "page offset with --closed")
+    .option(
+      "--limit <n>",
+      `page size (default ${maxIssueLimit}, or 50 with --closed; max ${maxIssueLimit})`
+    )
+    .option("--offset <n>", "skip this many issues")
     .action(action(listIssues));
 
   issue

@@ -76,6 +76,8 @@ flint issue list --closed --limit 20                           # completed and c
 flint issue update ENG-12 ENG-13 --priority low --add-label blocked
 ```
 
+`issue list` returns at most 1000 issues (50 with `--closed`; `--limit` up to 1000), listed by status with work in progress first. A cut list keeps the first issues of every status and prints `Showing 1-1000 of N issues` on stderr; page on with `--offset` or narrow the filters. The API sends the full count in the `X-Total-Count` header.
+
 A bulk update changes each issue on its own. If some fail, it exits 1 with `error.code` `bulk_failed`, `error.failed` (each `key`, `message` and API `response`) and a top-level `issues` listing those that changed; retry only the failed keys.
 
 In Markdown, a bare `ENG-12` shows as an issue chip, and `[Title](/doc/<page id>)` links a page across moves. Deleted issues and pages stay in the trash for 30 days by default: `flint trash list`, then `flint trash restore <KEY or page id>`. Deleted workspaces, projects, labels and attachments are gone at once. A new token is shown once and, without `-w`, reaches all your workspaces.
