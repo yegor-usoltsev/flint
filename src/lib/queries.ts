@@ -1,4 +1,8 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useQuery,
+} from "@tanstack/react-query";
 
 import { api, request } from "~/lib/api";
 import type {
@@ -9,7 +13,8 @@ import type {
   Project,
   ProjectDetail,
 } from "~/lib/api-types";
-import { filterKeys } from "~/lib/issue-view";
+import { maxIssueLimit } from "~/lib/endpoints";
+import { filterKeys, isFiltered } from "~/lib/issue-view";
 import type { IssueSearch } from "~/lib/issue-view";
 
 export const projectsQuery = (slug: string) =>
@@ -65,12 +70,52 @@ export const assignedIssuesQuery = (project: Project, userId: string) =>
     queryKey: ["issues", project.id, "assigned", userId],
   });
 
+const filterParams = (search: IssueSearch) =>
+  filterKeys.flatMap((key) =>
+    (search[key] ?? []).map((value) => [key, String(value)])
+  );
+
+export const filteredIssuesKey = (project: Project) => [
+  "issues",
+  project.id,
+  "filtered",
+];
+
+export const filteredIssuesQuery = (project: Project, search: IssueSearch) => {
+  const filters = filterParams(search);
+
+  return queryOptions({
+    queryFn: async () =>
+      await api<IssueSummary[]>(
+        `/projects/${project.key}/issues?${new URLSearchParams(filters).toString()}`
+      ),
+    queryKey: [...filteredIssuesKey(project), filters],
+  });
+};
+
+export const useWorkingSet = (project: Project, search: IssueSearch) => {
+  const issues = useQuery(issuesQuery(project));
+
+  const narrow =
+    isFiltered(search) && (issues.data?.length ?? 0) >= maxIssueLimit;
+
+  const filtered = useQuery({
+    ...filteredIssuesQuery(project, search),
+    enabled: narrow,
+  });
+
+  const query = narrow ? filtered : issues;
+
+  return {
+    query,
+    truncated: (query.data?.length ?? 0) >= maxIssueLimit,
+  };
+};
+
 const closedPage = 50;
 
 export const closedIssuesQuery = (project: Project, search: IssueSearch) => {
-  const filters = filterKeys.flatMap((key) =>
-    (search[key] ?? []).map((value) => [key, String(value)])
-  );
+  const filters = filterParams(search);
 
   return infiniteQueryOptions({
     getNextPageParam: (last: IssueSummary[], pages) =>

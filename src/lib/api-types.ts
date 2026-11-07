@@ -141,6 +141,7 @@ export interface GitLink {
 
 export interface StatusCount {
   count: number;
+  recent: number;
   statusId: string;
 }
 

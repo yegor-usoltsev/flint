@@ -568,6 +568,7 @@ test("lists hold the working set, closed pages and filters", async () => {
     [`?status=${status("Todo")}`, [open.issue.key, other.issue.key]],
     ["?q=crash", [open.issue.key]],
     [`?q=${open.issue.key.toLowerCase()}`, [open.issue.key]],
+    [`?q=${other.issue.key.slice(1)}`, [other.issue.key]],
     ["?closed=true&q=migrations", [old.issue.key]],
   ];
 
@@ -608,6 +609,32 @@ test("lists hold the working set, closed pages and filters", async () => {
     [status("Todo")]: 2,
   });
   expect(await counts("?q=migrations")).toEqual({ [status("Canceled")]: 1 });
+
+  await db`update issues set canceled_at = now() - interval '15 days'
+    where status_id = ${status("Canceled")}`;
+
+  const aged = await callApi(
+    countsRoute,
+    alice,
+    "GET",
+    "/api/v1/projects/ENG/issue-counts",
+    { params: { key: "ENG" } }
+  );
+
+  expect(
+    Object.fromEntries(
+      v
+        .parse(
+          v.array(v.object({ recent: v.number(), statusId: v.string() })),
+          aged.body
+        )
+        .map((row) => [row.statusId, row.recent])
+    )
+  ).toEqual({
+    [status("Canceled")]: 0,
+    [status("Done")]: 1,
+    [status("Todo")]: 2,
+  });
   expect(
     keysOf(
       await callApi(
@@ -619,6 +646,113 @@ test("lists hold the working set, closed pages and filters", async () => {
       )
     )
   ).toEqual([open.issue.key]);
+});
+
+const listPage = async (
+  auth: string,
+  route: typeof projectIssuesRoute | typeof workspaceIssuesRoute,
+  path: string,
+  params: Record<string, string>
+) => {
+  const response = await callRoute(
+    route,
+    appRequest(path, {
+      headers: { cookie: auth, "sec-fetch-site": "same-origin" },
+    }),
+    params
+  );
+
+  return {
+    keys: keysOf({ body: await response.json() }),
+    total: response.headers.get("x-total-count"),
+  };
+};
+
+test("working set pages keep every status and report the full count", async () => {
+  const { alice, status } = await setup();
+
+  const make = async (title: string, name: string, sortKey: string) => {
+    const { issue } = await createIssue(alice, {
+      sortKey,
+      statusId: status(name),
+      title,
+    });
+
+    return issue.key;
+  };
+
+  const todo1 = await make("Todo 1", "Todo", "a1");
+  const todo2 = await make("Todo 2", "Todo", "a2");
+  const todo3 = await make("Todo 3", "Todo", "a3");
+  const started1 = await make("Started 1", "In Progress", "a0");
+  const started2 = await make("Started 2", "In Progress", "a5");
+  const backlog = await make("Backlog 1", "Backlog", "a4");
+  const done = await make("Done 1", "Done", "a6");
+
+  const page = async (query: string) =>
+    await listPage(
+      alice,
+      projectIssuesRoute,
+      `/api/v1/projects/ENG/issues${query}`,
+      {
+        key: "ENG",
+      }
+    );
+
+  expect(await page("")).toEqual({
+    keys: [started1, started2, todo1, todo2, todo3, backlog, done],
+    total: "7",
+  });
+  expect(await page("?limit=4")).toEqual({
+    keys: [started1, todo1, backlog, done],
+    total: "7",
+  });
+  expect(await page("?limit=4&offset=4")).toEqual({
+    keys: [started2, todo2, todo3],
+    total: "7",
+  });
+  expect(await page("?offset=10")).toEqual({ keys: [], total: "7" });
+  expect(await page("?closed=true&limit=1")).toEqual({
+    keys: [done],
+    total: "1",
+  });
+  expect(await page("?status=todo&limit=2")).toEqual({
+    keys: [todo1, todo2],
+    total: "3",
+  });
+  expect(await listIssues(alice, "?limit=1001")).toMatchObject({
+    status: 400,
+  });
+  expect(
+    await listPage(
+      alice,
+      workspaceIssuesRoute,
+      "/api/v1/workspaces/acme/issues?limit=2",
+      { slug: "acme" }
+    )
+  ).toEqual({ keys: [started1, todo1], total: "7" });
+
+  await make("Backlog 2", "Backlog", "a7");
+  await make("Backlog 3", "Backlog", "a8");
+  await make("Started 3", "In Progress", "Zz");
+
+  expect(await page(`?q=${todo1}&limit=1`)).toEqual({
+    keys: [todo1],
+    total: "2",
+  });
+
+  await createIssue(alice, {
+    description: "Mentions a nightly migration",
+    sortKey: "Zy",
+    statusId: status("In Progress"),
+    title: "Unrelated title",
+  });
+  const named = await make("Nightly migration", "Backlog", "a9");
+
+  expect(await page("?q=migration&limit=1")).toEqual({
+    keys: [named],
+    total: "2",
+  });
 });
 
 const searchFor = async (auth: string, slug: string, query: string) =>

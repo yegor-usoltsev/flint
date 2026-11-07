@@ -46,7 +46,12 @@ import {
 } from "~/lib/new-issue-draft";
 import type { DraftText, Properties, Submitted } from "~/lib/new-issue-draft";
 import { notifyWithAction } from "~/lib/notify";
-import { issuesQuery, projectQuery, projectsQuery } from "~/lib/queries";
+import {
+  filteredIssuesKey,
+  issuesQuery,
+  projectQuery,
+  projectsQuery,
+} from "~/lib/queries";
 import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { withLabelChanges } from "~/lib/use-update-issue";
@@ -85,22 +90,38 @@ const toSummary = ({
   ...summary
 }: Issue): IssueSummary => summary;
 
+const updateLists = (
+  queryClient: QueryClient,
+  project: ProjectDetail,
+  update: (issues: IssueSummary[]) => IssueSummary[]
+) => {
+  const change = (issues: IssueSummary[] | undefined) =>
+    issues === undefined ? issues : update(issues);
+
+  queryClient.setQueryData<IssueSummary[]>(
+    issuesQuery(project).queryKey,
+    change
+  );
+  queryClient.setQueriesData<IssueSummary[]>(
+    { queryKey: filteredIssuesKey(project) },
+    change
+  );
+};
+
 const replaceIssue = (
   queryClient: QueryClient,
   project: ProjectDetail,
   id: string,
   issue: IssueSummary | null
 ) => {
-  queryClient.setQueryData<IssueSummary[]>(
-    issuesQuery(project).queryKey,
-    (issues) =>
-      issues?.flatMap((item) => {
-        if (item.id !== id) {
-          return [item];
-        }
+  updateLists(queryClient, project, (issues) =>
+    issues.flatMap((item) => {
+      if (item.id !== id) {
+        return [item];
+      }
 
-        return issue === null ? [] : [issue];
-      })
+      return issue === null ? [] : [issue];
+    })
   );
 };
 
@@ -144,9 +165,10 @@ const useSubmitIssue = () => {
     const { queryKey } = issuesQuery(project);
 
     await queryClient.cancelQueries({ queryKey });
-    queryClient.setQueryData<IssueSummary[]>(queryKey, (issues) =>
-      issues === undefined ? issues : [...issues, pendingIssue(project, draft)]
-    );
+    updateLists(queryClient, project, (issues) => [
+      ...issues,
+      pendingIssue(project, draft),
+    ]);
 
     try {
       const issue = await api<Issue>(`/projects/${project.key}/issues`, {

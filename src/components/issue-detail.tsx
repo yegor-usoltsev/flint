@@ -76,8 +76,8 @@ import { useMyIssues } from "~/lib/my-issues";
 import {
   closedIssuesQuery,
   issueQuery,
-  issuesQuery,
   projectQuery,
+  useWorkingSet,
 } from "~/lib/queries";
 import { forgetRecentHrefs, issueHref, useRememberRecent } from "~/lib/recent";
 import type { RecentItem } from "~/lib/recent";
@@ -114,7 +114,7 @@ const useNeighbors = (project: ProjectDetail, key: string) => {
   const origin = useOrigin(project);
   const mine = origin.view === "mine";
   const search = mine ? {} : origin.search;
-  const open = useQuery(issuesQuery(project)).data ?? [];
+  const open = useWorkingSet(project, search).query.data ?? [];
   const assigned = useMyIssues(workspace.slug, mine ? origin.search : {}, mine);
 
   const closed =

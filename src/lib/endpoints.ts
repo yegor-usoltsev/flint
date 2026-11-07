@@ -61,6 +61,10 @@ type QueryValue = boolean | number | string | (number | string)[] | undefined;
 
 type QueryMap = Partial<Record<string, QueryValue>>;
 
+export const maxIssueLimit = 1000;
+
+export const totalCountHeader = "X-Total-Count";
+
 export interface IssueListQuery {
   assignee?: string[];
   closed?: boolean;

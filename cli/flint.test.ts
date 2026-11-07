@@ -30,6 +30,7 @@ type Fields = v.InferOutput<typeof FieldsSchema>;
 
 let requests: string[] = [];
 let printed: string[] = [];
+let errors: string[] = [];
 
 const stubApi = (answers: Record<string, Answer>) => {
   const fake = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -77,11 +78,13 @@ beforeEach(() => {
 
   requests = [];
   printed = [];
+  errors = [];
   spyOn(console, "log").mockImplementation((line: string) => {
     printed.push(line);
   });
   spyOn(console, "error").mockImplementation((line: string) => {
     printed.push(line);
+    errors.push(line);
   });
   Object.assign(process.env, {
     FLINT_TOKEN: "t",
@@ -180,6 +183,41 @@ test.each([
     }
   }
 );
+
+test("issue list keeps JSON on stdout and names the next page of a cut list", async () => {
+  let query = "";
+
+  stubApi({
+    "GET /projects/ENG/issues": (request) => {
+      query = new URL(request.url).search;
+
+      return Response.json([issue("ENG-3"), issue("ENG-4")], {
+        headers: { "X-Total-Count": "5" },
+      });
+    },
+  });
+
+  expect(
+    await flint("issue", "list", "-p", "ENG", "--limit", "2", "--offset", "2")
+  ).toBe(0);
+  expect(query).toBe("?limit=2&offset=2");
+  expect(v.parse(v.array(v.unknown()), JSON.parse(printed[0] ?? ""))).toEqual([
+    issue("ENG-3"),
+    issue("ENG-4"),
+  ]);
+  expect(printed).toHaveLength(2);
+  expect(errors).toEqual([
+    "Showing 3-4 of 5 issues; pass --offset 4 for the next page or narrow the filters",
+  ]);
+
+  stubApi({
+    "GET /projects/ENG/issues": () =>
+      Response.json([issue("ENG-5")], { headers: { "X-Total-Count": "5" } }),
+  });
+
+  expect(await flint("issue", "list", "-p", "ENG", "--offset", "4")).toBe(0);
+  expect(printed).toHaveLength(1);
+});
 
 test("checklist items toggle by number or text outside code fences", () => {
   const markdown =
