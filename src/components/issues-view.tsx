@@ -170,10 +170,14 @@ const useColumn = (status: Status, collapsed = false) =>
     type: "column",
   });
 
-const shownFields = (issue: IssueSummary, assignee = true): IssueField[] => [
+const shownFields = (
+  issue: IssueSummary,
+  assignee = true,
+  labels = true
+): IssueField[] => [
   "title",
   ...(issue.priority === 0 ? [] : (["priority"] as const)),
-  ...(issue.labelIds.length === 0 ? [] : (["labels"] as const)),
+  ...(labels && issue.labelIds.length > 0 ? (["labels"] as const) : []),
   ...(assignee && issue.assigneeId !== null ? (["assignee"] as const) : []),
 ];
 
@@ -202,21 +206,21 @@ const ChangedBy = ({
 };
 
 const Sortable = ({
-  assignee,
   children,
   className,
   group,
   index,
   issue,
   onOpen,
+  shown,
 }: {
-  assignee?: boolean;
   children: ReactNode;
   className: string;
   group: string;
   index: number;
   issue: IssueSummary;
   onOpen: OpenIssue;
+  shown: IssueField[];
 }) => {
   const { id } = issue;
 
@@ -231,7 +235,7 @@ const Sortable = ({
 
   const selected = useSelected(id);
   const current = usePanelShows(issue.key);
-  const remote = useRemoteFlash(id, shownFields(issue, assignee)).row;
+  const remote = useRemoteFlash(id, shown).row;
 
   return (
     <button
@@ -305,7 +309,7 @@ export const RowContent = ({
   issue: IssueSummary;
   lookup: IssueLookup;
 }) => {
-  const remote = useRemoteFlash(issue.id, shownFields(issue, assignee));
+  const remote = useRemoteFlash(issue.id, shownFields(issue, assignee, false));
 
   return (
     <>
@@ -336,24 +340,14 @@ export const RowContent = ({
           "flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:hidden @5xl/list:hidden"
         )}
       >
-        <IssueLabels
-          className={remote.field("labels")}
-          issue={issue}
-          lookup={lookup}
-          max={1}
-        />
+        <IssueLabels issue={issue} lookup={lookup} max={1} />
       </span>
       <span
         className={cn(
           "hidden w-64 shrink-0 items-center justify-end gap-1 overflow-hidden @5xl/list:flex"
         )}
       >
-        <IssueLabels
-          className={remote.field("labels")}
-          issue={issue}
-          lookup={lookup}
-          max={2}
-        />
+        <IssueLabels issue={issue} lookup={lookup} max={2} />
       </span>
       <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1">
         <PullRequestIcon state={issue.pullRequestState} />
@@ -456,13 +450,13 @@ const ListGroup = ({
 
         return issue === undefined ? null : (
           <Sortable
-            assignee={assignee}
             className={rowClass}
             group={status.id}
             index={index}
             issue={issue}
             key={id}
             onOpen={onOpen}
+            shown={shownFields(issue, assignee, false)}
           >
             <RowContent assignee={assignee} issue={issue} lookup={lookup} />
           </Sortable>
@@ -667,13 +661,13 @@ const BoardColumn = ({
 
               return issue === undefined ? null : (
                 <Sortable
-                  assignee={assignee}
                   className={cardClass}
                   group={status.id}
                   index={index}
                   issue={issue}
                   key={id}
                   onOpen={onOpen}
+                  shown={shownFields(issue, assignee)}
                 >
                   <CardContent
                     assignee={assignee}
