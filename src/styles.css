@@ -335,8 +335,26 @@
   border-width: 0.5px;
 }
 
+@property --fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes fade-bottom {
+  from {
+    --fade-bottom: 2rem;
+  }
+}
+
 @utility fade-bottom {
-  mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent);
+  mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - var(--fade-bottom)),
+    transparent
+  );
+  animation: fade-bottom 1ms linear;
+  animation-timeline: scroll(self);
 }
 
 @utility issue-layout {
@@ -478,6 +496,9 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  :focus-visible {
+    @apply outline-ring outline-2 outline-offset-2;
   }
   [data-closed] {
     --tw-animation-fill-mode: forwards;

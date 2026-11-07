@@ -62,7 +62,7 @@ const sections: { rows: Row[]; title: string }[] = [
       { hotkeys: [{ keys: "?" }], label: "Keyboard shortcuts" },
       {
         hotkeys: [{ keys: "escape" }],
-        label: "Close, clear the selection or focus, or go back",
+        label: "Close, clear or go back",
       },
     ],
     title: "General",

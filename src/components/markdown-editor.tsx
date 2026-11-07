@@ -691,11 +691,13 @@ export const MarkdownEditor = ({
           return live.current.onSubmit !== undefined;
         }
 
-        if (
-          event.key === "Escape" &&
-          !slashMenu.isOpen() &&
-          !mentionMenu.isOpen()
-        ) {
+        if (event.key !== "Escape") {
+          return false;
+        }
+
+        if (slashMenu.isOpen() || mentionMenu.isOpen()) {
+          event.stopPropagation();
+        } else {
           live.current.onCancel?.();
           // oxlint-disable-next-line github/no-blur -- Escape leaves the text field, so single-key shortcuts work next.
           view.dom.blur();

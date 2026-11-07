@@ -95,7 +95,7 @@ function CommandList({
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        "no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none",
+        "no-scrollbar fade-bottom max-h-72 scroll-pt-1 scroll-pb-8 overflow-x-hidden overflow-y-auto outline-none",
         className
       )}
       {...props}
@@ -154,13 +154,13 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item data-selected:bg-accent data-selected:text-foreground data-selected:*:[svg]:text-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:min-h-11 in-data-[slot=dialog-content]:rounded-lg! in-data-[slot=dialog-content]:px-3 data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 md:in-data-[slot=dialog-content]:min-h-10 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "group/command-item data-selected:bg-accent data-selected:text-foreground data-selected:*:[svg:not([data-color])]:text-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:min-h-11 in-data-[slot=dialog-content]:rounded-lg! in-data-[slot=dialog-content]:px-3 data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 md:in-data-[slot=dialog-content]:min-h-10 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
     >
       {children}
-      <CheckIcon className="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
+      <CheckIcon className="ml-auto opacity-0 group-not-data-checked/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
     </CommandPrimitive.Item>
   );
 }

@@ -503,30 +503,34 @@ const Neighbors = ({
         {index + 1} / {count}
       </span>
     )}
-    <Button
-      aria-keyshortcuts="K"
-      aria-label="Previous issue"
-      disabled={index <= 0}
-      onClick={() => {
-        onGo(-1);
-      }}
-      size="icon-sm"
-      variant="ghost"
-    >
-      <ChevronUpIcon />
-    </Button>
-    <Button
-      aria-keyshortcuts="J"
-      aria-label="Next issue"
-      disabled={index === -1 || index >= count - 1}
-      onClick={() => {
-        onGo(1);
-      }}
-      size="icon-sm"
-      variant="ghost"
-    >
-      <ChevronDownIcon />
-    </Button>
+    <Hint hotkey={{ keys: "k" }} label="Previous issue">
+      <Button
+        aria-keyshortcuts="K"
+        aria-label="Previous issue"
+        disabled={index <= 0}
+        onClick={() => {
+          onGo(-1);
+        }}
+        size="icon-sm"
+        variant="ghost"
+      >
+        <ChevronUpIcon />
+      </Button>
+    </Hint>
+    <Hint hotkey={{ keys: "j" }} label="Next issue">
+      <Button
+        aria-keyshortcuts="J"
+        aria-label="Next issue"
+        disabled={index === -1 || index >= count - 1}
+        onClick={() => {
+          onGo(1);
+        }}
+        size="icon-sm"
+        variant="ghost"
+      >
+        <ChevronDownIcon />
+      </Button>
+    </Hint>
   </>
 );
 
@@ -551,7 +555,7 @@ const IssueActions = ({
     >
       <EllipsisIcon />
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" className="w-60">
+    <DropdownMenuContent align="end" className="w-64">
       {project === undefined ? null : (
         <>
           <DropdownMenuGroup>
@@ -940,7 +944,7 @@ const PanelSteps = () => {
 
   return (
     <>
-      <Hint label="Previous issue">
+      <Hint hotkey={{ keys: "k" }} label="Previous issue">
         <Button
           aria-keyshortcuts="K"
           aria-label="Previous issue"
@@ -953,7 +957,7 @@ const PanelSteps = () => {
           <ChevronUpIcon />
         </Button>
       </Hint>
-      <Hint label="Next issue">
+      <Hint hotkey={{ keys: "j" }} label="Next issue">
         <Button
           aria-keyshortcuts="J"
           aria-label="Next issue"

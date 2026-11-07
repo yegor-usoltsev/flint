@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
@@ -60,6 +61,17 @@ export const WorkspaceForm = ({
     event.preventDefault();
     create.mutate();
   };
+
+  const submitButton = (
+    <Button
+      className={cta ? "w-full" : undefined}
+      disabled={create.isPending || reserved}
+      size={cta ? "cta" : "default"}
+      type="submit"
+    >
+      Create workspace
+    </Button>
+  );
 
   return (
     <form className="flex flex-col gap-6" onSubmit={submit}>
@@ -119,16 +131,7 @@ export const WorkspaceForm = ({
           </FieldContent>
         </Field>
       </FieldGroup>
-      <div className="flex justify-end">
-        <Button
-          className={cta ? "w-full" : undefined}
-          disabled={create.isPending || reserved}
-          size={cta ? "cta" : "default"}
-          type="submit"
-        >
-          Create workspace
-        </Button>
-      </div>
+      {cta ? submitButton : <DialogFooter>{submitButton}</DialogFooter>}
     </form>
   );
 };

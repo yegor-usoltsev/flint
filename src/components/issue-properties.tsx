@@ -97,6 +97,7 @@ const Picker = ({
         className="w-64 gap-0 p-0"
       >
         <Command
+          defaultValue={multiple ? undefined : selected[0]}
           onKeyDown={(event) => {
             const digit = /^\d$/u.test(event.key) && !multiple && query === "";
             const modified = event.metaKey || event.ctrlKey || event.altKey;
@@ -140,7 +141,7 @@ const Picker = ({
                   value={option.value}
                 >
                   {option.icon}
-                  <span className="truncate">{option.label}</span>
+                  <span className="flex-1 truncate">{option.label}</span>
                   {multiple ? null : (
                     <CommandShortcut>
                       {optionNumber(index, zeroBased)}

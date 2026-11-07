@@ -3,6 +3,7 @@ import { ChevronLeftIcon, SearchIcon } from "lucide-react";
 import { createContext, useContext, useReducer, useRef } from "react";
 import type { ReactElement, ReactNode } from "react";
 
+import { Hint } from "~/components/issue-parts";
 import { SyncText, useSyncShown } from "~/components/sync-status";
 import {
   Breadcrumb,
@@ -156,7 +157,9 @@ export const SettingsHeader = ({
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-      <SidebarTrigger className="-ml-1" />
+      <Hint hotkey={{ keys: "[" }} label="Toggle sidebar">
+        <SidebarTrigger className="-ml-1" />
+      </Hint>
       <Separator
         className="mr-1 data-vertical:h-4 data-vertical:self-center"
         orientation="vertical"
