@@ -376,12 +376,11 @@ const Description = ({
           uploadTo={`/issues/${issue.key}/attachments`}
           value={description.value}
         />
-        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Pressing a tool keeps focus in the description, so the footer that focus reveals on touch stays open. */}
+        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Pressing a tool keeps focus in the description, so the footer that focus reveals stays open. */}
         <div
           className={cn(
             "flex min-h-6 items-center justify-end gap-3",
-            quiet &&
-              "opacity-0 group-focus-within/description:opacity-100 group-hover/description:opacity-100 pointer-coarse:hidden pointer-coarse:group-focus-within/description:flex"
+            quiet && "hidden group-focus-within/description:flex"
           )}
           onMouseDown={(event) => {
             if (event.target !== event.currentTarget) {
