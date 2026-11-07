@@ -220,10 +220,11 @@ const Subtitle = ({
   where: string;
 }) => (
   <span className="text-muted-foreground text-xs wrap-anywhere md:truncate">
-    {where} · Deleted {formatDate(deletedAt)}
-    <span className="md:hidden">
-      {" "}
-      · expires {expiresText(daysLeft(purgeAt))}
+    {where}
+    {"\u00A0· "}
+    <span className="whitespace-nowrap">Deleted {formatDate(deletedAt)}</span>
+    <span className="block md:hidden">
+      Expires {expiresText(daysLeft(purgeAt))}
     </span>
   </span>
 );

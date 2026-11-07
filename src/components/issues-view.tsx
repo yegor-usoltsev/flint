@@ -272,7 +272,7 @@ const Sortable = ({
 };
 
 export const rowClass =
-  "group/row group/issue relative flex min-h-11 w-full cursor-default flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2 py-2 text-left outline-none select-none hover:bg-row-focus focus-visible:bg-row-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover data-selected:focus-visible:bg-row-selected-hover data-menu-target:bg-row-focus data-current:bg-row-focus data-current:shadow-focus-bar data-selected:data-menu-target:bg-row-selected-hover md:h-9 md:min-h-0 md:flex-nowrap md:py-0 md:pointer-coarse:h-11";
+  "group/row group/issue relative flex min-h-11 w-full cursor-default flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2 py-2 text-left outline-none select-none hover:bg-row-focus focus-visible:bg-row-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover data-selected:focus-visible:bg-row-selected-hover data-menu-target:bg-row-focus data-current:bg-row-focus data-current:shadow-focus-bar data-selected:data-menu-target:bg-row-selected-hover data-selected:data-current:bg-row-selected-hover md:h-9 md:min-h-0 md:flex-nowrap md:py-0 md:pointer-coarse:h-11";
 
 export const RowCheck = ({ id }: { id: string }) => {
   const selected = useSelected(id);
@@ -337,10 +337,15 @@ export const RowContent = ({
       </span>
       <span
         className={cn(
-          "flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:hidden @5xl/list:hidden"
+          "flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:w-24 md:@max-xl/list:hidden @5xl/list:hidden"
         )}
       >
-        <IssueLabels issue={issue} lookup={lookup} max={1} />
+        <IssueLabels
+          className="min-w-0 shrink"
+          issue={issue}
+          lookup={lookup}
+          max={1}
+        />
       </span>
       <span
         className={cn(
@@ -349,11 +354,11 @@ export const RowContent = ({
       >
         <IssueLabels issue={issue} lookup={lookup} max={2} />
       </span>
-      <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1">
+      <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1 @max-3xl/list:empty:hidden">
         <PullRequestIcon state={issue.pullRequestState} />
         <CiIcon state={issue.ciState} />
       </span>
-      <span className="contents md:flex md:w-10 md:shrink-0 md:justify-end">
+      <span className="contents md:flex md:w-10 md:shrink-0 md:justify-end @max-3xl/list:empty:hidden">
         <Checklist issue={issue} />
       </span>
       {assignee ? (
@@ -486,7 +491,7 @@ const List = ({
 );
 
 const cardClass =
-  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 ring-inset text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover";
+  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 ring-inset text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover data-selected:data-current:bg-row-selected-hover dark:data-selected:data-current:bg-row-selected-hover";
 
 const CardContent = ({
   assignee = true,
@@ -862,7 +867,7 @@ const ColumnRangeButton = ({
 }) => (
   <Button
     aria-label={jumpLabel(more, range)}
-    className="absolute right-4 bottom-4 z-10 max-md:hidden"
+    className="mr-2 mb-2 self-end max-md:hidden"
     onClick={() => {
       const element = board.current;
 
@@ -972,7 +977,7 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
         statuses={statuses}
         total={props.total}
       />
-      <div className="relative flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div
           className={cn(
             "fade-edges flex min-h-0 min-w-0 flex-1 snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto p-2 md:snap-proximity",

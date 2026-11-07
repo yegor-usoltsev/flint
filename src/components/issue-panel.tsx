@@ -412,7 +412,7 @@ export const IssuePanelHost = ({
 
   return (
     <div className="flex min-h-0 flex-1" ref={host}>
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <div className="relative flex min-w-0 flex-1 flex-col">{children}</div>
       {enabled ? (
         <aside
           aria-label="Issue panel"

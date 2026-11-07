@@ -420,8 +420,12 @@ const Labels = () => {
         />
         <SettingsTable>
           {empty ? null : (
-            <div aria-hidden className={tableHead}>
-              <span className="flex-1 pl-20 pointer-coarse:pl-14">Name</span>
+            <div
+              aria-hidden
+              className={cn(tableHead, "pl-8 pointer-coarse:pl-2")}
+            >
+              <span className="w-8 shrink-0 max-sm:w-10" />
+              <span className="flex-1 pl-2.75">Name</span>
               <span className={cn(tableNumber, "max-sm:w-8")}>Issues</span>
               <span className="w-7 max-sm:w-10" />
             </div>

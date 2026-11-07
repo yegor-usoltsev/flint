@@ -5,7 +5,7 @@ import { SettingsHeader } from "~/components/settings-page";
 
 const SettingsNotFound = () => (
   <>
-    <SettingsHeader label="Not found" />
+    <SettingsHeader label="Page not found" />
     <div className="flex min-h-0 flex-1 overflow-y-auto p-4">
       <RouteNotFound />
     </div>
