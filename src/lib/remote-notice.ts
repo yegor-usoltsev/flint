@@ -149,6 +149,8 @@ const actorName = (queryClient: QueryClient, slug: string, id: string) =>
     .getQueryData(membersQuery(slug).queryKey)
     ?.find((member) => member.userId === id)?.displayName ?? "A teammate";
 
+const unbroken = (key: string) => key.replace("-", "\u2011");
+
 const message = (
   queryClient: QueryClient,
   slug: string,
@@ -157,7 +159,8 @@ const message = (
 ) => {
   const actors = new Set(hidden.flatMap((item) => [...item.change.actorIds]));
   const issue = findShownIssue(queryClient, id);
-  const key = issue?.key ?? change.before?.key;
+  const shownKey = issue?.key ?? change.before?.key;
+  const key = shownKey === undefined ? undefined : unbroken(shownKey);
   const suffix = hidden.length > 1 ? "" : suffixes[why.kind];
 
   if (actors.size > 1) {
@@ -186,8 +189,8 @@ const message = (
   return status !== undefined &&
     change.before?.statusId !== undefined &&
     change.before.statusId !== issue.statusId
-    ? `${actor} moved ${issue.key} to ${status.name}${suffix}`
-    : `${actor} updated ${issue.key}${suffix}`;
+    ? `${actor} moved ${unbroken(issue.key)} to ${status.name}${suffix}`
+    : `${actor} updated ${unbroken(issue.key)}${suffix}`;
 };
 
 const revealRow = (id: string) => {

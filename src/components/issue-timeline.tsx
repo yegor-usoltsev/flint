@@ -54,6 +54,7 @@ import type {
   ProjectDetail,
   UserRef,
 } from "~/lib/api-types";
+import { seenIds } from "~/lib/held-comments";
 import { newId } from "~/lib/ids";
 import { formatRelative } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
@@ -61,7 +62,7 @@ import { priorities } from "~/lib/priorities";
 import type { Priority } from "~/lib/priorities";
 import { labelsQuery, membersQuery, timelineQuery } from "~/lib/queries";
 import { flashRemote, useRemoteFlash } from "~/lib/remote-flash";
-import { useStoredText, useUploading } from "~/lib/use-draft";
+import { readStoredText, useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { useWorkspace } from "~/lib/use-workspace";
 
@@ -305,10 +306,12 @@ const CommentVersionSchema = v.looseObject({
 });
 
 const CommentItem = ({
+  arrived,
   comment,
   issue,
   own,
 }: {
+  arrived: boolean;
   comment: Comment;
   issue: Issue;
   own: boolean;
@@ -416,6 +419,7 @@ const CommentItem = ({
     <li
       className={cn(
         "group/comment -mx-2 flex flex-col gap-1 rounded-md px-2 py-1",
+        arrived && "*:animate-in *:fade-in *:duration-180",
         remote
       )}
       data-comment={comment.id}
@@ -697,8 +701,12 @@ const runs = (items: ActivityItem[]) => {
 const clips = (element: Element) =>
   getComputedStyle(element).overflowY !== "visible";
 
-const onScreen = (element: HTMLElement) => {
-  const rect = element.getBoundingClientRect();
+const endInView = (element: HTMLElement | null) => {
+  if (element === null) {
+    return true;
+  }
+
+  const end = element.getBoundingClientRect().bottom;
   let top = 0;
   let bottom = window.innerHeight;
 
@@ -715,82 +723,91 @@ const onScreen = (element: HTMLElement) => {
     }
   }
 
-  return rect.top < bottom && rect.bottom > top;
+  return end >= top && end <= bottom + 1;
 };
-
-const engaged = (composer: HTMLElement | null) =>
-  composer !== null &&
-  (composer.contains(document.activeElement) || onScreen(composer));
 
 interface Seen {
   comments: Comment[];
   ids: ReadonlySet<string>;
+  initial: ReadonlySet<string>;
   issueId: string;
 }
 
 const allIds = (comments: Comment[]) =>
   new Set(comments.map((comment) => comment.id));
 
+const byData = (name: string, id: string) =>
+  document.querySelector<HTMLElement>(`[data-${name}="${CSS.escape(id)}"]`);
+
 const useHeldComments = (
   issueId: string,
   comments: Comment[] | undefined,
   me: string | undefined
 ) => {
-  const composerId = useId();
+  const timelineId = useId();
   const [seen, setSeen] = useState<Seen | null>(null);
-  const known = seen?.issueId === issueId ? seen.ids : null;
+  const current = seen?.issueId === issueId ? seen : null;
+  const known = current?.ids ?? null;
 
   if (
     comments !== undefined &&
-    (known === null || seen?.comments !== comments)
+    (current === null || current.comments !== comments)
   ) {
-    const fresh = comments.filter((comment) => known?.has(comment.id) !== true);
-
-    const show =
-      known === null ||
-      fresh.some((comment) => comment.author.id === me) ||
-      !engaged(
-        document.querySelector(`[data-composer="${CSS.escape(composerId)}"]`)
-      );
-
-    setSeen({ comments, ids: show ? allIds(comments) : known, issueId });
+    setSeen({
+      comments,
+      ids: seenIds({
+        comments,
+        known,
+        me,
+        reader: () => ({
+          draft: readStoredText(`new-comment:${issueId}`) ?? "",
+          endInView: endInView(byData("timeline-end", timelineId)),
+          focused:
+            byData("composer", timelineId)?.contains(document.activeElement) ===
+            true,
+        }),
+      }),
+      initial: current?.initial ?? allIds(comments),
+      issueId,
+    });
   }
 
   const isHeld = (comment: Comment) =>
     known !== null && !known.has(comment.id) && comment.author.id !== me;
+
+  const arrived = (comment: Comment) =>
+    current !== null &&
+    !current.initial.has(comment.id) &&
+    comment.author.id !== me;
 
   const held = comments?.filter(isHeld) ?? [];
 
   const reveal = () => {
     const [first] = held;
 
-    if (comments !== undefined) {
-      setSeen({ comments, ids: allIds(comments), issueId });
+    if (comments !== undefined && current !== null) {
+      setSeen({ ...current, comments, ids: allIds(comments) });
     }
 
     flashRemote(held.map((comment) => comment.id));
 
     requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-comment="${CSS.escape(first?.id ?? "")}"]`)
-        ?.scrollIntoView({
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? "auto"
-            : "smooth",
-          block: "nearest",
-        });
+      byData("comment", first?.id ?? "")?.scrollIntoView({
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "nearest",
+      });
 
       if (document.activeElement === document.body) {
-        document
-          .querySelector<HTMLElement>(
-            `[data-composer="${CSS.escape(composerId)}"] [contenteditable="true"], [data-composer="${CSS.escape(composerId)}"] textarea`
-          )
+        byData("composer", timelineId)
+          ?.querySelector<HTMLElement>('[contenteditable="true"], textarea')
           ?.focus({ preventScroll: true });
       }
     });
   };
 
-  return { composerId, held, isHeld, reveal };
+  return { arrived, held, isHeld, reveal, timelineId };
 };
 
 const NewComments = ({
@@ -802,10 +819,15 @@ const NewComments = ({
 }) => (
   <div
     aria-live="polite"
-    className="pointer-events-none absolute inset-x-0 bottom-full z-10 flex justify-center pb-2"
+    className="pointer-events-none sticky bottom-4 z-10 flex h-9 items-center justify-center empty:absolute empty:h-0"
   >
     {count > 0 ? (
-      <Button className="pointer-events-auto" onClick={onReveal} size="pill">
+      <Button
+        className="pointer-events-auto"
+        onClick={onReveal}
+        size="pill"
+        variant="floating"
+      >
         {count === 1 ? "1 new comment" : `${count} new comments`}
         <ArrowDownIcon data-icon="inline-end" />
       </Button>
@@ -826,7 +848,7 @@ export const IssueTimeline = ({
   const me = useMe().data;
   const timeline = useQuery(timelineQuery(issue));
 
-  const { composerId, held, isHeld, reveal } = useHeldComments(
+  const { arrived, held, isHeld, reveal, timelineId } = useHeldComments(
     issue.id,
     timeline.data?.comments,
     me?.id
@@ -853,7 +875,7 @@ export const IssueTimeline = ({
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <ol className="flex flex-col gap-3">
+        <ol className="flex flex-col gap-3" data-timeline-end={timelineId}>
           {feed.map((entry) =>
             Array.isArray(entry) ? (
               <li key={entry[0]?.id}>
@@ -865,6 +887,7 @@ export const IssueTimeline = ({
               </li>
             ) : (
               <CommentItem
+                arrived={arrived(entry)}
                 comment={entry}
                 issue={issue}
                 key={entry.id}
@@ -874,9 +897,11 @@ export const IssueTimeline = ({
           )}
         </ol>
       )}
+      {timeline.isPending ? null : (
+        <NewComments count={held.length} onReveal={reveal} />
+      )}
       {editable && !timeline.isPending ? (
-        <div className="relative" data-composer={composerId}>
-          <NewComments count={held.length} onReveal={reveal} />
+        <div data-composer={timelineId}>
           <CommentBox issue={issue} />
         </div>
       ) : null}

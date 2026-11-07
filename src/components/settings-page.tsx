@@ -3,6 +3,7 @@ import { SearchIcon } from "lucide-react";
 import { createContext, useContext, useReducer, useRef } from "react";
 import type { ReactElement, ReactNode } from "react";
 
+import { SyncText } from "~/components/sync-status";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -195,6 +196,7 @@ export const SettingsHeader = ({
         )}
       </BreadcrumbList>
     </Breadcrumb>
+    <SyncText className="shrink-0 max-md:hidden" />
   </header>
 );
 

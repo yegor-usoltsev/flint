@@ -5,6 +5,7 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 
 import { useOpenPalette } from "~/components/command-palette";
 import { PanelToggle } from "~/components/panel-toggle";
+import { SyncText, useSyncShown } from "~/components/sync-status";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -52,6 +53,24 @@ const SearchButton = () => {
   );
 };
 
+const ContextLine = ({
+  context,
+  syncing,
+}: {
+  context?: string;
+  syncing: boolean;
+}) => {
+  if (syncing) {
+    return <SyncText className="max-w-full md:hidden" />;
+  }
+
+  return context === undefined ? null : (
+    <span className="text-muted-foreground max-w-full truncate text-xs font-normal md:hidden">
+      {context}
+    </span>
+  );
+};
+
 const PageTitle = ({
   context,
   header,
@@ -64,6 +83,7 @@ const PageTitle = ({
   title: string;
 }) => {
   const { isMobile, open } = useSidebar();
+  const syncing = useSyncShown() !== null;
 
   if (switcher === undefined || (open && !isMobile)) {
     return (
@@ -85,11 +105,7 @@ const PageTitle = ({
           }
         >
           <span className="flex min-w-0 flex-col items-start">
-            {context === undefined ? null : (
-              <span className="text-muted-foreground max-w-full truncate text-xs font-normal md:hidden">
-                {context}
-              </span>
-            )}
+            <ContextLine context={context} syncing={syncing} />
             <span className="max-md:text-heading max-w-full truncate">
               {title}
             </span>
@@ -110,6 +126,35 @@ const PageTitle = ({
         </DropdownMenuContent>
       </DropdownMenu>
     </h1>
+  );
+};
+
+const PhoneContext = ({
+  context,
+  syncing,
+}: {
+  context?: Crumb;
+  syncing: boolean;
+}) => {
+  if (syncing) {
+    return (
+      <BreadcrumbItem className="max-w-full md:hidden">
+        <SyncText />
+      </BreadcrumbItem>
+    );
+  }
+
+  return context === undefined ? null : (
+    <BreadcrumbItem className="max-w-full md:hidden">
+      <BreadcrumbLink
+        className="hit-area relative min-w-0"
+        render={context.link}
+      >
+        <span className="block truncate text-xs">
+          {context.short ?? context.label}
+        </span>
+      </BreadcrumbLink>
+    </BreadcrumbItem>
   );
 };
 
@@ -148,6 +193,7 @@ export const Page = ({
   const pane = use(PagePane);
   const header = useRef<HTMLElement>(null);
   const context = crumbs.at(-1);
+  const syncing = useSyncShown() !== null;
 
   return (
     <>
@@ -198,18 +244,9 @@ export const Page = ({
                   </Fragment>
                 );
               })}
-              {context === undefined || switcher !== undefined ? null : (
-                <BreadcrumbItem className="max-w-full md:hidden">
-                  <BreadcrumbLink
-                    className="hit-area relative min-w-0"
-                    render={context.link}
-                  >
-                    <span className="block truncate text-xs">
-                      {context.short ?? context.label}
-                    </span>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-              )}
+              {switcher === undefined ? (
+                <PhoneContext context={context} syncing={syncing} />
+              ) : null}
               <BreadcrumbItem
                 className={cn(
                   "min-w-24 max-md:max-w-full",
@@ -225,6 +262,9 @@ export const Page = ({
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          {pane === "list" ? null : (
+            <SyncText className="shrink-0 max-md:hidden" />
+          )}
           <SearchButton />
           {actions === undefined ? null : (
             <div className="flex shrink-0 items-center gap-2 md:gap-1">
