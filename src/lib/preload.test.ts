@@ -48,7 +48,7 @@ test("My issues preloads assigned rows in one workspace request", async () => {
     "/api/v1/me",
     "/api/v1/projects/ENG",
     "/api/v1/workspaces/acme/issues?assignee=me&offset=0",
-    "/api/v1/workspaces/acme/projects",
+    "/api/v1/workspaces/acme/projects?counts=false",
   ]);
   expect(queryClient.getQueryData(["issues", "p"])).toBeUndefined();
   expect(
