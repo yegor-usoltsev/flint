@@ -1070,6 +1070,33 @@ test("concurrent comment deletes record one deletion", async () => {
   ]);
 });
 
+test("more stale comment edits than pool connections all get 409", async () => {
+  const { alice } = await setup();
+  const { issue } = await createIssue(alice, { title: "Stale edits" });
+  const comment = await postComment(alice, issue.key);
+
+  await commentWrite(alice, issue.key, comment.id, "PATCH");
+
+  const results = await Promise.all(
+    Array.from(
+      { length: 20 },
+      async () =>
+        await callApi(
+          commentRoute,
+          alice,
+          "PATCH",
+          `/api/v1/comments/${comment.id}`,
+          {
+            body: { body: "Stale tab", version: 1 },
+            params: { commentId: comment.id },
+          }
+        )
+    )
+  );
+
+  expect(new Set(results.map(({ status }) => status))).toEqual(new Set([409]));
+});
+
 test("non-members cannot reach issues, comments, lists or the stream", async () => {
   const { alice, bob } = await setup();
   const { issue } = await createIssue(alice, { title: "Secret" });

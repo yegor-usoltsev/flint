@@ -558,6 +558,7 @@ export const receiveGiteaWebhook = async ({
       insert into webhook_deliveries (delivery_id, event, status, error)
       values (${deliveryId}, ${event}, 'failed', ${message})
       on conflict (delivery_id) do update set status = 'failed', error = excluded.error
+      where webhook_deliveries.status = 'failed'
     `;
 
     return v.isValiError(error)

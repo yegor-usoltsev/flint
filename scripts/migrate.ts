@@ -9,6 +9,7 @@ const entries = await readdir(dir);
 const files = entries.filter((file) => file.endsWith(".sql"));
 
 await db.begin(async (tx) => {
+  await tx`set local lock_timeout = 0`;
   await tx`select pg_advisory_xact_lock(hashtext('flint_migrations'))`;
   await tx`
     create table if not exists schema_migrations (
