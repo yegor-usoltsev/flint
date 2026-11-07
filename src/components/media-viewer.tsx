@@ -102,13 +102,14 @@ const Slide = ({ active, item }: { active: boolean; item: ViewerItem }) => {
   const media = (element: HTMLMediaElement | null) => {
     if (!active) {
       element?.pause();
+    } else if (element?.paused === true) {
+      element.play().catch(() => null);
     }
   };
 
   if (item.kind === "video") {
     return (
       <video
-        autoPlay={active}
         className="max-h-full max-w-full"
         controls
         ref={media}
@@ -125,13 +126,7 @@ const Slide = ({ active, item }: { active: boolean; item: ViewerItem }) => {
         <span className="w-full truncate text-center font-medium">
           {item.name}
         </span>
-        <audio
-          autoPlay={active}
-          className="w-full"
-          controls
-          ref={media}
-          src={item.src}
-        >
+        <audio className="w-full" controls ref={media} src={item.src}>
           <track kind="captions" />
         </audio>
       </div>
@@ -252,12 +247,16 @@ const mount = (
     });
   });
 
-  pswp.on("change", () => {
+  const sync = () => {
     const shown = at(pswp.currIndex);
 
     download?.setAttribute("download", shown?.name ?? "");
     download?.setAttribute("href", shown?.src ?? "");
     download?.setAttribute("aria-label", `Download ${shown?.name ?? ""}`);
+  };
+
+  pswp.on("change", () => {
+    sync();
     props.current.onIndex(pswp.currIndex);
   });
 
@@ -280,13 +279,14 @@ const mount = (
       }
     },
     pswp,
+    sync,
   };
 };
 
 export const MediaViewer = (props: ViewerProps) => {
   const { index, items, onIndex } = props;
   const [slots, setSlots] = useState<Slots>(new Map());
-  const viewer = useRef<PhotoSwipe | null>(null);
+  const viewer = useRef<ReturnType<typeof mount> | null>(null);
   const latest = useRef(props);
   const item = index === null ? undefined : items[index];
 
@@ -295,9 +295,11 @@ export const MediaViewer = (props: ViewerProps) => {
 
     latest.current = props;
 
-    const pswp = viewer.current;
+    viewer.current?.sync();
 
-    if (resized && pswp !== null) {
+    const pswp = viewer.current?.pswp;
+
+    if (resized && pswp !== undefined) {
       const { currIndex } = pswp;
 
       for (const step of [-1, 1]) {
@@ -311,13 +313,13 @@ export const MediaViewer = (props: ViewerProps) => {
   });
 
   const attach = useCallback((root: HTMLDivElement) => {
-    const { dispose, pswp } = mount(root, latest, setSlots);
+    const mounted = mount(root, latest, setSlots);
 
-    viewer.current = pswp;
+    viewer.current = mounted;
 
     return () => {
       viewer.current = null;
-      dispose();
+      mounted.dispose();
     };
   }, []);
 
@@ -331,7 +333,7 @@ export const MediaViewer = (props: ViewerProps) => {
         if (viewer.current === null) {
           onIndex(null);
         } else {
-          viewer.current.close();
+          viewer.current.pswp.close();
         }
       }}
       open={item !== undefined}
@@ -340,7 +342,7 @@ export const MediaViewer = (props: ViewerProps) => {
         <DialogPrimitive.Popup
           className="fixed inset-0 z-50 outline-none"
           onKeyDown={(event) => {
-            const pswp = viewer.current;
+            const pswp = viewer.current?.pswp;
 
             const plain =
               !event.metaKey &&
@@ -348,7 +350,7 @@ export const MediaViewer = (props: ViewerProps) => {
               !event.altKey &&
               !(event.target instanceof HTMLMediaElement);
 
-            if (plain && pswp !== null && handleKey(pswp, event.key)) {
+            if (plain && pswp !== undefined && handleKey(pswp, event.key)) {
               event.preventDefault();
             }
           }}
