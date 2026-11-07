@@ -8,7 +8,7 @@ import type { SyncPill } from "~/lib/sync-status";
 import { usePendingIssueWrites } from "~/lib/use-update-issue";
 
 const copy: Record<SyncPill, { color: string; text: string }> = {
-  offline: { color: "amber", text: "Offline · changes will sync" },
+  offline: { color: "amber", text: "Offline" },
   reconnecting: { color: "amber", text: "Reconnecting…" },
   saving: { color: "amber", text: "Saving…" },
   synced: { color: "green", text: "Synced" },

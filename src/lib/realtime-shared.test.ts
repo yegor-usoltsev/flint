@@ -55,6 +55,7 @@ class Worker extends EventTarget {
 beforeEach(() => {
   jest.useFakeTimers();
   Source.instances.length = 0;
+  Source.behavior.blocked = false;
   Worker.behavior.mode = "working";
   replace("EventSource", Source);
   hub = createRealtimeHub();
@@ -301,7 +302,11 @@ test("a stream that goes silent while open reconnects in the worker and the dire
   jest.advanceTimersByTime(stallMs * 2);
   expect(Source.instances[2]?.readyState).toBe(Source.CLOSED);
   expect(Source.instances).toHaveLength(4);
-  expect(tab.messages).toEqual([{ type: "open" }, { type: "error" }]);
+  expect(tab.messages).toEqual([
+    { type: "connecting" },
+    { type: "open" },
+    { type: "error" },
+  ]);
 });
 
 test("a stream from a server that never sends named pings is not treated as stalled", () => {
@@ -361,25 +366,59 @@ test("going online retries a waiting stream at once in the worker and the direct
   tab.window.dispatchEvent(new Event("online"));
   await settle();
   expect(Source.instances).toHaveLength(3);
-  Source.instances[2]?.open();
   tab.window.dispatchEvent(new Event("online"));
   await settle();
   expect(Source.instances).toHaveLength(3);
+  Source.instances[2]?.open();
+  tab.window.dispatchEvent(new Event("online"));
+  await settle();
+  expect(Source.instances[2]?.readyState).toBe(Source.CLOSED);
+  expect(Source.instances).toHaveLength(4);
   tab.stop();
   await settle();
 
   const direct = client(undefined);
 
-  Source.instances[3]?.fail();
-  expect(Source.instances).toHaveLength(4);
-  direct.window.dispatchEvent(new Event("online"));
+  Source.instances[4]?.fail();
   expect(Source.instances).toHaveLength(5);
   direct.window.dispatchEvent(new Event("online"));
-  expect(Source.instances[4]?.readyState).toBe(Source.CLOSED);
+  expect(Source.instances).toHaveLength(6);
+  direct.window.dispatchEvent(new Event("online"));
   expect(Source.instances).toHaveLength(6);
   Source.instances[5]?.open();
   direct.window.dispatchEvent(new Event("online"));
-  expect(Source.instances).toHaveLength(6);
+  expect(Source.instances[5]?.readyState).toBe(Source.CLOSED);
+  expect(Source.instances).toHaveLength(7);
+  expect(direct.messages).toEqual([
+    { type: "connecting" },
+    { type: "error" },
+    { type: "open" },
+  ]);
+});
+
+test("forced retries keep backing off until a stream opens", () => {
+  const random = spyOn(Math, "random").mockReturnValue(0);
+
+  cleanups.push(() => {
+    random.mockRestore();
+  });
+
+  const tab = client(undefined);
+
+  failAfter(1000);
+  tab.window.dispatchEvent(new Event("online"));
+  failAfter(2000);
+  failAfter(4000);
+});
+
+test("tabs joining a stream the browser cannot open learn it is unsupported", async () => {
+  Source.behavior.blocked = true;
+
+  const a = await subscribe();
+  const b = await subscribe();
+
+  expect(a.messages).toContainEqual({ type: "unsupported" });
+  expect(b.messages).toContainEqual({ type: "unsupported" });
 });
 
 test("a tab joining a stream that waits to retry reconnects it at once", async () => {

@@ -200,6 +200,8 @@ export const useRealtime = (
               }
 
               schedule();
+            } else if (message.type === "connecting") {
+              setLive(false);
             } else if (message.type === "error") {
               setLive(false);
               void queryClient.invalidateQueries({
@@ -244,6 +246,8 @@ export const useRealtime = (
 
       if (isOnline()) {
         void retryFailedDrafts();
+      } else {
+        setLive(false);
       }
     };
 

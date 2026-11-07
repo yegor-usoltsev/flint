@@ -50,6 +50,17 @@ test("a lost connection shows after 3 s, then Synced for 2 s before fading", () 
   expect(status.get()).toBeNull();
 });
 
+test("losing the connection again during Synced drops it at once", () => {
+  status.update({ connection: "connecting", pending: 0 });
+  jest.advanceTimersByTime(3000);
+  status.update({ connection: "live", pending: 0 });
+  expect(status.get()?.pill).toBe("synced");
+  status.update({ connection: "connecting", pending: 0 });
+  expect(status.get()).toEqual({ leaving: true, pill: "synced" });
+  jest.advanceTimersByTime(3000);
+  expect(status.get()).toEqual({ leaving: false, pill: "reconnecting" });
+});
+
 test("offline at load shows the offline copy after 3 s", () => {
   status.update({ connection: "offline", pending: 0 });
   jest.advanceTimersByTime(3000);

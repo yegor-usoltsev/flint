@@ -123,6 +123,8 @@ export const subscribeRealtime = (
       return;
     }
 
+    receive({ type: "connecting" });
+
     try {
       link = direct ? connectDirect() : connectShared();
     } catch {

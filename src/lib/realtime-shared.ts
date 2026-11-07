@@ -1,5 +1,5 @@
 export type RealtimeMessage =
-  | { type: "open" | "error" }
+  | { type: "connecting" | "error" | "open" }
   | { type: "pong" | "unsupported" }
   | { type: "message"; data: string };
 
@@ -66,6 +66,7 @@ export const openStream = (
   let retry: ReturnType<typeof setTimeout> | null = null;
   let attempt = 0;
   let closed = false;
+  let forced = false;
 
   const connect = () => {
     retry = null;
@@ -88,6 +89,7 @@ export const openStream = (
 
       current.close();
       source = null;
+      forced = false;
       emit({ type: "error" });
       retry = setTimeout(connect, retryDelay(attempt));
       attempt += 1;
@@ -97,6 +99,7 @@ export const openStream = (
     watchStall(current, lost);
     current.addEventListener("open", () => {
       attempt = 0;
+      forced = false;
       emit({ type: "open" });
     });
     current.addEventListener("message", ({ data }: MessageEvent<string>) => {
@@ -120,9 +123,7 @@ export const openStream = (
     },
     isOpen: () => source?.readyState === EventSource.OPEN,
     reconnect: () => {
-      attempt = 0;
-
-      if (closed || source?.readyState === EventSource.OPEN) {
+      if (closed || (forced && source?.readyState === EventSource.CONNECTING)) {
         return;
       }
 
@@ -132,11 +133,10 @@ export const openStream = (
 
       source?.close();
       source = null;
+      forced = true;
       connect();
     },
     retryNow: () => {
-      attempt = 0;
-
       if (!closed && retry !== null) {
         clearTimeout(retry);
         connect();
@@ -169,7 +169,10 @@ export const createRealtimeHub = () => {
 
     if (stream.ports.size === 0) {
       stream.handle?.close();
-      streams.delete(stream.url);
+
+      if (streams.get(stream.url) === stream) {
+        streams.delete(stream.url);
+      }
     }
   };
 
@@ -224,6 +227,10 @@ export const createRealtimeHub = () => {
           if (!streams.has(url)) {
             streams.set(url, stream);
             stream.handle = openStream(url, (message) => {
+              if (message.type === "unsupported") {
+                streams.delete(url);
+              }
+
               send(stream, message);
             });
           } else if (stream.handle?.isOpen() === true) {

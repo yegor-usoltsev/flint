@@ -104,11 +104,16 @@ export const createSyncStatus = () => {
         down = false;
         showSynced();
       }
-    } else if (!down && !downTimer.active()) {
-      downTimer.start(() => {
-        down = true;
-        refresh();
-      }, downDelayMs);
+    } else {
+      syncedTimer.clear();
+      synced = false;
+
+      if (!down && !downTimer.active()) {
+        downTimer.start(() => {
+          down = true;
+          refresh();
+        }, downDelayMs);
+      }
     }
 
     if (next.pending === 0) {
