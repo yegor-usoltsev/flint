@@ -35,7 +35,7 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { useMe } from "~/lib/api";
 import type { IssueSummary, Status } from "~/lib/api-types";
-import { showInPanel } from "~/lib/issue-panel";
+import { openIssueRow } from "~/lib/issue-panel";
 import { useSelectionScope } from "~/lib/issue-selection";
 import {
   isClosedStatus,
@@ -303,10 +303,10 @@ const AssignedIssues = ({
         .catch(() => null);
     } else if (how === "tab") {
       window.open(`/${slug}/issue/${issue.key}`, "_blank");
-    } else if (!showInPanel(issue.key)) {
+    } else if (!openIssueRow(issue.key)) {
       void navigate({
         params: { issueKey: issue.key, slug },
-        state: { from: { search, view: "mine" } },
+        state: { from: { search, view: "mine" }, full: true },
         to: "/$slug/issue/$issueKey",
       });
     }

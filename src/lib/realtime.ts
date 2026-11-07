@@ -1,12 +1,20 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { QueryKey } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { createContext, use, useEffect, useState } from "react";
 
 import { meQuery } from "~/lib/api";
 import type { RealtimeEvent } from "~/lib/api-types";
+import { projectView } from "~/lib/issue-view";
+import type { IssueOrigin } from "~/lib/issue-view";
 import { subscribeRealtime } from "~/lib/realtime-transport";
 import { flashRemote } from "~/lib/remote-flash";
-import { issueStatuses, noticeOffscreen } from "~/lib/remote-notice";
+import { animateMoves, rowRects } from "~/lib/remote-move";
+import {
+  cancelNotices,
+  issueSnapshots,
+  noticeOffscreen,
+} from "~/lib/remote-notice";
 import { retryFailedDrafts } from "~/lib/use-draft";
 import { hasPendingIssueWrites } from "~/lib/use-update-issue";
 
@@ -43,6 +51,7 @@ export const useRealtimeConnected = () => use(RealtimeStatus);
 
 export const useRealtime = (slug: string, userId: string | undefined) => {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [connected, setConnected] = useState(true);
 
   useEffect(() => {
@@ -52,6 +61,41 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
     const stale = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
     let flushing = false;
+    let active = true;
+
+    const origin = (): IssueOrigin | undefined => {
+      const { location, matches } = router.state;
+
+      const project = matches.find(
+        (match) => match.routeId === "/$slug/project/$key"
+      );
+
+      if (project !== undefined) {
+        const search = { ...project.search };
+
+        delete search.issue;
+
+        const { key } = project.params;
+
+        return {
+          projectKey: key.toUpperCase(),
+          search,
+          view: projectView(key),
+        };
+      }
+
+      return matches.some((match) => match.routeId === "/$slug/my-issues")
+        ? { view: "mine" }
+        : location.state.from;
+    };
+
+    const openIssue = (key: string) => {
+      void router.navigate({
+        params: { issueKey: key, slug },
+        state: { from: origin() },
+        to: "/$slug/issue/$issueKey",
+      });
+    };
 
     const later = (run: () => void, delay: number) => {
       const timer = setTimeout(() => {
@@ -81,7 +125,10 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
       }
 
       const changedIssues = new Map(actors);
-      const before = issueStatuses(queryClient, [...changedIssues.keys()]);
+      const before = issueSnapshots(queryClient, [...changedIssues.keys()]);
+
+      const rects =
+        changedIssues.size > 0 ? rowRects() : new Map<string, DOMRect>();
 
       actors.clear();
 
@@ -96,10 +143,19 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
 
       const flashChanged = async () => {
         await Promise.allSettled(refreshed);
+
+        if (!active) {
+          return;
+        }
+
         flashRemote(changed);
+
+        animateMoves(rects);
+
         noticeOffscreen({
           actors: changedIssues,
           before,
+          openIssue,
           queryClient,
           slug,
         });
@@ -174,6 +230,8 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
     window.addEventListener("online", online);
 
     return () => {
+      active = false;
+      cancelNotices();
       window.removeEventListener("online", online);
       unsubscribe?.();
 
@@ -181,7 +239,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
         clearTimeout(timer);
       }
     };
-  }, [queryClient, slug, userId]);
+  }, [queryClient, router, slug, userId]);
 
   return connected;
 };

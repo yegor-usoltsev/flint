@@ -61,7 +61,7 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
 import { closeIssueMenu, selectByClick, toggleRow } from "~/lib/issue-focus";
-import { openPanel, showInPanel, usePanelShows } from "~/lib/issue-panel";
+import { openIssueRow, openPanel, usePanelShows } from "~/lib/issue-panel";
 import {
   useSelected,
   useSelecting,
@@ -1161,10 +1161,10 @@ const Issues = ({
       queryClient.query(issueQuery(project.id, issue.key)).catch(() => null);
     } else if (how === "tab") {
       window.open(`/${workspace.slug}/issue/${issue.key}`, "_blank");
-    } else if (!showInPanel(issue.key)) {
+    } else if (!openIssueRow(issue.key)) {
       void navigate({
         params: { issueKey: issue.key, slug: workspace.slug },
-        state: { from: { projectKey: project.key, search, view } },
+        state: { from: { projectKey: project.key, search, view }, full: true },
         to: "/$slug/issue/$issueKey",
       });
     }

@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { cn } from "cn";
 import {
   CircleDotIcon,
+  EllipsisIcon,
   FileTextIcon,
   FolderIcon,
+  RotateCcwIcon,
   TrashIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -13,6 +16,7 @@ import { LoadFailed } from "~/components/load-failed";
 import {
   SettingsFilter,
   SettingsPage,
+  SettingsTable,
   TableEmpty,
   tableDate,
   tableGroup,
@@ -31,6 +35,12 @@ import {
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { toast } from "~/components/ui/toast";
 import { UserAvatar } from "~/components/user-avatar";
@@ -61,16 +71,21 @@ const DeleteForever = ({
   description,
   name,
   onDelete,
+  onOpenChange,
+  open,
 }: {
   description: string;
   name: string;
   onDelete: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
 }) => (
-  <AlertDialog>
+  <AlertDialog onOpenChange={onOpenChange} open={open}>
     <AlertDialogTrigger
       render={
         <Button
           aria-label={`Delete ${name} forever`}
+          className="max-md:hidden"
           size="icon-sm"
           variant="quiet"
         />
@@ -91,6 +106,51 @@ const DeleteForever = ({
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
+);
+
+const RowMenu = ({
+  isAdmin,
+  name,
+  onPurge,
+  onRestore,
+  pending,
+}: {
+  isAdmin: boolean;
+  name: string;
+  onPurge: () => void;
+  onRestore: () => void;
+  pending: boolean;
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger
+      render={
+        <Button
+          aria-label={`Actions for ${name}`}
+          className="md:hidden"
+          size="icon"
+          variant="ghost"
+        />
+      }
+    >
+      <EllipsisIcon />
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuItem disabled={pending} onClick={onRestore}>
+        <RotateCcwIcon />
+        Restore
+      </DropdownMenuItem>
+      {isAdmin ? (
+        <DropdownMenuItem
+          disabled={pending}
+          onClick={onPurge}
+          variant="destructive"
+        >
+          <TrashIcon />
+          Delete forever
+        </DropdownMenuItem>
+      ) : null}
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 const useTrashAction = (
@@ -188,29 +248,49 @@ const TrashRow = ({
   pending: boolean;
   purgeAt: string;
   purgeText: string;
-}) => (
-  <li className={tableRow}>
-    <div className="flex min-w-0 flex-1 flex-col">
-      <div className="flex min-w-0 items-center gap-2">{children}</div>
-      <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
-    </div>
-    <DeletedBy user={deletedBy} />
-    <ExpiresIn purgeAt={purgeAt} />
-    <div className="flex w-28 shrink-0 items-center justify-end gap-1">
-      <Button
-        disabled={pending}
-        onClick={onRestore}
-        size="sm"
-        variant="outline"
-      >
-        Restore
-      </Button>
-      {isAdmin ? (
-        <DeleteForever description={purgeText} name={name} onDelete={onPurge} />
-      ) : null}
-    </div>
-  </li>
-);
+}) => {
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <li className={cn(tableRow, "max-md:py-1.5")}>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 items-center gap-2">{children}</div>
+        <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
+      </div>
+      <DeletedBy user={deletedBy} />
+      <ExpiresIn purgeAt={purgeAt} />
+      <div className="flex shrink-0 items-center justify-end gap-1 md:w-28">
+        <Button
+          className="max-md:hidden"
+          disabled={pending}
+          onClick={onRestore}
+          size="sm"
+          variant="outline"
+        >
+          Restore
+        </Button>
+        {isAdmin ? (
+          <DeleteForever
+            description={purgeText}
+            name={name}
+            onDelete={onPurge}
+            onOpenChange={setConfirming}
+            open={confirming}
+          />
+        ) : null}
+        <RowMenu
+          isAdmin={isAdmin}
+          name={name}
+          onPurge={() => {
+            setConfirming(true);
+          }}
+          onRestore={onRestore}
+          pending={pending}
+        />
+      </div>
+    </li>
+  );
+};
 
 const IssueRow = ({
   isAdmin,
@@ -273,7 +353,7 @@ const IssueRow = ({
         {issue.key}
       </span>
       <Link
-        className="truncate font-medium hover:underline"
+        className="font-medium wrap-anywhere hover:underline md:truncate"
         params={{ issueKey: issue.key, slug }}
         to="/$slug/issue/$issueKey"
       >
@@ -350,8 +430,10 @@ const PageRow = ({
     >
       <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
       <span className="flex min-w-0 flex-col py-1.5">
-        <span className="truncate font-medium">{page.title}</span>
-        <span className="text-muted-foreground truncate text-xs">
+        <span className="font-medium wrap-anywhere md:truncate">
+          {page.title}
+        </span>
+        <span className="text-muted-foreground text-xs wrap-anywhere md:truncate">
           {page.path}
           {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
         </span>
@@ -384,57 +466,64 @@ const TrashTable = ({
       onChange={onFilter}
       value={filter}
     />
-    <div aria-hidden className={tableHead}>
-      <span className="flex-1">Name</span>
-      <span className="w-40 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
-      <span className={tableDate}>Deleted forever</span>
-      <span className="w-28 shrink-0" />
-    </div>
-    {issues.length === 0 && pages.length === 0 ? (
-      <TableEmpty
-        description=""
-        filter={filter.trim()}
-        onClearFilter={() => {
-          onFilter("");
-        }}
-        title=""
-      />
-    ) : null}
-    {issues.length === 0 ? null : (
-      <section aria-label="Issues">
-        <h2 className={tableGroup}>
-          Issues
-          <span className="text-muted-foreground font-normal">
-            {issues.length}
-          </span>
-        </h2>
-        <ul>
-          {issues.map((issue) => (
-            <IssueRow
-              isAdmin={isAdmin}
-              issue={issue}
-              key={issue.id}
-              slug={slug}
-            />
-          ))}
-        </ul>
-      </section>
-    )}
-    {pages.length === 0 ? null : (
-      <section aria-label="Wiki pages">
-        <h2 className={tableGroup}>
-          Wiki pages
-          <span className="text-muted-foreground font-normal">
-            {pages.length}
-          </span>
-        </h2>
-        <ul>
-          {pages.map((page) => (
-            <PageRow isAdmin={isAdmin} key={page.id} page={page} slug={slug} />
-          ))}
-        </ul>
-      </section>
-    )}
+    <SettingsTable>
+      <div aria-hidden className={tableHead}>
+        <span className="flex-1">Name</span>
+        <span className="w-40 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
+        <span className={tableDate}>Deleted forever</span>
+        <span className="w-8 shrink-0 md:w-28" />
+      </div>
+      {issues.length === 0 && pages.length === 0 ? (
+        <TableEmpty
+          description=""
+          filter={filter.trim()}
+          onClearFilter={() => {
+            onFilter("");
+          }}
+          title=""
+        />
+      ) : null}
+      {issues.length === 0 ? null : (
+        <section aria-label="Issues">
+          <h2 className={tableGroup}>
+            Issues
+            <span className="text-muted-foreground font-normal">
+              {issues.length}
+            </span>
+          </h2>
+          <ul>
+            {issues.map((issue) => (
+              <IssueRow
+                isAdmin={isAdmin}
+                issue={issue}
+                key={issue.id}
+                slug={slug}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+      {pages.length === 0 ? null : (
+        <section aria-label="Wiki pages">
+          <h2 className={tableGroup}>
+            Wiki pages
+            <span className="text-muted-foreground font-normal">
+              {pages.length}
+            </span>
+          </h2>
+          <ul>
+            {pages.map((page) => (
+              <PageRow
+                isAdmin={isAdmin}
+                key={page.id}
+                page={page}
+                slug={slug}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+    </SettingsTable>
   </>
 );
 
@@ -477,14 +566,16 @@ const Trash = () => {
           />
         ) : null}
         {empty ? (
-          <TableEmpty
-            description="Deleted issues and wiki pages show up here."
-            filter=""
-            onClearFilter={() => {
-              setFilter("");
-            }}
-            title="Trash is empty"
-          />
+          <SettingsTable>
+            <TableEmpty
+              description="Deleted issues and wiki pages show up here."
+              filter=""
+              onClearFilter={() => {
+                setFilter("");
+              }}
+              title="Trash is empty"
+            />
+          </SettingsTable>
         ) : null}
         {trash.data === undefined || empty ? null : (
           <TrashTable
