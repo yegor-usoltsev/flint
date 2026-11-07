@@ -31,9 +31,9 @@ import { IssueDevelopment } from "~/components/issue-development";
 import { Hint } from "~/components/issue-parts";
 import { IssueProperties, PillButton } from "~/components/issue-properties";
 import { IssueTimeline } from "~/components/issue-timeline";
-import { LazyMarkdownEditor, SourceToggle } from "~/components/lazy-editor";
 import { LoadFailed } from "~/components/load-failed";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
+import { MarkdownField, SourceToggle } from "~/components/markdown-view";
 import { MenuKeys } from "~/components/menu-filter";
 import { Page } from "~/components/page";
 import { PresenceAvatars } from "~/components/presence-avatars";
@@ -420,7 +420,7 @@ const Description = ({
           window.addEventListener("pointercancel", release);
         }}
       >
-        <LazyMarkdownEditor
+        <MarkdownField
           checkable={editable}
           className={cn(
             "text-prose focus-within:min-h-24",

@@ -22,9 +22,12 @@ import * as v from "valibot";
 
 import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog } from "~/components/conflict-dialog";
-import { LazyMarkdownEditor, SourceToggle } from "~/components/lazy-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
-import { MarkdownView } from "~/components/markdown-view";
+import {
+  MarkdownField,
+  MarkdownView,
+  SourceToggle,
+} from "~/components/markdown-view";
 import { Keys } from "~/components/shortcuts-dialog";
 import { StatusIcon } from "~/components/status-icon";
 import {
@@ -516,7 +519,7 @@ const CommentItem = ({
         />
       ) : (
         <>
-          <LazyMarkdownEditor
+          <MarkdownField
             autoFocus
             className="text-prose pl-7"
             label="Edit comment"
@@ -668,7 +671,7 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
 
   return (
     <div className={composerClass}>
-      <LazyMarkdownEditor
+      <MarkdownField
         className="text-prose min-h-12"
         label="Comment"
         onChange={setBody}
