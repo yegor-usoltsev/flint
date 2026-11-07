@@ -12,13 +12,15 @@ const onScreen = (rect: DOMRect) =>
   rect.right > 0 &&
   rect.left < window.innerWidth;
 
-export const rowRects = (ids: Iterable<string>) =>
+export const rowRects = () =>
   new Map(
-    [...ids].flatMap((id): [string, DOMRect][] => {
-      const row = rowOf(id);
+    [...document.querySelectorAll<HTMLElement>("[data-issue]")]
+      .toReversed()
+      .flatMap((row): [string, DOMRect][] => {
+        const id = row.dataset["issue"];
 
-      return row === null ? [] : [[id, row.getBoundingClientRect()]];
-    })
+        return id === undefined ? [] : [[id, row.getBoundingClientRect()]];
+      })
   );
 
 const worthAnimating = (from: DOMRect, to: DOMRect) =>

@@ -116,12 +116,12 @@ const hiddenBy = (
 ): Hidden | null => {
   const row = rowOf(id);
 
-  if (row !== null) {
-    return inView(row) ? null : { kind: "offscreen" };
-  }
-
   if (change.before?.rendered !== true) {
     return null;
+  }
+
+  if (row !== null) {
+    return inView(row) ? null : { kind: "offscreen" };
   }
 
   const issue = findShownIssue(queryClient, id);
@@ -221,17 +221,19 @@ const show = (
 ) => {
   const { hidden, id } = candidate;
 
+  const reveal = () => {
+    if (rowOf(id) === null) {
+      openHidden(queryClient, candidate, openIssue);
+    } else {
+      revealRow(id);
+    }
+  };
+
   if (hidden.kind === "offscreen") {
-    revealRow(id);
+    reveal();
   } else if (hidden.kind === "collapsed") {
     setStatusCollapsed(hidden.statusId, false);
-    requestAnimationFrame(() => {
-      if (rowOf(id) === null) {
-        openHidden(queryClient, candidate, openIssue);
-      } else {
-        revealRow(id);
-      }
-    });
+    requestAnimationFrame(reveal);
   } else {
     openHidden(queryClient, candidate, openIssue);
   }
@@ -303,4 +305,13 @@ export const noticeOffscreen = ({
     timer = null;
     flush(queryClient, slug, openIssue);
   }, settleMs);
+};
+
+export const cancelNotices = () => {
+  pending.clear();
+
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
 };

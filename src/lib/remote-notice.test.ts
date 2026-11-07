@@ -5,7 +5,7 @@ import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { toast } from "~/components/ui/toast";
 import type { Issue, Member } from "~/lib/api-types";
 import { membersQuery } from "~/lib/queries";
-import { noticeOffscreen } from "~/lib/remote-notice";
+import { cancelNotices, noticeOffscreen } from "~/lib/remote-notice";
 
 const page = { collapsed: false, row: true };
 
@@ -269,4 +269,46 @@ test("Show opens the issue when expanding its group still leaves it filtered out
   expect(opened).toEqual(["ENG-1"]);
   add.mockRestore();
   close.mockRestore();
+});
+
+test("an issue that appears below the fold stays quiet", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+
+  change(queryClient, "1", "bob", "todo", false);
+  jest.advanceTimersByTime(1200);
+
+  expect(add).not.toHaveBeenCalled();
+  add.mockRestore();
+});
+
+test("Show opens the issue when its off-screen row is gone by the click", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+  const close = spyOn(toast, "close").mockReturnValue();
+
+  change(queryClient, "1", "bob");
+  jest.advanceTimersByTime(1200);
+  page.row = false;
+
+  const click: ((...args: never[]) => void) | undefined =
+    add.mock.calls[0]?.[0].actionProps?.onClick;
+
+  click?.();
+
+  expect(opened).toEqual(["ENG-1"]);
+  add.mockRestore();
+  close.mockRestore();
+});
+
+test("leaving the workspace drops notices that have not shown yet", () => {
+  const queryClient = setup();
+  const add = spyOn(toast, "add").mockReturnValue("t");
+
+  change(queryClient, "1", "bob");
+  cancelNotices();
+  jest.advanceTimersByTime(1200);
+
+  expect(add).not.toHaveBeenCalled();
+  add.mockRestore();
 });

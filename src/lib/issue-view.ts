@@ -166,11 +166,13 @@ const subscribeView = (listener: () => void) => {
   };
 };
 
+export const projectView = (projectKey: string): ViewKind =>
+  localStorage.getItem(viewKey(projectKey)) === "board" ? "board" : "list";
+
 export const useProjectView = (projectKey: string): ViewKind =>
   useSyncExternalStore(
     subscribeView,
-    () =>
-      localStorage.getItem(viewKey(projectKey)) === "board" ? "board" : "list",
+    () => projectView(projectKey),
     () => "list"
   );
 
