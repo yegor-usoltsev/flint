@@ -969,7 +969,10 @@ export const IssueTimeline = ({
     me?.id
   );
 
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [earlier, setEarlier] = useState<{
+    hidden: number;
+    issueId: string;
+  } | null>(null);
 
   const items = activityFeed(
     timeline.data?.events ?? [],
@@ -977,7 +980,13 @@ export const IssueTimeline = ({
   );
 
   const hidden =
-    expanded === issue.id ? 0 : Math.max(0, items.length - recentItems);
+    earlier?.issueId === issue.id
+      ? earlier.hidden
+      : Math.max(0, items.length - recentItems);
+
+  if (timeline.data !== undefined && earlier?.issueId !== issue.id) {
+    setEarlier({ hidden, issueId: issue.id });
+  }
 
   const feed = runs(items.slice(hidden));
 
@@ -1000,7 +1009,7 @@ export const IssueTimeline = ({
             <Button
               className="-ml-1.5 self-start"
               onClick={() => {
-                setExpanded(issue.id);
+                setEarlier({ hidden: 0, issueId: issue.id });
               }}
               size="sm"
               variant="ghost"

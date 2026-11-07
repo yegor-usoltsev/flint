@@ -16,7 +16,8 @@ import type { MouseEvent, ReactElement, ReactNode, RefObject } from "react";
 import * as v from "valibot";
 
 import { CodeFrame, Diagram } from "~/components/code-block-view";
-import { LazyEditor } from "~/components/lazy-editor";
+import { loadEditor } from "~/components/editor-chunk";
+import { LazyMarkdownEditor } from "~/components/lazy-editor";
 import type { MarkdownEditorProps } from "~/components/markdown-editor";
 import { MediaViewer } from "~/components/media-viewer";
 import type { ViewerItem } from "~/components/media-viewer";
@@ -750,32 +751,26 @@ export const MarkdownView = ({
   );
 };
 
+void loadEditor();
+
 export const MarkdownField = (props: MarkdownEditorProps) => {
-  const {
-    attachments,
-    className,
-    editable = true,
-    placeholder,
-    uploadTo,
-    value,
-  } = props;
+  const { attachments, editable = true, uploadTo } = props;
 
   return (
-    <Suspense
+    <LazyMarkdownEditor
+      {...props}
       fallback={
         <MarkdownView
           attachments={
             attachments === null ? undefined : (attachments ?? uploadTo)
           }
-          className={className}
+          className={props.className}
           editable={editable}
-          placeholder={editable ? placeholder : undefined}
-          value={value}
+          placeholder={editable ? props.placeholder : undefined}
+          value={props.value}
         />
       }
-    >
-      <LazyEditor {...props} />
-    </Suspense>
+    />
   );
 };
 
