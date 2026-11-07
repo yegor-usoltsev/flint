@@ -68,7 +68,7 @@ const PageTitle = ({
   if (switcher === undefined || (open && !isMobile)) {
     return (
       <h1 className="text-foreground flex min-w-0 font-medium">
-        <span className="truncate">{title}</span>
+        <span className="max-md:text-heading truncate">{title}</span>
       </h1>
     );
   }
@@ -90,7 +90,9 @@ const PageTitle = ({
                 {context}
               </span>
             )}
-            <span className="max-w-full truncate">{title}</span>
+            <span className="max-md:text-heading max-w-full truncate">
+              {title}
+            </span>
           </span>
           <ChevronDownIcon
             className="text-muted-foreground"

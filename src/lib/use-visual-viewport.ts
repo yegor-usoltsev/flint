@@ -20,27 +20,30 @@ const clearViewport = () => {
   document.documentElement.style.removeProperty("--visual-viewport-top");
 };
 
-export const useVisualViewport = (active: boolean) => {
-  useEffect(() => {
-    const viewport = active ? window.visualViewport : null;
+export const holdViewport = () => {
+  const viewport = window.visualViewport;
 
-    if (viewport !== null) {
-      users += 1;
-      writeViewport();
-      // oxlint-disable-next-line github/prefer-observers -- visualViewport reports keyboard resizes only through its resize event
-      viewport.addEventListener("resize", writeViewport);
-      // oxlint-disable-next-line github/prefer-observers -- visualViewport reports its offset only through its scroll event
-      viewport.addEventListener("scroll", writeViewport);
-    }
+  users += 1;
+  writeViewport();
 
-    return () => {
+  if (users === 1) {
+    // oxlint-disable-next-line github/prefer-observers -- visualViewport reports keyboard resizes only through its resize event
+    viewport?.addEventListener("resize", writeViewport);
+    // oxlint-disable-next-line github/prefer-observers -- visualViewport reports its offset only through its scroll event
+    viewport?.addEventListener("scroll", writeViewport);
+  }
+
+  return () => {
+    users -= 1;
+
+    if (users === 0) {
       viewport?.removeEventListener("resize", writeViewport);
       viewport?.removeEventListener("scroll", writeViewport);
-      users -= viewport === null ? 0 : 1;
+      clearViewport();
+    }
+  };
+};
 
-      if (viewport !== null && users === 0) {
-        clearViewport();
-      }
-    };
-  }, [active]);
+export const useVisualViewport = (active: boolean) => {
+  useEffect(() => (active ? holdViewport() : undefined), [active]);
 };

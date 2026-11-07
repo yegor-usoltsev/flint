@@ -162,7 +162,9 @@ export const SettingsHeader = ({
         {parent === undefined ? (
           <BreadcrumbItem className="md:hidden">
             {label === undefined ? (
-              <span className="text-foreground font-medium">Settings</span>
+              <span className="text-foreground text-heading font-medium">
+                Settings
+              </span>
             ) : (
               <span className="text-xs">Settings</span>
             )}
@@ -185,7 +187,7 @@ export const SettingsHeader = ({
               <BreadcrumbSeparator className="max-md:hidden" />
             )}
             <BreadcrumbItem className="min-w-12 max-md:-mt-1 max-md:max-w-full">
-              <span className="text-foreground truncate font-medium">
+              <span className="text-foreground max-md:text-heading truncate font-medium">
                 {label}
               </span>
             </BreadcrumbItem>

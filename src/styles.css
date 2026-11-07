@@ -76,6 +76,8 @@
   --color-swatch: var(--swatch);
   --text-sm: 0.8125rem;
   --text-sm--line-height: 1.25rem;
+  --text-heading: 0.875rem;
+  --text-heading--line-height: 1.25rem;
   --text-prose: 0.9375rem;
   --text-prose--line-height: 1.5rem;
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
