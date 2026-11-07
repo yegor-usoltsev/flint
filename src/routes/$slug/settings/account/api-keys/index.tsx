@@ -147,7 +147,7 @@ const TokenRows = () => {
         <EmptyHeader>
           <EmptyTitle>No API keys yet</EmptyTitle>
           <EmptyDescription>
-            <span className="max-md:leading-11 pointer-coarse:leading-11">
+            <span className="leading-7">
               Sign in the flint CLI with{" "}
               <CopyCode
                 copy={() => loginCommand(window.location.origin)}

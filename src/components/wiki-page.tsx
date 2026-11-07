@@ -1540,6 +1540,7 @@ const PageEditor = ({
           <PageMenu actions={actions} />
         </>
       }
+      bodyTitle
       className="flex overflow-hidden"
       crumbs={crumbs}
       switcher={<NavSwitcher place={{ kind: "wiki", path: page.path }} />}
