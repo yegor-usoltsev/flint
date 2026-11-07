@@ -353,19 +353,41 @@ const Description = ({
 }) => {
   const description = useIssueDraft(issue, "description", 600);
   const [source, setSource] = useState(false);
+  const [pressing, setPressing] = useState(false);
 
-  const quiet =
-    !source &&
-    description.status !== "error" &&
-    description.status !== "pending" &&
-    description.status !== "saving";
+  const busy = ["error", "pending", "saving"].includes(description.status);
+  const quiet = !pressing && !source && !busy;
 
   return (
     <section aria-label="Description" className="flex flex-col gap-2">
-      <div className="group/description flex flex-col gap-2">
+      <div
+        className="group/description flex flex-col gap-2"
+        onBlur={(event) => {
+          if (
+            event.currentTarget.contains(event.relatedTarget) ||
+            document.querySelector(":active") === null
+          ) {
+            return;
+          }
+
+          setPressing(true);
+          window.addEventListener(
+            "pointerup",
+            () => {
+              setTimeout(() => {
+                setPressing(false);
+              }, 0);
+            },
+            { once: true }
+          );
+        }}
+      >
         <MarkdownEditor
           checkable={editable}
-          className="text-prose focus-within:min-h-24"
+          className={cn(
+            "text-prose focus-within:min-h-24",
+            pressing && "min-h-24"
+          )}
           draft={description.draft}
           editable={editable}
           label="Description"
