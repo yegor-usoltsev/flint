@@ -3,6 +3,7 @@ import { SearchIcon } from "lucide-react";
 import { createContext, useContext, useReducer, useRef } from "react";
 import type { ReactElement, ReactNode } from "react";
 
+import { SyncText, useSyncShown } from "~/components/sync-status";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -150,53 +151,73 @@ export const SettingsHeader = ({
 }: {
   label?: string;
   parent?: SettingsParent;
-}) => (
-  <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-    <SidebarTrigger className="-ml-1" />
-    <Separator
-      className="mr-1 data-vertical:h-4 data-vertical:self-center"
-      orientation="vertical"
-    />
-    <Breadcrumb className="min-w-0 flex-1">
-      <BreadcrumbList className="flex-nowrap max-md:flex-col max-md:items-start">
-        {parent === undefined ? (
-          <BreadcrumbItem className="md:hidden">
-            {label === undefined ? (
-              <span className="text-foreground text-heading font-medium">
-                Settings
-              </span>
-            ) : (
-              <span className="text-xs">Settings</span>
-            )}
-          </BreadcrumbItem>
-        ) : (
-          <BreadcrumbItem className="min-w-6 shrink-[100] max-md:max-w-full">
-            <BreadcrumbLink
-              className="hit-area relative min-w-0"
-              render={parent.link}
-            >
-              <span className="block truncate max-md:text-xs">
-                {parent.label}
-              </span>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-        )}
-        {label === undefined ? null : (
-          <>
-            {parent === undefined ? null : (
-              <BreadcrumbSeparator className="max-md:hidden" />
-            )}
-            <BreadcrumbItem className="min-w-12 max-md:-mt-1 max-md:max-w-full">
-              <span className="text-foreground max-md:text-heading truncate font-medium">
-                {label}
-              </span>
+}) => {
+  const syncing = useSyncShown() !== null;
+
+  return (
+    <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <SidebarTrigger className="-ml-1" />
+      <Separator
+        className="mr-1 data-vertical:h-4 data-vertical:self-center"
+        orientation="vertical"
+      />
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList className="flex-nowrap max-md:flex-col max-md:items-start">
+          {syncing ? (
+            <BreadcrumbItem className="max-w-full md:hidden">
+              <SyncText />
             </BreadcrumbItem>
-          </>
-        )}
-      </BreadcrumbList>
-    </Breadcrumb>
-  </header>
-);
+          ) : null}
+          {parent === undefined ? (
+            <BreadcrumbItem
+              className={cn(
+                "md:hidden",
+                syncing && label !== undefined && "hidden"
+              )}
+            >
+              {label === undefined ? (
+                <span className="text-foreground text-heading font-medium">
+                  Settings
+                </span>
+              ) : (
+                <span className="text-xs">Settings</span>
+              )}
+            </BreadcrumbItem>
+          ) : (
+            <BreadcrumbItem
+              className={cn(
+                "min-w-6 shrink-[100] max-md:max-w-full",
+                syncing && label !== undefined && "max-md:hidden"
+              )}
+            >
+              <BreadcrumbLink
+                className="hit-area relative min-w-0"
+                render={parent.link}
+              >
+                <span className="block truncate max-md:text-xs">
+                  {parent.label}
+                </span>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          )}
+          {label === undefined ? null : (
+            <>
+              {parent === undefined ? null : (
+                <BreadcrumbSeparator className="max-md:hidden" />
+              )}
+              <BreadcrumbItem className="min-w-12 max-md:-mt-1 max-md:max-w-full">
+                <span className="text-foreground max-md:text-heading truncate font-medium">
+                  {label}
+                </span>
+              </BreadcrumbItem>
+            </>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
+      <SyncText className="shrink-0 max-md:hidden" />
+    </header>
+  );
+};
 
 export const SettingsPage = ({
   actions,

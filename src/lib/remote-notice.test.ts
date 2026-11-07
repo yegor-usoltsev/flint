@@ -180,7 +180,7 @@ test("a later edit by another teammate is not credited with the move", () => {
   change(queryClient, "1", "carol");
   jest.advanceTimersByTime(1200);
 
-  expect(add.mock.calls[0]?.[0].title).toBe("ENG-1 changed");
+  expect(add.mock.calls[0]?.[0].title).toBe("ENG\u20111 changed");
   add.mockRestore();
 });
 
@@ -197,7 +197,7 @@ test("two teammates in one realtime batch are not merged into one name", () => {
   });
   jest.advanceTimersByTime(1200);
 
-  expect(add.mock.calls[0]?.[0].title).toBe("ENG-1 changed");
+  expect(add.mock.calls[0]?.[0].title).toBe("ENG\u20111 changed");
   add.mockRestore();
 });
 
@@ -220,7 +220,9 @@ test("a move into a collapsed group names the collapsed group", () => {
 
   const [options] = add.mock.calls[0] ?? [];
 
-  expect(options?.title).toBe("Bob Chen moved ENG-1 to Done (group collapsed)");
+  expect(options?.title).toBe(
+    "Bob Chen moved ENG\u20111 to Done (group collapsed)"
+  );
   add.mockRestore();
 });
 
@@ -235,7 +237,7 @@ test("a move hidden by filters names the filters", () => {
   const [options] = add.mock.calls[0] ?? [];
 
   expect(options?.title).toBe(
-    "Bob Chen moved ENG-1 to Done (hidden by filters)"
+    "Bob Chen moved ENG\u20111 to Done (hidden by filters)"
   );
   add.mockRestore();
 });
