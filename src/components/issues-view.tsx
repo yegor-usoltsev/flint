@@ -437,6 +437,15 @@ const CardContent = ({
   </>
 );
 
+const toggleRail = (button: HTMLElement, id: string, expanded: boolean) => {
+  const column = button.closest("section");
+
+  setRailExpanded(id, expanded);
+  requestAnimationFrame(() => {
+    column?.querySelector<HTMLElement>("[data-rail-toggle]")?.focus();
+  });
+};
+
 const BoardColumn = ({
   assignee,
   footer,
@@ -473,8 +482,9 @@ const BoardColumn = ({
         <button
           aria-expanded={false}
           className="hover:bg-surface-2 focus-visible:ring-ring flex min-h-0 flex-1 flex-col items-center gap-2 rounded-md py-4 outline-none focus-visible:ring-2"
-          onClick={() => {
-            setRailExpanded(status.id, true);
+          data-rail-toggle
+          onClick={(event) => {
+            toggleRail(event.currentTarget, status.id, true);
           }}
           type="button"
         >
@@ -514,8 +524,9 @@ const BoardColumn = ({
               <Button
                 aria-expanded
                 aria-label={`Collapse ${status.name}`}
-                onClick={() => {
-                  setRailExpanded(status.id, false);
+                data-rail-toggle
+                onClick={(event) => {
+                  toggleRail(event.currentTarget, status.id, false);
                 }}
                 size="icon-xs"
                 variant="ghost"
