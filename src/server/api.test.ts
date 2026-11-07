@@ -280,3 +280,37 @@ test("unexpected errors and unknown endpoints keep the envelope", async () => {
     error: { code: "method_not_allowed" },
   });
 });
+
+test("JSON over 1 KB is gzipped for clients that accept it", async () => {
+  const cookie = await sessionCookieFor(await createUser("alice"));
+
+  await Promise.all(
+    Array.from(
+      { length: 12 },
+      async (_, index) => await createToken(cookie, `token ${index}`)
+    )
+  );
+
+  const list = async (headers: Record<string, string>) =>
+    await callRoute(
+      tokensRoute,
+      appRequest("/api/v1/me/tokens", { headers: { cookie, ...headers } })
+    );
+
+  const gzipped = await list({ "accept-encoding": "gzip, deflate, br, zstd" });
+  const plain = await list({});
+  const small = await getMe({ "accept-encoding": "gzip", cookie });
+
+  const body: unknown = JSON.parse(
+    new TextDecoder().decode(Bun.gunzipSync(await gzipped.bytes()))
+  );
+
+  expect(gzipped.headers.get("content-encoding")).toBe("gzip");
+  expect(gzipped.headers.get("vary")).toBe("Accept-Encoding");
+  expect(gzipped.headers.get("cache-control")).toBe("no-store");
+  expect(body).toEqual(await plain.json());
+  expect(body).toHaveLength(12);
+  expect(plain.headers.get("content-encoding")).toBeNull();
+  expect(small.headers.get("content-encoding")).toBeNull();
+  expect(await small.json()).toMatchObject({ username: "alice" });
+});
