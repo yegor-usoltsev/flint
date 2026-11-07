@@ -8,6 +8,7 @@ import {
   adoptDrafts,
   discardDraft,
   editDraft,
+  holdEdits,
   isRetryableDraftError,
   readDraft,
   settleDraft,
@@ -92,6 +93,31 @@ test("queued saves clear the draft once the last one is told", () => {
   expect(readDraft("queue:body")).toBeUndefined();
 });
 
+test("a save that answers while an editor holds newer text keeps that text as a draft", () => {
+  editDraft("held:body", "A", "");
+  settleDraft("held:body", "A");
+
+  let held: string | null = "AB";
+
+  const release = holdEdits("held:body", () => {
+    if (held !== null) {
+      editDraft("held:body", held, "");
+      held = null;
+    }
+  });
+
+  drain();
+  release();
+
+  expect(readDraft("held:body")).toMatchObject({
+    base: "A",
+    status: "pending",
+    text: "AB",
+  });
+
+  discardDraft("held:body");
+});
+
 test("a save from before a discard never clears the same text retyped", () => {
   editDraft("retype:body", "A", "");
   settleDraft("retype:body", "A");
@@ -129,4 +155,22 @@ test("changing accounts does not expose the previous account's text", () => {
   } finally {
     add.mockRestore();
   }
+});
+
+test("text an editor holds when the account changes never reaches the next account", () => {
+  adoptDrafts("alice");
+
+  let held: string | null = "Alice's text";
+
+  const release = holdEdits("account:body", () => {
+    if (held !== null) {
+      editDraft("account:body", held, "");
+      held = null;
+    }
+  });
+
+  adoptDrafts("bob");
+  release();
+
+  expect(readDraft("account:body")).toBeUndefined();
 });

@@ -35,6 +35,8 @@ import type {
   RefObject,
   SyntheticEvent,
 } from "react";
+// oxlint-disable-next-line react-doctor/no-flush-sync -- A keyboard submit reads text from the last render, so held text must render before it runs.
+import { flushSync } from "react-dom";
 
 import { codeBlockView as CodeBlockView } from "~/components/code-block-view";
 import {
@@ -61,6 +63,7 @@ import type { Attachment } from "~/lib/api-types";
 import { isSafeUrl, markdownExtensions } from "~/lib/markdown";
 import {
   createChangeGate,
+  createThrottle,
   normalizeMarkdown,
   withoutTrailingLines,
   replaceMarkdown,
@@ -75,6 +78,7 @@ import {
 import { mediaKind } from "~/lib/media-html";
 import { projectsQuery } from "~/lib/queries";
 import { uploadFile } from "~/lib/uploads";
+import { holdEdits } from "~/lib/use-draft";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const TaskShortcut = Extension.create({
@@ -258,6 +262,10 @@ const normalized = (editor: Editor, markdown: string) =>
   editor.markdown === undefined
     ? markdown
     : normalizeMarkdown(editor.state, editor.markdown, markdown);
+
+const throttleDelay = 250;
+
+const largeDocument = 20_000;
 
 export interface MarkdownEditorHandle {
   focus: () => void;
@@ -577,6 +585,50 @@ const useIssueKeys = () => {
   );
 };
 
+const useChanges = (
+  value: string,
+  draftKey: string | undefined,
+  live: RefObject<Pick<UploadState, "onChange" | "source">>
+) => {
+  // oxlint-disable-next-line react/hook-use-state -- The gate is created once and never replaced.
+  const [gate] = useState(() => createChangeGate(value));
+  // oxlint-disable-next-line react/hook-use-state -- The throttle is created once and never replaced.
+  const [throttle] = useState(() => createThrottle(throttleDelay));
+
+  useEffect(() => {
+    const release =
+      draftKey === undefined ? null : holdEdits(draftKey, throttle.flush);
+
+    return () => {
+      throttle.flush();
+      release?.();
+    };
+  }, [draftKey, throttle]);
+
+  const emit = (editor: Editor) => {
+    if (live.current.source) {
+      return;
+    }
+
+    throttle.run(() => {
+      if (editor.isDestroyed) {
+        return;
+      }
+
+      const text = gate.change(
+        withoutTrailingLines(editor.getMarkdown()),
+        (markdown) => normalized(editor, markdown)
+      );
+
+      if (text !== null) {
+        live.current.onChange?.(text);
+      }
+    }, editor.state.doc.content.size > largeDocument);
+  };
+
+  return { emit, gate, throttle };
+};
+
 export interface MarkdownEditorProps {
   attachments?: string | null;
   autoFocus?: boolean;
@@ -617,8 +669,6 @@ export const MarkdownEditor = ({
   const keys = useIssueKeys();
   const textarea = useRef<HTMLTextAreaElement>(null);
   const filePicker = useRef<HTMLInputElement>(null);
-  // oxlint-disable-next-line react/hook-use-state -- The gate is created once and never replaced.
-  const [gate] = useState(() => createChangeGate(value));
 
   const live = useRef<
     UploadState & {
@@ -643,6 +693,7 @@ export const MarkdownEditor = ({
   });
 
   const target = useUploadTarget(uploadTo, live);
+  const { emit, gate, throttle } = useChanges(value, draft?.key, live);
 
   useLayoutEffect(() => {
     Object.assign(live.current, {
@@ -686,6 +737,7 @@ export const MarkdownEditor = ({
       attributes: { "aria-label": label, class: "markdown" },
       handleKeyDown: (view, event) => {
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          flushSync(throttle.flush);
           live.current.onSubmit?.();
 
           return live.current.onSubmit !== undefined;
@@ -698,6 +750,7 @@ export const MarkdownEditor = ({
         if (slashMenu.isOpen() || mentionMenu.isOpen()) {
           event.stopPropagation();
         } else {
+          throttle.flush();
           live.current.onCancel?.();
           // oxlint-disable-next-line github/no-blur -- Escape leaves the text field, so single-key shortcuts work next.
           view.dom.blur();
@@ -732,22 +785,14 @@ export const MarkdownEditor = ({
       mentionMenu.extension,
     ],
     immediatelyRender: true,
+    onBlur: () => {
+      throttle.flush();
+    },
     onFocus: () => {
       live.current.focused = true;
     },
     onUpdate: ({ editor: current }) => {
-      if (live.current.source) {
-        return;
-      }
-
-      const text = gate.change(
-        withoutTrailingLines(current.getMarkdown()),
-        (markdown) => normalized(current, markdown)
-      );
-
-      if (text !== null) {
-        live.current.onChange?.(text);
-      }
+      emit(current);
     },
     shouldRerenderOnTransaction: false,
   });
@@ -812,6 +857,10 @@ export const MarkdownEditor = ({
   const shownSource = useRef(source);
 
   useEffect(() => {
+    if (source) {
+      throttle.flush();
+    }
+
     if (shownSource.current !== source && editable) {
       if (source) {
         textarea.current?.focus();
@@ -823,7 +872,7 @@ export const MarkdownEditor = ({
     }
 
     shownSource.current = source;
-  }, [editable, editor, source]);
+  }, [editable, editor, source, throttle]);
 
   useEffect(() => {
     editor.setEditable(editable, false);

@@ -7,6 +7,7 @@ import type { Transaction } from "@tiptap/pm/state";
 import { markdownExtensions } from "~/lib/markdown";
 import {
   createChangeGate,
+  createThrottle,
   normalizeMarkdown,
   serializeState,
 } from "~/lib/markdown-changes";
@@ -121,5 +122,70 @@ graph LR
 
     expect(gate.emitted()).toBe(nonCanonical);
     expect(apply((tr) => tr.setMeta("load", true))).not.toBeNull();
+  });
+});
+
+describe("createThrottle", () => {
+  test("runs the first change at once and the last of a burst once after the delay", async () => {
+    const throttle = createThrottle(20);
+    const runs: string[] = [];
+
+    for (const text of ["a", "ab", "abc"]) {
+      throttle.run(() => {
+        runs.push(text);
+      }, true);
+    }
+
+    expect(runs).toEqual(["a"]);
+
+    await Bun.sleep(30);
+
+    expect(runs).toEqual(["a", "abc"]);
+
+    await Bun.sleep(30);
+    throttle.run(() => {
+      runs.push("abcd");
+    }, true);
+
+    expect(runs).toEqual(["a", "abc", "abcd"]);
+  });
+
+  test("a flush runs the pending change once and lets the next change run at once", async () => {
+    const throttle = createThrottle(20);
+    const runs: string[] = [];
+
+    throttle.run(() => {
+      runs.push("a");
+    }, true);
+    throttle.run(() => {
+      runs.push("ab");
+    }, true);
+    throttle.flush();
+    throttle.flush();
+
+    expect(runs).toEqual(["a", "ab"]);
+
+    throttle.run(() => {
+      runs.push("abc");
+    }, true);
+
+    expect(runs).toEqual(["a", "ab", "abc"]);
+
+    await Bun.sleep(30);
+
+    expect(runs).toEqual(["a", "ab", "abc"]);
+  });
+
+  test("without throttling every change runs at once", () => {
+    const throttle = createThrottle(20);
+    const runs: string[] = [];
+
+    for (const text of ["a", "ab"]) {
+      throttle.run(() => {
+        runs.push(text);
+      }, false);
+    }
+
+    expect(runs).toEqual(["a", "ab"]);
   });
 });
