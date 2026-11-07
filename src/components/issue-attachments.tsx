@@ -36,7 +36,7 @@ const Preview = ({ attachment }: { attachment: Attachment }) => {
         alt=""
         className="bg-muted size-8 shrink-0 rounded-md border object-cover"
         loading="lazy"
-        src={attachment.url}
+        src={`${attachment.url}?thumb`}
       />
     );
   }

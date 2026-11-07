@@ -5,30 +5,7 @@ import { deleteObjects, s3 } from "~/server/s3.server";
 
 const day = 24 * 60 * 60 * 1000;
 
-export interface SweepOptions {
-  before?: Date;
-  prefix?: string;
-}
-
-export const sweepStorage = async ({
-  before = new Date(Date.now() - env.DRAFT_UPLOAD_RETENTION_DAYS * day),
-  prefix = "",
-}: SweepOptions = {}) => {
-  const rows = await db<{ storageKey: string }[]>`
-    delete from attachments a
-    where a.issue_id is null and a.wiki_page_id is null
-      and a.created_at < ${before}
-      and a.storage_key like ${`${prefix}%`}
-      and not exists (
-        select 1 from workspaces w where w.logo_attachment_id = a.id
-      )
-    returning a.storage_key as "storageKey"
-  `;
-
-  await deleteObjects(rows.map((row) => row.storageKey));
-
-  const orphansBefore = new Date(Math.max(before.getTime(), Date.now() - day));
-
+const sweepPrefix = async (prefix: string, before: Date) => {
   let objects = 0;
   let startAfter: string | undefined;
 
@@ -39,10 +16,7 @@ export const sweepStorage = async ({
     const old: string[] = [];
 
     for (const { key, lastModified } of contents) {
-      if (
-        lastModified !== undefined &&
-        new Date(lastModified) < orphansBefore
-      ) {
+      if (lastModified !== undefined && new Date(lastModified) < before) {
         old.push(key);
       }
     }
@@ -66,8 +40,33 @@ export const sweepStorage = async ({
     startAfter = contents.at(-1)?.key;
 
     if (page.isTruncated !== true || startAfter === undefined) {
-      break;
+      return objects;
     }
+  }
+};
+
+export const sweepStorage = async (
+  before = new Date(Date.now() - env.DRAFT_UPLOAD_RETENTION_DAYS * day)
+) => {
+  const rows = await db<{ storageKey: string }[]>`
+    delete from attachments a
+    where a.issue_id is null and a.wiki_page_id is null
+      and a.created_at < ${before}
+      and not exists (
+        select 1 from workspaces w where w.logo_attachment_id = a.id
+      )
+    returning a.storage_key as "storageKey"
+  `;
+
+  await deleteObjects(rows.map((row) => row.storageKey));
+
+  const orphansBefore = new Date(Math.max(before.getTime(), Date.now() - day));
+  const workspaces = await db<{ id: string }[]>`select id from workspaces`;
+  let objects = 0;
+
+  for (const { id } of workspaces) {
+    // oxlint-disable-next-line eslint/no-await-in-loop, react-doctor/async-await-in-loop -- Workspaces are swept one at a time to bound memory and bucket load.
+    objects += await sweepPrefix(`${id}/`, orphansBefore);
   }
 
   const result = { objects, rows: rows.length };

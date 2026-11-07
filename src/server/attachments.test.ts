@@ -44,10 +44,12 @@ beforeEach(async () => {
 });
 
 const savedMaxUpload = env.MAX_UPLOAD_BYTES;
+const savedUploadsPerUser = env.UPLOADS_PER_USER;
 
 afterEach(() => {
   mock.restore();
   env.MAX_UPLOAD_BYTES = savedMaxUpload;
+  env.UPLOADS_PER_USER = savedUploadsPerUser;
 });
 
 const setup = async () => {
@@ -136,11 +138,14 @@ const uploaded = async (auth: string, file: File) => {
 const download = async (
   auth: string,
   fileId: string,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
+  query = ""
 ) =>
   await callRoute(
     fileRoute,
-    appRequest(`/files/${fileId}`, { headers: { ...headers, cookie: auth } }),
+    appRequest(`/files/${fileId}${query}`, {
+      headers: { ...headers, cookie: auth },
+    }),
     { fileId }
   );
 
@@ -198,7 +203,7 @@ test("upload, list and a browser-style download stream the file through the app"
 
   expect(file.status).toBe(200);
   expect(Object.fromEntries(file.headers)).toMatchObject({
-    "cache-control": "private, no-cache",
+    "cache-control": "private, max-age=3600",
     "content-disposition": `inline; filename="_______ _1_.txt"; filename*=UTF-8''${encodeURIComponent('Заметки "1".txt')}`,
     "content-length": "6",
     "content-security-policy":
@@ -377,6 +382,70 @@ test("large images are scaled down to fit 2560 pixels", async () => {
   });
 });
 
+test("?thumb serves a 128-pixel WebP of an image, made once and kept, and other files as they are", async () => {
+  const { alice } = await setup();
+
+  env.MAX_UPLOAD_BYTES = 1_000_000;
+
+  const photo = await uploaded(
+    alice,
+    new File([await resized(noisePng, 600, 400)], "photo.png", {
+      type: "image/png",
+    })
+  );
+
+  const notes = await uploaded(
+    alice,
+    new File([text], "notes.txt", { type: "text/plain" })
+  );
+
+  const thumb = await download(alice, photo.id, {}, "?thumb");
+  const bytes = await thumb.bytes();
+
+  expect(thumb.status).toBe(200);
+  expect(Object.fromEntries(thumb.headers)).toMatchObject({
+    "cache-control": "private, max-age=3600",
+    "content-length": String(bytes.byteLength),
+    "content-type": "image/webp",
+    etag: `"${photo.id}.thumb"`,
+  });
+  expect(await imageSize(bytes)).toMatchObject({
+    format: "webp",
+    height: 85,
+    width: 128,
+  });
+
+  const read = spyOn(s3, "file");
+  const again = await download(alice, photo.id, {}, "?thumb");
+
+  expect(await again.bytes()).toEqual(bytes);
+  expect(read).not.toHaveBeenCalled();
+  expect(
+    await download(
+      alice,
+      photo.id,
+      { "if-none-match": `"${photo.id}.thumb"` },
+      "?thumb"
+    )
+  ).toMatchObject({ status: 304 });
+  expect(
+    await download(
+      alice,
+      photo.id,
+      { "if-none-match": `"${photo.id}"` },
+      "?thumb"
+    )
+  ).toMatchObject({ status: 200 });
+
+  read.mockRestore();
+
+  const plain = await download(alice, notes.id, {}, "?thumb");
+
+  expect(plain.headers.get("content-type")).toBe("text/plain");
+  expect(plain.headers.get("etag")).toBe(`"${notes.id}"`);
+  expect(new Uint8Array(await plain.arrayBuffer())).toEqual(text);
+});
+
 const pngChunk = (type: string, data: Uint8Array) => {
   const chunk = Buffer.alloc(12 + data.length);
 
@@ -412,6 +481,8 @@ test("GIFs, SVGs, AVIFs and animations are stored untouched", async () => {
     new File([avif], "a.avif", { type: "image/avif" }),
     new File(["<svg/>"], "a.svg", { type: "image/svg+xml" }),
   ];
+
+  env.UPLOADS_PER_USER = files.length;
 
   const stored = await Promise.all(
     files.map(async (file) => {
@@ -791,65 +862,114 @@ test("files uploaded while writing a new issue join it when it is created", asyn
   expect(await issueOf(linked.id)).not.toBe(issue.id);
 });
 
-test("UPLOADS_PER_USER caps one user's uploads in flight without slowing another user", async () => {
-  const { alice } = await setup();
+const heldUpload = async (auth: string) => {
+  const { body, headers } = await multipart(
+    new File([text], "a.txt", { type: "text/plain" })
+  );
 
-  const [root] = await db<
-    { id: string }[]
-  >`select id from users where username = 'root'`;
-
-  const rootAuth = await sessionCookieFor(root?.id ?? "");
-  const saved = env.UPLOADS_PER_USER;
-  const file = new File([text], "a.txt", { type: "text/plain" });
-  const { body, headers } = await multipart(file);
   const bytes = new Uint8Array(body);
   const gate = Promise.withResolvers<undefined>();
   const reading = Promise.withResolvers<undefined>();
   let pulls = 0;
 
+  const stream = new ReadableStream<Uint8Array>({
+    pull: async (controller) => {
+      pulls += 1;
+
+      if (pulls === 1) {
+        controller.enqueue(bytes.slice(0, 10));
+
+        return;
+      }
+
+      reading.resolve(undefined);
+      await gate.promise;
+      controller.enqueue(bytes.slice(10));
+      controller.close();
+    },
+  });
+
+  const response = callRoute(
+    issueAttachmentsRoute,
+    appRequest("/api/v1/issues/ENG-1/attachments", {
+      body: stream,
+      headers: { ...headers, cookie: auth, "sec-fetch-site": "same-origin" },
+      method: "POST",
+    }),
+    { issueKey: "ENG-1" }
+  );
+
+  return {
+    reading: reading.promise,
+    release: () => {
+      gate.resolve(undefined);
+    },
+    response,
+  };
+};
+
+const userId = async (username: string) => {
+  const [user] = await db<
+    { id: string }[]
+  >`select id from users where username = ${username}`;
+
+  return user?.id ?? "";
+};
+
+test("UPLOADS_PER_USER caps one user's uploads in flight without slowing another user", async () => {
+  const { alice } = await setup();
+  const rootAuth = await sessionCookieFor(await userId("root"));
+  const file = new File([text], "a.txt", { type: "text/plain" });
+
   env.UPLOADS_PER_USER = 1;
 
-  try {
-    const stream = new ReadableStream<Uint8Array>({
-      pull: async (controller) => {
-        pulls += 1;
+  const first = await heldUpload(alice);
 
-        if (pulls === 1) {
-          controller.enqueue(bytes.slice(0, 10));
+  await first.reading;
 
-          return;
-        }
+  expect(await upload(alice, file)).toMatchObject({
+    body: { error: { code: "rate_limited" } },
+    status: 429,
+  });
+  expect(await upload(rootAuth, file)).toMatchObject({ status: 201 });
 
-        reading.resolve(undefined);
-        await gate.promise;
-        controller.enqueue(bytes.slice(10));
-        controller.close();
-      },
-    });
+  first.release();
 
-    const first = callRoute(
-      issueAttachmentsRoute,
-      appRequest("/api/v1/issues/ENG-1/attachments", {
-        body: stream,
-        headers: { ...headers, cookie: alice, "sec-fetch-site": "same-origin" },
-        method: "POST",
-      }),
-      { issueKey: "ENG-1" }
-    );
+  expect(await first.response).toHaveProperty("status", 201);
+  expect(await upload(alice, file)).toMatchObject({ status: 201 });
+});
 
-    await reading.promise;
+test("past four upload bodies at once, further uploads wait instead of failing", async () => {
+  const { alice } = await setup();
+  const rootAuth = await sessionCookieFor(await userId("root"));
 
-    expect(await upload(alice, file)).toMatchObject({
-      body: { error: { code: "rate_limited" } },
-      status: 429,
-    });
-    expect(await upload(rootAuth, file)).toMatchObject({ status: 201 });
+  env.UPLOADS_PER_USER = 8;
 
-    gate.resolve(undefined);
+  const held = await Promise.all(
+    Array.from({ length: 4 }, async () => await heldUpload(alice))
+  );
 
-    expect(await first).toHaveProperty("status", 201);
-    expect(await upload(alice, file)).toMatchObject({ status: 201 });
-  } finally {
-    env.UPLOADS_PER_USER = saved;
+  await Promise.all(
+    held.map(async ({ reading }) => {
+      await reading;
+    })
+  );
+
+  const waiting = upload(
+    rootAuth,
+    new File([text], "b.txt", { type: "text/plain" })
+  );
+
+  expect(await Promise.race([waiting, Bun.sleep(100)])).toBeUndefined();
+
+  for (const { release } of held) {
+    release();
   }
+
+  const responses = await Promise.all(
+    held.map(async ({ response }) => await response)
+  );
+
+  expect(responses.map(({ status }) => status)).toEqual([201, 201, 201, 201]);
+  expect(await waiting).toMatchObject({ status: 201 });
 });

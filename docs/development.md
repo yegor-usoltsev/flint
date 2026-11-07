@@ -31,6 +31,8 @@ agent-browser cookies set flint_session "$T" --url http://$PUBLIC_HOST:4710
 
 Delete it afterwards with `delete from sessions where token_hash = '<H>'`.
 
+Every checkout, dev server and test run shares the bucket `flint`. The storage sweep only deletes objects under the workspaces of its own database, so a database copied with `createdb -T` would delete the source's newer files: start a server on such a copy with `STORAGE_SWEEP_CRON="0 0 29 2 *"`, and keep tests to keys under their own workspace ids.
+
 ## Codespaces
 
 To try a pull request without a local setup, choose **Code → Codespaces → Create codespace** on its branch. In about four minutes the container builds Flint, starts the compose `app` profile and runs the demo; then open port 4700 from **Ports** and sign in as `alice` with the password `password`. After pulling, run `bun install --frozen-lockfile && bun run build && docker compose --profile app up -d --wait --build`.
