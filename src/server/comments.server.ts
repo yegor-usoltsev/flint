@@ -1,4 +1,4 @@
-import type { TransactionSQL } from "bun";
+import type { SQL, TransactionSQL } from "bun";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
@@ -42,8 +42,8 @@ const commentColumns = db`
   c.via_token_id is not null as "viaApi", ${userRef} as author
 `;
 
-const selectComment = async (id: string) => {
-  const [comment] = await db<Comment[]>`
+const selectComment = async (sql: SQL, id: string) => {
+  const [comment] = await sql<Comment[]>`
     select ${commentColumns}
     from comments c
     join users u on u.id = c.author_id
@@ -115,7 +115,7 @@ export const createComment = async (
     projectId: issue.projectId,
   });
 
-  return await selectComment(id);
+  return await selectComment(db, id);
 };
 
 const findOwnComment = async (actor: Actor, id: string) => {
@@ -188,7 +188,7 @@ const changeComment = async (
         409,
         "conflict",
         "The comment changed since you started editing it",
-        await selectComment(id)
+        await selectComment(tx, id)
       );
     }
 
@@ -213,7 +213,7 @@ export const updateComment = async (
 ) => {
   await changeComment(actor, id, body, version);
 
-  return await selectComment(id);
+  return await selectComment(db, id);
 };
 
 export const deleteComment = async (actor: Actor, id: string) => {
