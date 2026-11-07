@@ -35,7 +35,7 @@ export const CheckBox = ({
   <span
     aria-hidden
     className={cn(
-      "border-muted-foreground/60 flex size-3.5 shrink-0 items-center justify-center rounded-xs border",
+      "border-control-border flex size-3.5 shrink-0 items-center justify-center rounded-xs border",
       checked && "bg-primary border-primary text-primary-foreground",
       className
     )}

@@ -221,6 +221,7 @@ export interface WikiPageSummary {
   sortKey: string;
   title: string;
   updatedAt: string;
+  updatedBy: UserRef;
 }
 
 export interface TrashedIssue {
@@ -252,7 +253,6 @@ export interface Trash {
 export interface WikiPage extends WikiPageSummary {
   body: string;
   createdAt: string;
-  updatedBy: UserRef;
   workspaceSlug: string;
 }
 

@@ -138,6 +138,7 @@ const sections: { rows: Row[]; title: string }[] = [
   },
   {
     rows: [
+      { hotkeys: [{ keys: "f" }], label: "Filter the page list" },
       { hotkeys: [{ keys: "s", mod: true }], label: "Save page" },
       { hotkeys: [{ keys: "r", shift: true }], label: "Rename page" },
       { hotkeys: [{ keys: "p", shift: true }], label: "Move page" },
