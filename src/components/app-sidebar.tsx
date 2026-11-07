@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useOpenHelp, useOpenPalette } from "~/components/command-palette";
 import { useCreateIssue } from "~/components/create-issue";
+import { Hint } from "~/components/issue-parts";
 import { RootMenuFilter } from "~/components/menu-filter";
 import { ProjectDialog } from "~/components/project-dialog";
 import { ProjectIcon } from "~/components/project-icon";
@@ -504,31 +505,35 @@ export const AppSidebar = ({
               <span className="font-strong">Flint</span>
             </Link>
             {openPalette === null ? null : (
+              <Hint hotkey={{ keys: "/" }} label="Search">
+                <Button
+                  aria-keyshortcuts="/"
+                  aria-label="Search"
+                  onClick={() => {
+                    setOpenMobile(false);
+                    openPalette();
+                  }}
+                  size="icon-sm"
+                  variant="ghost"
+                >
+                  <SearchIcon />
+                </Button>
+              </Hint>
+            )}
+            <Hint hotkey={{ keys: "c" }} label="New issue">
               <Button
-                aria-keyshortcuts="Meta+K"
-                aria-label="Search"
+                aria-keyshortcuts="C"
+                aria-label="New issue"
                 onClick={() => {
                   setOpenMobile(false);
-                  openPalette();
+                  createIssue();
                 }}
                 size="icon-sm"
                 variant="ghost"
               >
-                <SearchIcon />
+                <SquarePenIcon />
               </Button>
-            )}
-            <Button
-              aria-keyshortcuts="C"
-              aria-label="New issue"
-              onClick={() => {
-                setOpenMobile(false);
-                createIssue();
-              }}
-              size="icon-sm"
-              variant="ghost"
-            >
-              <SquarePenIcon />
-            </Button>
+            </Hint>
           </div>
           <WorkspaceSwitcher me={me} workspace={workspace} />
         </SidebarHeader>

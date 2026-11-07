@@ -4,6 +4,7 @@ import { Fragment, use, useRef } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
 
 import { useOpenPalette } from "~/components/command-palette";
+import { Hint } from "~/components/issue-parts";
 import { PanelToggle } from "~/components/panel-toggle";
 import { SyncText, useSyncShown } from "~/components/sync-status";
 import {
@@ -228,7 +229,9 @@ export const Page = ({
         >
           {pane === "detail" ? null : (
             <>
-              <SidebarTrigger className="-ml-1" />
+              <Hint hotkey={{ keys: "[" }} label="Toggle sidebar">
+                <SidebarTrigger className="-ml-1" />
+              </Hint>
               <Separator
                 className="mr-1 data-vertical:h-4 data-vertical:self-center"
                 orientation="vertical"
