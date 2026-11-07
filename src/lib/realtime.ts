@@ -7,6 +7,7 @@ import { meQuery } from "~/lib/api";
 import type { RealtimeEvent } from "~/lib/api-types";
 import { projectView } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
+import { applyPresence } from "~/lib/presence";
 import { subscribeRealtime } from "~/lib/realtime-transport";
 import { flashRemote } from "~/lib/remote-flash";
 import type { RemoteChange } from "~/lib/remote-flash";
@@ -33,6 +34,7 @@ export const eventKeys = (slug: string, event: RealtimeEvent) =>
     ],
     label: [["workspaces", slug, "labels"], ["issues"]],
     member: [["workspaces", slug, "members"], ["me"]],
+    presence: [],
     project: [
       ["workspaces", slug, "projects"],
       ["projects"],
@@ -213,6 +215,8 @@ export const useRealtime = (
               // SAFETY: the stream sends RealtimeEvent JSON in every data line.
               // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The SSE contract types the payload.
               const event = JSON.parse(message.data) as RealtimeEvent;
+
+              applyPresence(queryClient, slug, event);
 
               for (const queryKey of eventKeys(slug, event)) {
                 pending.set(JSON.stringify(queryKey), queryKey);

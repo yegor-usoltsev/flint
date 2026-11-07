@@ -64,6 +64,7 @@ import { Route as ApiV1WorkspacesSlugIndexRouteImport } from './routes/api/v1/wo
 import { Route as ApiV1WorkspacesSlugIssuesRouteImport } from './routes/api/v1/workspaces/$slug/issues'
 import { Route as ApiV1WorkspacesSlugLabelsRouteImport } from './routes/api/v1/workspaces/$slug/labels'
 import { Route as ApiV1WorkspacesSlugLogoRouteImport } from './routes/api/v1/workspaces/$slug/logo'
+import { Route as ApiV1WorkspacesSlugPresenceRouteImport } from './routes/api/v1/workspaces/$slug/presence'
 import { Route as ApiV1WorkspacesSlugProjectsRouteImport } from './routes/api/v1/workspaces/$slug/projects'
 import { Route as ApiV1WorkspacesSlugSearchRouteImport } from './routes/api/v1/workspaces/$slug/search'
 import { Route as ApiV1WorkspacesSlugStreamRouteImport } from './routes/api/v1/workspaces/$slug/stream'
@@ -368,6 +369,12 @@ const ApiV1WorkspacesSlugLogoRoute = ApiV1WorkspacesSlugLogoRouteImport.update({
   path: '/api/v1/workspaces/$slug/logo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1WorkspacesSlugPresenceRoute =
+  ApiV1WorkspacesSlugPresenceRouteImport.update({
+    id: '/api/v1/workspaces/$slug/presence',
+    path: '/api/v1/workspaces/$slug/presence',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1WorkspacesSlugProjectsRoute =
   ApiV1WorkspacesSlugProjectsRouteImport.update({
     id: '/api/v1/workspaces/$slug/projects',
@@ -484,6 +491,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/workspaces/$slug/issues': typeof ApiV1WorkspacesSlugIssuesRoute
   '/api/v1/workspaces/$slug/labels': typeof ApiV1WorkspacesSlugLabelsRoute
   '/api/v1/workspaces/$slug/logo': typeof ApiV1WorkspacesSlugLogoRoute
+  '/api/v1/workspaces/$slug/presence': typeof ApiV1WorkspacesSlugPresenceRoute
   '/api/v1/workspaces/$slug/projects': typeof ApiV1WorkspacesSlugProjectsRoute
   '/api/v1/workspaces/$slug/search': typeof ApiV1WorkspacesSlugSearchRoute
   '/api/v1/workspaces/$slug/stream': typeof ApiV1WorkspacesSlugStreamRoute
@@ -549,6 +557,7 @@ export interface FileRoutesByTo {
   '/api/v1/workspaces/$slug/issues': typeof ApiV1WorkspacesSlugIssuesRoute
   '/api/v1/workspaces/$slug/labels': typeof ApiV1WorkspacesSlugLabelsRoute
   '/api/v1/workspaces/$slug/logo': typeof ApiV1WorkspacesSlugLogoRoute
+  '/api/v1/workspaces/$slug/presence': typeof ApiV1WorkspacesSlugPresenceRoute
   '/api/v1/workspaces/$slug/projects': typeof ApiV1WorkspacesSlugProjectsRoute
   '/api/v1/workspaces/$slug/search': typeof ApiV1WorkspacesSlugSearchRoute
   '/api/v1/workspaces/$slug/stream': typeof ApiV1WorkspacesSlugStreamRoute
@@ -618,6 +627,7 @@ export interface FileRoutesById {
   '/api/v1/workspaces/$slug/issues': typeof ApiV1WorkspacesSlugIssuesRoute
   '/api/v1/workspaces/$slug/labels': typeof ApiV1WorkspacesSlugLabelsRoute
   '/api/v1/workspaces/$slug/logo': typeof ApiV1WorkspacesSlugLogoRoute
+  '/api/v1/workspaces/$slug/presence': typeof ApiV1WorkspacesSlugPresenceRoute
   '/api/v1/workspaces/$slug/projects': typeof ApiV1WorkspacesSlugProjectsRoute
   '/api/v1/workspaces/$slug/search': typeof ApiV1WorkspacesSlugSearchRoute
   '/api/v1/workspaces/$slug/stream': typeof ApiV1WorkspacesSlugStreamRoute
@@ -687,6 +697,7 @@ export interface FileRouteTypes {
     | '/api/v1/workspaces/$slug/issues'
     | '/api/v1/workspaces/$slug/labels'
     | '/api/v1/workspaces/$slug/logo'
+    | '/api/v1/workspaces/$slug/presence'
     | '/api/v1/workspaces/$slug/projects'
     | '/api/v1/workspaces/$slug/search'
     | '/api/v1/workspaces/$slug/stream'
@@ -752,6 +763,7 @@ export interface FileRouteTypes {
     | '/api/v1/workspaces/$slug/issues'
     | '/api/v1/workspaces/$slug/labels'
     | '/api/v1/workspaces/$slug/logo'
+    | '/api/v1/workspaces/$slug/presence'
     | '/api/v1/workspaces/$slug/projects'
     | '/api/v1/workspaces/$slug/search'
     | '/api/v1/workspaces/$slug/stream'
@@ -820,6 +832,7 @@ export interface FileRouteTypes {
     | '/api/v1/workspaces/$slug/issues'
     | '/api/v1/workspaces/$slug/labels'
     | '/api/v1/workspaces/$slug/logo'
+    | '/api/v1/workspaces/$slug/presence'
     | '/api/v1/workspaces/$slug/projects'
     | '/api/v1/workspaces/$slug/search'
     | '/api/v1/workspaces/$slug/stream'
@@ -872,6 +885,7 @@ export interface RootRouteChildren {
   ApiV1WorkspacesSlugIssuesRoute: typeof ApiV1WorkspacesSlugIssuesRoute
   ApiV1WorkspacesSlugLabelsRoute: typeof ApiV1WorkspacesSlugLabelsRoute
   ApiV1WorkspacesSlugLogoRoute: typeof ApiV1WorkspacesSlugLogoRoute
+  ApiV1WorkspacesSlugPresenceRoute: typeof ApiV1WorkspacesSlugPresenceRoute
   ApiV1WorkspacesSlugProjectsRoute: typeof ApiV1WorkspacesSlugProjectsRoute
   ApiV1WorkspacesSlugSearchRoute: typeof ApiV1WorkspacesSlugSearchRoute
   ApiV1WorkspacesSlugStreamRoute: typeof ApiV1WorkspacesSlugStreamRoute
@@ -1277,6 +1291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1WorkspacesSlugLogoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/workspaces/$slug/presence': {
+      id: '/api/v1/workspaces/$slug/presence'
+      path: '/api/v1/workspaces/$slug/presence'
+      fullPath: '/api/v1/workspaces/$slug/presence'
+      preLoaderRoute: typeof ApiV1WorkspacesSlugPresenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/workspaces/$slug/projects': {
       id: '/api/v1/workspaces/$slug/projects'
       path: '/api/v1/workspaces/$slug/projects'
@@ -1452,6 +1473,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1WorkspacesSlugIssuesRoute: ApiV1WorkspacesSlugIssuesRoute,
   ApiV1WorkspacesSlugLabelsRoute: ApiV1WorkspacesSlugLabelsRoute,
   ApiV1WorkspacesSlugLogoRoute: ApiV1WorkspacesSlugLogoRoute,
+  ApiV1WorkspacesSlugPresenceRoute: ApiV1WorkspacesSlugPresenceRoute,
   ApiV1WorkspacesSlugProjectsRoute: ApiV1WorkspacesSlugProjectsRoute,
   ApiV1WorkspacesSlugSearchRoute: ApiV1WorkspacesSlugSearchRoute,
   ApiV1WorkspacesSlugStreamRoute: ApiV1WorkspacesSlugStreamRoute,

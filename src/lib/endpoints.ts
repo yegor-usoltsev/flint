@@ -13,6 +13,7 @@ import type {
   LabelSummary,
   Me,
   Member,
+  Presence,
   ProjectSummary,
   ProjectDetail,
   SearchResults,
@@ -40,6 +41,7 @@ import type {
   AddMemberSchema,
   UpdateMemberSchema,
 } from "~/server/members.server";
+import type { PresenceSchema } from "~/server/presence.server";
 import type {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -124,6 +126,7 @@ export interface Endpoints {
   };
   "GET /workspaces/:slug/labels": { response: LabelSummary[] };
   "GET /workspaces/:slug/members": { response: Member[] };
+  "GET /workspaces/:slug/presence": { response: Presence[] };
   "GET /workspaces/:slug/projects": { response: ProjectSummary[] };
   "GET /workspaces/:slug/search": {
     query: SearchQuery;
@@ -205,6 +208,10 @@ export interface Endpoints {
     response: ProjectDetail;
   };
   "PUT /workspaces/:slug/logo": { body: FormData; response: Workspace };
+  "POST /workspaces/:slug/presence": {
+    body: In<typeof PresenceSchema>;
+    response: undefined;
+  };
   "PUT /workspaces/:slug/wiki/*": {
     body: In<typeof PutPageSchema>;
     response: WikiPage;

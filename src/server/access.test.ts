@@ -30,6 +30,7 @@ import { Route as labelsRoute } from "~/routes/api/v1/workspaces/$slug/labels";
 import { Route as logoRoute } from "~/routes/api/v1/workspaces/$slug/logo";
 import { Route as memberRoute } from "~/routes/api/v1/workspaces/$slug/members/$username";
 import { Route as membersRoute } from "~/routes/api/v1/workspaces/$slug/members/index";
+import { Route as presenceRoute } from "~/routes/api/v1/workspaces/$slug/presence";
 import { Route as projectsRoute } from "~/routes/api/v1/workspaces/$slug/projects";
 import { Route as searchRoute } from "~/routes/api/v1/workspaces/$slug/search";
 import { Route as streamRoute } from "~/routes/api/v1/workspaces/$slug/stream";
@@ -250,6 +251,7 @@ const scopedCalls = (ids: Ids): Record<ScopedEndpoint, Call> => {
     },
     "GET /workspaces/:slug/labels": { params: slug, route: labelsRoute },
     "GET /workspaces/:slug/members": { params: slug, route: membersRoute },
+    "GET /workspaces/:slug/presence": { params: slug, route: presenceRoute },
     "GET /workspaces/:slug/projects": { params: slug, route: projectsRoute },
     "GET /workspaces/:slug/search": {
       params: slug,
@@ -360,6 +362,11 @@ const scopedCalls = (ids: Ids): Record<ScopedEndpoint, Call> => {
       file: true,
       params: slug,
       route: logoRoute,
+    },
+    "POST /workspaces/:slug/presence": {
+      body: { tab: ids.pageId, targetIds: [ids.pageId] },
+      params: slug,
+      route: presenceRoute,
     },
     "PUT /workspaces/:slug/wiki/*": {
       body: { body: "taken" },
