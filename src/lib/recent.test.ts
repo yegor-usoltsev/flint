@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
@@ -6,7 +6,9 @@ import * as v from "valibot";
 import { clearRecent, forgetRecent, rememberRecent } from "~/lib/recent";
 import type { RecentItem } from "~/lib/recent";
 
-const items = new Map<string, string>();
+import { memoryStorage } from "../../test/storage";
+
+const items = memoryStorage();
 
 const page = (path: string): RecentItem => ({
   href: `/doc/${path}`,
@@ -22,33 +24,6 @@ const stored = (slug: string) =>
       JSON.parse(items.get(`flint:recent:${slug}`) ?? "[]")
     )
     .map((item) => item.label);
-
-beforeAll(() => {
-  globalThis.localStorage = {
-    clear: () => {
-      items.clear();
-    },
-    getItem: (name) => items.get(name) ?? null,
-    key: (index) => [...items.keys()][index] ?? null,
-    get length() {
-      return items.size;
-    },
-    removeItem: (name) => {
-      items.delete(name);
-    },
-    setItem: (name, value) => {
-      items.set(name, value);
-    },
-  };
-});
-
-beforeEach(() => {
-  items.clear();
-});
-
-afterAll(() => {
-  Reflect.deleteProperty(globalThis, "localStorage");
-});
 
 test("forgetting a deleted page drops only the matching entries", () => {
   rememberRecent("acme", page("guides"));

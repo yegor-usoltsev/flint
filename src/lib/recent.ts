@@ -22,8 +22,24 @@ const cache = new Map<string, { items: RecentItem[]; raw: string | null }>();
 const prefix = "flint:recent:";
 const storageKey = (slug: string) => `${prefix}${slug}`;
 
+const storage = () => {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+const readRaw = (slug: string) => {
+  try {
+    return storage()?.getItem(storageKey(slug)) ?? null;
+  } catch {
+    return null;
+  }
+};
+
 const read = (slug: string) => {
-  const raw = localStorage.getItem(storageKey(slug));
+  const raw = readRaw(slug);
   const cached = cache.get(slug);
 
   if (cached?.raw === raw) {
@@ -63,7 +79,7 @@ const subscribe = (listener: () => void) => {
 
 const write = (slug: string, items: RecentItem[]) => {
   try {
-    localStorage.setItem(storageKey(slug), JSON.stringify(items));
+    storage()?.setItem(storageKey(slug), JSON.stringify(items));
   } catch {
     return;
   }
@@ -93,12 +109,14 @@ export const forgetRecent = (
   }
 };
 
-const storage = () => {
-  try {
-    return globalThis.localStorage;
-  } catch {
-    return null;
-  }
+export const issueHref = (slug: string, key: string) => `/${slug}/issue/${key}`;
+
+export const pageHref = (id: string) => `/doc/${id}`;
+
+export const forgetRecentHrefs = (slug: string, hrefs: Iterable<string>) => {
+  const gone = new Set(hrefs);
+
+  forgetRecent(slug, (item) => gone.has(item.href));
 };
 
 const removeStored = () => {

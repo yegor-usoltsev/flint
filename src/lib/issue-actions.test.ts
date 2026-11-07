@@ -7,7 +7,10 @@ import * as v from "valibot";
 import { toast } from "~/components/ui/toast";
 import type { Issue, IssueSummary } from "~/lib/api-types";
 import { deleteIssues } from "~/lib/issue-actions";
+import { issueHref, rememberRecent } from "~/lib/recent";
 import { hasPendingIssueWrites, writeIssue } from "~/lib/use-update-issue";
+
+import { memoryStorage } from "../../test/storage";
 
 const base: Issue = {
   assigneeId: null,
@@ -33,6 +36,25 @@ const base: Issue = {
   title: "One",
   updatedAt: "2026-01-01T00:00:00Z",
   version: 1,
+};
+
+const storage = memoryStorage();
+
+const recentKeys = () =>
+  v
+    .parse(
+      v.array(v.object({ label: v.string() })),
+      JSON.parse(storage.get("flint:recent:acme") ?? "[]")
+    )
+    .map((item) => item.label);
+
+const remember = (key: string) => {
+  rememberRecent("acme", {
+    href: issueHref("acme", key),
+    kind: "issue",
+    label: key,
+    title: key,
+  });
 };
 
 const settle = async () => {
@@ -134,7 +156,7 @@ describe("issue deletion", () => {
     queryClient.setQueryData(["issues", "p"], [base]);
     writeIssue(queryClient, base, { statusId: "doing" });
 
-    const deleting = deleteIssues(queryClient, [base]);
+    const deleting = deleteIssues(queryClient, "acme", [base]);
 
     await Bun.sleep(1);
     expect(queryClient.getQueryData<IssueSummary[]>(["issues", "p"])).toEqual(
@@ -163,7 +185,7 @@ describe("issue deletion", () => {
     const toasts = collectToasts();
 
     queryClient.setQueryData(["issues", "p"], [base]);
-    await deleteIssues(queryClient, [base]);
+    await deleteIssues(queryClient, "acme", [base]);
     await settle();
 
     expect(sent).toContain("DELETE /api/v1/issues/ENG-1");
@@ -185,12 +207,36 @@ describe("issue deletion", () => {
     );
 
     queryClient.setQueryData(["issues", "p"], [base]);
-    await deleteIssues(queryClient, [base]);
+    await deleteIssues(queryClient, "acme", [base]);
 
     expect(queryClient.getQueryData<IssueSummary[]>(["issues", "p"])).toEqual([
       base,
     ]);
     expect(toasts).toHaveLength(1);
     expect(toasts[0]?.title).toBe("Could not delete ENG-1");
+  });
+
+  test("a delete drops the issue from Recent, and a failed one keeps it", async () => {
+    const queryClient = new QueryClient();
+
+    serve(base);
+    collectToasts();
+    remember("ENG-2");
+    remember("ENG-1");
+    await deleteIssues(queryClient, "acme", [base]);
+
+    expect(recentKeys()).toEqual(["ENG-2"]);
+
+    spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async () => await Promise.reject(new TypeError("Failed to fetch")),
+        { preconnect: fetch.preconnect }
+      )
+    );
+    await deleteIssues(queryClient, "acme", [
+      { ...base, id: "2", key: "ENG-2" },
+    ]);
+
+    expect(recentKeys()).toEqual(["ENG-2"]);
   });
 });

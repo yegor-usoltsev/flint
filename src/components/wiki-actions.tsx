@@ -54,7 +54,7 @@ import type { WikiNodeKind, WikiPageSummary } from "~/lib/api-types";
 import { copyText } from "~/lib/copy";
 import { newId } from "~/lib/ids";
 import { notifyError, notifyWithAction } from "~/lib/notify";
-import { forgetRecent } from "~/lib/recent";
+import { forgetRecentHrefs, pageHref } from "~/lib/recent";
 import { discardDraft } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import type { Command, Hotkey } from "~/lib/use-hotkey";
@@ -70,6 +70,7 @@ import {
   pathProblem,
   setPage,
   slugify,
+  subtreeIds,
   wikiDraftId,
   wikiDraftText,
   wikiPagesQuery,
@@ -445,9 +446,9 @@ const DeleteDialog = ({
     onSuccess: async () => {
       discardDraft(`${wikiDraftId(node.id)}:title`);
       discardDraft(`${wikiDraftId(node.id)}:body`);
-      forgetRecent(
+      forgetRecentHrefs(
         wiki.slug,
-        (item) => item.kind === "page" && inSubtree(item.label, node.path)
+        subtreeIds(pages.data ?? [], node).map(pageHref)
       );
       notifyWithAction({
         action: "Undo",
