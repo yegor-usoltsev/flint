@@ -434,7 +434,7 @@ const CommentItem = ({
           <span className="text-muted-foreground">(edited)</span>
         )}
         {own && editing === null ? (
-          <div className="ml-auto flex opacity-0 group-hover/comment:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100 pointer-coarse:opacity-100">
+          <div className="ml-auto flex pointer-fine:opacity-0 pointer-fine:group-hover/comment:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-data-popup-open:opacity-100">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
