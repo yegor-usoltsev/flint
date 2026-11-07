@@ -34,7 +34,7 @@ const setAttributes = (element: HTMLElement, node: ProseMirrorNode) => {
   }
 };
 
-const icons = {
+export const mediaIcons = {
   delete: [
     "M10 11v6",
     "M14 11v6",
@@ -68,7 +68,7 @@ const svg = (paths: string[]) => {
 };
 
 const button = (
-  name: keyof typeof icons,
+  name: keyof typeof mediaIcons,
   label: string,
   onClick?: () => void
 ) => {
@@ -77,7 +77,7 @@ const button = (
   element.type = "button";
   element.className = `media-${name}`;
   element.setAttribute("aria-label", label);
-  element.append(svg(icons[name]));
+  element.append(svg(mediaIcons[name]));
 
   if (onClick !== undefined) {
     element.addEventListener("click", onClick);
@@ -86,7 +86,7 @@ const button = (
   return element;
 };
 
-const download = (src: string) => {
+export const downloadMedia = (src: string) => {
   if (!isSafeSource(src)) {
     return;
   }
@@ -200,7 +200,7 @@ export const mediaView =
     toolbar.append(
       button("expand", "Open in viewer"),
       button("download", "Download", () => {
-        download(media.getAttribute("src") ?? "");
+        downloadMedia(media.getAttribute("src") ?? "");
       }),
       button("delete", "Delete", () => {
         edit(editor, getPos, (pos) => {

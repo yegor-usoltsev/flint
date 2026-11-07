@@ -37,8 +37,8 @@ import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
 import { AttachmentList } from "~/components/issue-attachments";
 import { Hint } from "~/components/issue-parts";
+import { LazyMarkdownEditor, SourceToggle } from "~/components/lazy-editor";
 import { LoadFailed } from "~/components/load-failed";
-import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
 import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
@@ -1628,8 +1628,8 @@ const PageEditor = ({
               onJump={jump}
             />
           )}
-          <div className="[&_.ProseMirror]:min-h-[50vh]" ref={bodyBox}>
-            <MarkdownEditor
+          <div className="[&_.markdown]:min-h-[50vh]" ref={bodyBox}>
+            <LazyMarkdownEditor
               autoFocus={focusEmpty(page, preview)}
               className="text-prose"
               editable={!(recreate.isPending || copy.isPending)}

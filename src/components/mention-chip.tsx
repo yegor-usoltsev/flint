@@ -1,14 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import type { ReactNodeViewProps } from "@tiptap/react";
 import { FileTextIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { StatusIcon } from "~/components/status-icon";
 import { isNotFound } from "~/lib/api";
 import { findIssueByKey } from "~/lib/issue-focus";
-import { interceptIssueClick, panelShown } from "~/lib/issue-panel";
+import { interceptIssueClick } from "~/lib/issue-panel";
 import { docPath } from "~/lib/markdown-mentions";
 import { issueQuery, projectQuery, projectsQuery } from "~/lib/queries";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -60,13 +58,12 @@ export const useMentionedIssue = (key: string) => {
   };
 };
 
-const IssueChip = ({ node }: ReactNodeViewProps) => {
+export const IssueChip = ({ issueKey: key }: { issueKey: string }) => {
   const workspace = useWorkspace();
-  const key = String(node.attrs["key"] ?? "");
   const { issue, missing, status } = useMentionedIssue(key);
 
   return (
-    <NodeViewWrapper as="span">
+    <span className="whitespace-normal">
       {missing ? (
         key
       ) : (
@@ -90,14 +87,12 @@ const IssueChip = ({ node }: ReactNodeViewProps) => {
           {issue === null ? null : <span>{issue.title}</span>}
         </Link>
       )}
-    </NodeViewWrapper>
+    </span>
   );
 };
 
-const PageChip = ({ node }: ReactNodeViewProps) => {
+export const PageChip = ({ href, label }: { href: string; label: string }) => {
   const workspace = useWorkspace();
-  const href = String(node.attrs["href"] ?? "");
-  const label = String(node.attrs["label"] ?? "");
   const id = docPath.exec(href)?.groups?.["id"] ?? "";
 
   const page = useQuery(wikiPagesQuery(workspaceWiki(workspace))).data?.find(
@@ -105,7 +100,7 @@ const PageChip = ({ node }: ReactNodeViewProps) => {
   );
 
   return (
-    <NodeViewWrapper as="span">
+    <span className="whitespace-normal">
       <Link
         className="mention"
         data-mention=""
@@ -117,13 +112,6 @@ const PageChip = ({ node }: ReactNodeViewProps) => {
         <FileTextIcon />
         <span>{page?.title ?? label}</span>
       </Link>
-    </NodeViewWrapper>
+    </span>
   );
 };
-
-export const issueChipView = ReactNodeViewRenderer(IssueChip, {
-  as: "span",
-  stopEvent: ({ event }) => event.type === "mousedown" && panelShown(),
-});
-
-export const pageChipView = ReactNodeViewRenderer(PageChip, { as: "span" });

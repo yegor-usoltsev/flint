@@ -3,7 +3,7 @@ import { cn } from "cn";
 import { FileTextIcon } from "lucide-react";
 import { useState } from "react";
 
-import { LazyMarkdownEditor } from "~/components/lazy-editor";
+import { MarkdownView } from "~/components/markdown-view";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -263,11 +263,9 @@ const RevisionPane = ({
         {loaded && !changes ? (
           <div className="flex flex-col gap-4">
             <h3 className="text-title">{revision.data.title}</h3>
-            <LazyMarkdownEditor
+            <MarkdownView
               attachments={`/wiki/${pageId}/attachments`}
               className="text-prose"
-              editable={false}
-              label={`Version from ${dayFormat.format(new Date(selected.updatedAt))}`}
               value={revision.data.body}
             />
           </div>

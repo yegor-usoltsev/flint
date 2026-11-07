@@ -180,6 +180,48 @@ export const lowlight: typeof base = {
     ),
 };
 
+type HighlightNode = Root["children"][number];
+
+interface Segment {
+  classes: string[];
+  text: string;
+}
+
+const segments = (nodes: HighlightNode[], classes: string[]): Segment[] =>
+  nodes.flatMap((node) => {
+    if (node.type === "text") {
+      return [{ classes, text: node.value }];
+    }
+
+    if (node.type !== "element") {
+      return [];
+    }
+
+    const { className } = node.properties;
+
+    return segments(node.children, [
+      ...classes,
+      ...(Array.isArray(className) ? className.map(String) : []),
+    ]);
+  });
+
+export const highlightSegments = (language: string | null, code: string) => {
+  const root =
+    language !== null && lowlight.registered(language)
+      ? lowlight.highlight(language, code)
+      : lowlight.highlightAuto(code);
+
+  let from = 0;
+
+  return segments(root.children, []).map((segment) => {
+    const start = from;
+
+    from += segment.text.length;
+
+    return { ...segment, from: start };
+  });
+};
+
 const aliases = new Map(
   Object.entries({ ...grammars, ini }).flatMap(([id, grammar]) =>
     (grammar(hljs).aliases ?? []).map((alias) => [alias, id] as const)

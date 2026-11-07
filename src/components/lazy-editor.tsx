@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { lazy, Suspense } from "react";
 
 import type { MarkdownEditorProps } from "~/components/markdown-editor";
+import { MarkdownView } from "~/components/markdown-view";
 
 const Editor = lazy(async () => {
   const { MarkdownEditor } = await import("~/components/markdown-editor");
@@ -9,15 +10,53 @@ const Editor = lazy(async () => {
   return { default: MarkdownEditor };
 });
 
-// Tiptap, ProseMirror and lowlight load with the first editor, so screens without one stay light.
-export const LazyMarkdownEditor = (props: MarkdownEditorProps) => (
-  <Suspense
-    fallback={
-      <div className={cn("text-muted-foreground", props.className)}>
-        {props.value === "" ? props.placeholder : props.value}
-      </div>
-    }
+export const LazyMarkdownEditor = (props: MarkdownEditorProps) => {
+  const {
+    attachments,
+    className,
+    editable = true,
+    placeholder,
+    uploadTo,
+  } = props;
+
+  return (
+    <Suspense
+      fallback={
+        <MarkdownView
+          attachments={
+            attachments === null ? undefined : (attachments ?? uploadTo)
+          }
+          className={className}
+          editable={editable}
+          placeholder={editable ? placeholder : undefined}
+          value={props.value}
+        />
+      }
+    >
+      <Editor {...props} />
+    </Suspense>
+  );
+};
+
+export const SourceToggle = ({
+  className,
+  onChange,
+  source,
+}: {
+  className?: string;
+  onChange: (source: boolean) => void;
+  source: boolean;
+}) => (
+  <button
+    className={cn(
+      "text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring hit-area relative flex h-6 items-center gap-1 rounded-md px-1.5 text-xs outline-none focus-visible:ring-2",
+      className
+    )}
+    onClick={() => {
+      onChange(!source);
+    }}
+    type="button"
   >
-    <Editor {...props} />
-  </Suspense>
+    {source ? "Rich text" : "Markdown"}
+  </button>
 );

@@ -2,8 +2,10 @@ import type {
   JSONContent,
   MarkdownLexerConfiguration,
   MarkdownToken,
+  NodeConfig,
   NodeViewRenderer,
 } from "@tiptap/core";
+import { CodeBlock } from "@tiptap/extension-code-block";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import {
   ListItem,
@@ -20,12 +22,14 @@ import {
 } from "@tiptap/extension-table";
 import { Markdown, MarkdownManager } from "@tiptap/markdown";
 import { StarterKit } from "@tiptap/starter-kit";
+import type { createLowlight } from "lowlight";
 // oxlint-disable-next-line sonarjs/no-wildcard-import -- Valibot documents `import * as v`.
 import * as v from "valibot";
 
-import { lowlight } from "~/lib/code-languages";
 import { detailsExtensions } from "~/lib/markdown-details";
 import { mediaExtensions } from "~/lib/markdown-media";
+
+type Lowlight = ReturnType<typeof createLowlight>;
 
 const safeUrl = /^(?:https?:|mailto:|\/(?![/\\])|#)/iu;
 
@@ -135,15 +139,27 @@ const fence = (marker: "`" | "~", code: string) =>
   );
 
 // Tiptap always fences with three backticks, so a block holding its own fence (a Markdown example) breaks apart on the next parse.
-const codeBlock = CodeBlockLowlight.extend({
-  renderMarkdown: (node, helpers) => {
-    const language = String(node.attrs?.["language"] ?? "");
-    const code = helpers.renderChildren(node.content ?? []);
-    const marker = fence(language.includes("`") ? "~" : "`", code);
+const renderFence: NodeConfig["renderMarkdown"] = (node, helpers) => {
+  const language = String(node.attrs?.["language"] ?? "");
+  const code = helpers.renderChildren(node.content ?? []);
+  const marker = fence(language.includes("`") ? "~" : "`", code);
 
-    return `${marker}${language}\n${code}\n${marker}`;
-  },
-}).configure({ lowlight });
+  return `${marker}${language}\n${code}\n${marker}`;
+};
+
+const codeBlock = (
+  lowlight: Lowlight | undefined,
+  view: NodeViewRenderer | undefined
+) => {
+  const config = {
+    addNodeView: () => view ?? null,
+    renderMarkdown: renderFence,
+  };
+
+  return lowlight === undefined
+    ? CodeBlock.extend(config)
+    : CodeBlockLowlight.extend(config).configure({ lowlight });
+};
 
 class ScrollingTableView extends TableView {
   constructor(...args: ConstructorParameters<typeof TableView>) {
@@ -444,9 +460,11 @@ const tableHeader = TableHeader.extend({ content: "paragraph+" });
 
 export const markdownExtensions = ({
   codeBlockView,
+  lowlight,
   onReadOnlyChecked,
 }: {
   codeBlockView?: NodeViewRenderer;
+  lowlight?: Lowlight;
   onReadOnlyChecked?: () => boolean;
 } = {}) => [
   StarterKit.configure({
@@ -464,9 +482,7 @@ export const markdownExtensions = ({
   }),
   listItem,
   orderedList,
-  codeBlockView === undefined
-    ? codeBlock
-    : codeBlock.extend({ addNodeView: () => codeBlockView }),
+  codeBlock(lowlight, codeBlockView),
   TaskList,
   taskItem.configure({ nested: true, onReadOnlyChecked }),
   table,
