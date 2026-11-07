@@ -431,6 +431,7 @@ const viewerItem = (element: Element): ViewerItem => {
   const alt = element.getAttribute("alt") ?? "";
 
   return {
+    element: element instanceof HTMLImageElement ? element : undefined,
     kind: viewerKind(element),
     name: alt === "" ? (src.split("/").at(-1) ?? src) : alt,
     src,

@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter/opsz.css";
 @import "@fontsource-variable/jetbrains-mono";
+@import "photoswipe/style.css" layer(components);
 
 @custom-variant dark (&:where(.dark, .dark *));
 
