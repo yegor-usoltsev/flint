@@ -340,7 +340,8 @@ test("creates, deletes and restores refetch the project lists and counters", asy
   shown(["issues", "p", "detail", "ENG-2"], detail(row("2")));
   shown(["issues", "other"], [row("3")]);
   shown(["workspaces", "acme", "projects"], []);
-  shown(["workspaces", "acme", "labels"], []);
+  shown(["workspaces", "acme", "projects", "counts"], []);
+  shown(["workspaces", "acme", "labels", "counts"], []);
   shown(["workspaces", "acme", "trash"], []);
   await applyEvents(queryClient, "acme", [
     { entity: "issue", id: "1", projectId: "p" },
@@ -350,8 +351,8 @@ test("creates, deletes and restores refetch the project lists and counters", asy
     ["issues", "p"],
     ["issues", "p", "counts", {}],
     ["issues", "p", "detail", "ENG-1"],
-    ["workspaces", "acme", "projects"],
-    ["workspaces", "acme", "labels"],
+    ["workspaces", "acme", "projects", "counts"],
+    ["workspaces", "acme", "labels", "counts"],
     ["workspaces", "acme", "trash"],
   ]) {
     expect(was(queryKey)).toBe(true);
@@ -359,6 +360,7 @@ test("creates, deletes and restores refetch the project lists and counters", asy
 
   expect(was(["issues", "p", "detail", "ENG-2"])).toBe(false);
   expect(was(["issues", "other"])).toBe(false);
+  expect(was(["workspaces", "acme", "projects"])).toBe(false);
 });
 
 test("a list that is loading refetches instead of keeping its older answer", async () => {

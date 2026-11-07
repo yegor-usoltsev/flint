@@ -287,8 +287,8 @@ const movedIssue = (
 
   for (const queryKey of [
     ["timeline", event.id],
-    ["workspaces", slug, "projects"],
-    ["workspaces", slug, "labels"],
+    ["workspaces", slug, "projects", "counts"],
+    ["workspaces", slug, "labels", "counts"],
     ["workspaces", slug, "trash"],
   ]) {
     markStale(queryClient.getQueryCache(), plan, queryKey);
@@ -354,11 +354,11 @@ const changedIssue = (
   }
 
   if (fields.has("status")) {
-    markStale(cache, plan, ["workspaces", slug, "projects"]);
+    markStale(cache, plan, ["workspaces", slug, "projects", "counts"]);
   }
 
   if (fields.has("labels")) {
-    markStale(cache, plan, ["workspaces", slug, "labels"]);
+    markStale(cache, plan, ["workspaces", slug, "labels", "counts"]);
   }
 };
 
