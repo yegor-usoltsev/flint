@@ -119,7 +119,7 @@ const PageTitle = ({
             <span
               className={cn(
                 "max-md:text-heading max-w-full truncate",
-                only && "max-md:hidden"
+                only && "max-md:sr-only"
               )}
             >
               {title}
