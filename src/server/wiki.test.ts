@@ -178,7 +178,12 @@ test("pages live in the workspace wiki, addressed by path", async () => {
     "guides/getting-started",
   ]);
   expect(await listWiki(alice, "?prefix=Guides/")).toMatchObject({
-    body: [{ path: "guides/getting-started" }],
+    body: [
+      {
+        path: "guides/getting-started",
+        updatedBy: { displayName: "alice", username: "alice" },
+      },
+    ],
   });
   expect(await wikiPage(alice, "GET", "GUIDES/getting-started")).toEqual({
     body: created.body,
