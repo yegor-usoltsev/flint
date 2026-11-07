@@ -414,6 +414,45 @@ test("every change records an event with its actor and token", async () => {
   ).toMatchObject({ body: { completedAt: null } });
 });
 
+test("an edit writes only what changed and keeps the rest", async () => {
+  const { alice, status } = await setup();
+
+  const { issue } = await createIssue(alice, {
+    description: "- [x] one\n- [ ] two",
+    statusId: status("Done"),
+    title: "Checklist",
+  });
+
+  expect(
+    await issueCall(alice, "PATCH", issue.key, {
+      priority: 2,
+      statusId: status("Done"),
+    })
+  ).toMatchObject({
+    body: {
+      checklistDone: 1,
+      checklistTotal: 2,
+      completedAt: issue["completedAt"],
+      description: "- [x] one\n- [ ] two",
+      priority: 2,
+      title: "Checklist",
+      version: 2,
+    },
+  });
+  expect(
+    await issueCall(alice, "PATCH", issue.key, { description: "- [x] one" })
+  ).toMatchObject({
+    body: {
+      checklistDone: 1,
+      checklistTotal: 1,
+      completedAt: issue["completedAt"],
+    },
+  });
+  expect(
+    await issueCall(alice, "PATCH", issue.key, { statusId: status("Canceled") })
+  ).toMatchObject({ body: { canceledAt: anyString, completedAt: null } });
+});
+
 test("label additions and removals from two members keep each other's changes", async () => {
   const { alice, bug, foreign, root, rootId } = await setup();
   const actor = { userId: rootId };
@@ -562,6 +601,10 @@ test("lists hold the working set, closed pages and filters", async () => {
     ["?assignee=me", [open.issue.key]],
     ["?assignee=none&priority=low", [other.issue.key]],
     ["?assignee=alice&assignee=none&priority=urgent", [open.issue.key]],
+    [`?assignee=${aliceId.toUpperCase()}`, [open.issue.key]],
+    ["?assignee=@me&assignee=nobody", [open.issue.key]],
+    ["?assignee=@ALICE", [open.issue.key]],
+    ["?assignee=nobody", []],
     ["?label=regression", [open.issue.key]],
     [`?label=${bug.id}`, [open.issue.key]],
     ["?status=done", [recent.issue.key]],

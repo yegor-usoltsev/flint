@@ -25,6 +25,18 @@ export const projectsQuery = (slug: string) =>
     queryKey: ["workspaces", slug, "projects"],
   });
 
+export const projectCountsQuery = (slug: string) =>
+  queryOptions({
+    queryFn: async () =>
+      await request("GET /workspaces/:slug/projects", {
+        params: { slug },
+        query: { counts: true },
+      }),
+    queryKey: ["workspaces", slug, "projects", "counts"],
+    select: (projects) =>
+      new Map(projects.map(({ id, openIssues }) => [id, openIssues ?? 0])),
+  });
+
 export const projectQuery = (key: string) =>
   queryOptions({
     queryFn: async () => await api<ProjectDetail>(`/projects/${key}`),
@@ -48,6 +60,18 @@ export const labelsQuery = (slug: string) =>
     queryFn: async () =>
       await request("GET /workspaces/:slug/labels", { params: { slug } }),
     queryKey: ["workspaces", slug, "labels"],
+  });
+
+export const labelCountsQuery = (slug: string) =>
+  queryOptions({
+    queryFn: async () =>
+      await request("GET /workspaces/:slug/labels", {
+        params: { slug },
+        query: { counts: true },
+      }),
+    queryKey: ["workspaces", slug, "labels", "counts"],
+    select: (labels) =>
+      new Map(labels.map(({ id, issueCount }) => [id, issueCount ?? 0])),
   });
 
 export const trashQuery = (slug: string) =>

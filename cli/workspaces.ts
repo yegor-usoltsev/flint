@@ -236,6 +236,7 @@ const registerProjects = (program: Command) => {
 
       const projects = await call(config, "GET /workspaces/:slug/projects", {
         params: { slug: await workspaceOf(config, options) },
+        query: { counts: true },
       });
 
       return {
@@ -506,6 +507,7 @@ const registerLabels = (program: Command) => {
 
       const labels = await call(config, "GET /workspaces/:slug/labels", {
         params: { slug: await workspaceOf(config, options) },
+        query: { counts: true },
       });
 
       return {

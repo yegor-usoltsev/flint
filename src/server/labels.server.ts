@@ -54,16 +54,24 @@ const labelChanged = (workspaceId: string, id: string) => {
   publish(workspaceId, { entity: "label", id, projectId: null });
 };
 
-export const listLabels = async (actor: Actor, slug: string) => {
+export const listLabels = async (
+  actor: Actor,
+  slug: string,
+  counts = false
+) => {
   const workspace = await requireWorkspace(actor, slug);
 
   return await db<LabelSummary[]>`
-    select l.id, l.name, l.color,
-      (
-        select count(*)::int from issue_labels il
-        join issues i on i.id = il.issue_id
-        where il.label_id = l.id and i.deleted_at is null
-      ) as "issueCount"
+    select l.id, l.name, l.color
+      ${
+        counts
+          ? db`, (
+              select count(*)::int from issue_labels il
+              join issues i on i.id = il.issue_id
+              where il.label_id = l.id and i.deleted_at is null
+            ) as "issueCount"`
+          : db``
+      }
     from labels l
     where l.workspace_id = ${workspace.id}
     order by l.position, l.created_at, l.id

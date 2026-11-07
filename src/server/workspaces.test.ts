@@ -474,9 +474,9 @@ test("a new workspace starts with the Bug, Feature and Improvement labels", asyn
 
   expect(await listOf(labelsRoute, alice, "acme", "labels")).toMatchObject({
     body: [
-      { color: "red", issueCount: 0, name: "Bug" },
-      { color: "purple", issueCount: 0, name: "Feature" },
-      { color: "blue", issueCount: 0, name: "Improvement" },
+      { color: "red", name: "Bug" },
+      { color: "purple", name: "Feature" },
+      { color: "blue", name: "Improvement" },
     ],
   });
 });
