@@ -88,6 +88,16 @@ const draftKey = (issueId: string) => `new-comment:${issueId}`;
 
 const recentItems = 50;
 
+const itemTime = (item: ActivityItem | undefined) => {
+  if (item === undefined) {
+    return -Infinity;
+  }
+
+  return Date.parse(
+    item.type === "comment" ? item.comment.createdAt : item.createdAt
+  );
+};
+
 const composerClass =
   "bg-card shadow-raised flex flex-col gap-2 rounded-md border p-4 pb-3";
 
@@ -970,7 +980,7 @@ export const IssueTimeline = ({
   );
 
   const [earlier, setEarlier] = useState<{
-    hidden: number;
+    from: number;
     issueId: string;
   } | null>(null);
 
@@ -979,16 +989,19 @@ export const IssueTimeline = ({
     (timeline.data?.comments ?? []).filter((comment) => !isHeld(comment))
   );
 
-  const hidden =
+  const from =
     earlier?.issueId === issue.id
-      ? earlier.hidden
-      : Math.max(0, items.length - recentItems);
+      ? earlier.from
+      : itemTime(items.at(-recentItems - 1));
 
   if (timeline.data !== undefined && earlier?.issueId !== issue.id) {
-    setEarlier({ hidden, issueId: issue.id });
+    setEarlier({ from, issueId: issue.id });
   }
 
-  const feed = runs(items.slice(hidden));
+  const shown = items.filter((item) => itemTime(item) > from);
+  const hidden = items.length - shown.length;
+
+  const feed = runs(shown);
 
   return (
     <section
@@ -1009,7 +1022,7 @@ export const IssueTimeline = ({
             <Button
               className="-ml-1.5 self-start"
               onClick={() => {
-                setEarlier({ hidden: 0, issueId: issue.id });
+                setEarlier({ from: -Infinity, issueId: issue.id });
               }}
               size="sm"
               variant="ghost"
