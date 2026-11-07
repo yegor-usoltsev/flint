@@ -2,15 +2,34 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { toast } from "~/components/ui/toast";
 import { findShownIssue } from "~/lib/issue-focus";
-import { panelIssue, panelShown } from "~/lib/issue-panel";
+import { openPanel, panelIssue, panelShown } from "~/lib/issue-panel";
+import { filterKeys, setStatusCollapsed } from "~/lib/issue-view";
 import { membersQuery, projectQuery } from "~/lib/queries";
 
 const headerHeight = 44;
 const settleMs = 1200;
 
+export interface IssueBefore {
+  key: string | undefined;
+  rendered: boolean;
+  statusId: string | undefined;
+}
+
 interface Change {
   actorIds: Set<string>;
-  before: string | undefined;
+  before: IssueBefore | undefined;
+}
+
+type Hidden =
+  | { kind: "collapsed"; statusId: string }
+  | { kind: "filtered" }
+  | { kind: "gone" }
+  | { kind: "offscreen" };
+
+interface Candidate {
+  change: Change;
+  hidden: Hidden;
+  id: string;
 }
 
 const pending = new Map<string, Change>();
@@ -58,8 +77,72 @@ const inView = (row: HTMLElement) => {
   return true;
 };
 
-export const issueStatuses = (queryClient: QueryClient, ids: string[]) =>
-  new Map(ids.map((id) => [id, findShownIssue(queryClient, id)?.statusId]));
+export const issueSnapshots = (queryClient: QueryClient, ids: string[]) =>
+  new Map(
+    ids.map((id): [string, IssueBefore] => {
+      const issue = findShownIssue(queryClient, id);
+
+      return [
+        id,
+        {
+          key: issue?.key,
+          rendered: rowOf(id) !== null,
+          statusId: issue?.statusId,
+        },
+      ];
+    })
+  );
+
+const collapsedGroup = (statusId: string) => {
+  const group = CSS.escape(`group-${statusId}`);
+
+  return (
+    (document
+      .querySelector(`#${group}`)
+      ?.querySelector("[aria-expanded='false']") ?? null) !== null
+  );
+};
+
+const filtered = () => {
+  const params = new URLSearchParams(window.location.search);
+
+  return filterKeys.some((key) => params.has(key));
+};
+
+const hiddenBy = (
+  queryClient: QueryClient,
+  id: string,
+  change: Change
+): Hidden | null => {
+  const row = rowOf(id);
+
+  if (row !== null) {
+    return inView(row) ? null : { kind: "offscreen" };
+  }
+
+  if (change.before?.rendered !== true) {
+    return null;
+  }
+
+  const issue = findShownIssue(queryClient, id);
+
+  if (issue === null) {
+    return { kind: "gone" };
+  }
+
+  if (collapsedGroup(issue.statusId)) {
+    return { kind: "collapsed", statusId: issue.statusId };
+  }
+
+  return filtered() ? { kind: "filtered" } : { kind: "gone" };
+};
+
+const suffixes = {
+  collapsed: " (group collapsed)",
+  filtered: " (hidden by filters)",
+  gone: " (no longer in this view)",
+  offscreen: "",
+} satisfies Record<Hidden["kind"], string>;
 
 const actorName = (queryClient: QueryClient, slug: string, id: string) =>
   queryClient
@@ -69,16 +152,18 @@ const actorName = (queryClient: QueryClient, slug: string, id: string) =>
 const message = (
   queryClient: QueryClient,
   slug: string,
-  [id, change]: [string, Change],
-  hidden: [string, Change][]
+  { change, hidden: why, id }: Candidate,
+  hidden: Candidate[]
 ) => {
-  const actors = new Set(hidden.flatMap(([, item]) => [...item.actorIds]));
+  const actors = new Set(hidden.flatMap((item) => [...item.change.actorIds]));
   const issue = findShownIssue(queryClient, id);
+  const key = issue?.key ?? change.before?.key;
+  const suffix = hidden.length > 1 ? "" : suffixes[why.kind];
 
   if (actors.size > 1) {
     return hidden.length > 1
       ? `${hidden.length} issues changed`
-      : `${issue?.key ?? "An issue"} changed`;
+      : `${key ?? "An issue"} changed${suffix}`;
   }
 
   const [actorId = ""] = actors;
@@ -89,7 +174,9 @@ const message = (
   }
 
   if (issue === null) {
-    return `${actor} updated an issue`;
+    return key === undefined
+      ? `${actor} updated an issue`
+      : `${actor} updated ${key}${suffix}`;
   }
 
   const status = queryClient
@@ -97,23 +184,65 @@ const message = (
     ?.statuses.find((item) => item.id === issue.statusId);
 
   return status !== undefined &&
-    change.before !== undefined &&
-    change.before !== issue.statusId
-    ? `${actor} moved ${issue.key} to ${status.name}`
-    : `${actor} updated ${issue.key}`;
+    change.before?.statusId !== undefined &&
+    change.before.statusId !== issue.statusId
+    ? `${actor} moved ${issue.key} to ${status.name}${suffix}`
+    : `${actor} updated ${issue.key}${suffix}`;
 };
 
-const flush = (queryClient: QueryClient, slug: string) => {
+const revealRow = (id: string) => {
+  const row = rowOf(id);
+
+  row?.scrollIntoView({
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth",
+    block: "center",
+  });
+  row?.focus({ preventScroll: true });
+};
+
+const show = (
+  queryClient: QueryClient,
+  { change, hidden, id }: Candidate,
+  openIssue: (key: string) => void
+) => {
+  if (hidden.kind === "offscreen") {
+    revealRow(id);
+
+    return;
+  }
+
+  if (hidden.kind === "collapsed") {
+    setStatusCollapsed(hidden.statusId, false);
+    requestAnimationFrame(() => {
+      revealRow(id);
+    });
+
+    return;
+  }
+
+  const key = findShownIssue(queryClient, id)?.key ?? change.before?.key;
+
+  if (key !== undefined && !openPanel(key)) {
+    openIssue(key);
+  }
+};
+
+const flush = (
+  queryClient: QueryClient,
+  slug: string,
+  openIssue: (key: string) => void
+) => {
   const open = panelShown() ? panelIssue() : null;
 
-  const hidden = [...pending].filter(([id]) => {
-    const row = rowOf(id);
+  const hidden = [...pending].flatMap(([id, change]): Candidate[] => {
+    const why = hiddenBy(queryClient, id, change);
+    const key = findShownIssue(queryClient, id)?.key ?? change.before?.key;
 
-    return (
-      row !== null &&
-      !inView(row) &&
-      findShownIssue(queryClient, id)?.key !== open
-    );
+    return why === null || (key !== undefined && key === open)
+      ? []
+      : [{ change, hidden: why, id }];
   });
 
   pending.clear();
@@ -129,16 +258,7 @@ const flush = (queryClient: QueryClient, slug: string) => {
       children: "Show",
       onClick: () => {
         toast.close(id);
-
-        const row = rowOf(first[0]);
-
-        row?.scrollIntoView({
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? "auto"
-            : "smooth",
-          block: "center",
-        });
-        row?.focus({ preventScroll: true });
+        show(queryClient, first, openIssue);
       },
     },
     title: message(queryClient, slug, first, hidden),
@@ -148,11 +268,13 @@ const flush = (queryClient: QueryClient, slug: string) => {
 export const noticeOffscreen = ({
   actors,
   before,
+  openIssue,
   queryClient,
   slug,
 }: {
   actors: Map<string, Set<string>>;
-  before: Map<string, string | undefined>;
+  before: Map<string, IssueBefore>;
+  openIssue: (key: string) => void;
   queryClient: QueryClient;
   slug: string;
 }) => {
@@ -171,6 +293,6 @@ export const noticeOffscreen = ({
 
   timer ??= setTimeout(() => {
     timer = null;
-    flush(queryClient, slug);
+    flush(queryClient, slug, openIssue);
   }, settleMs);
 };

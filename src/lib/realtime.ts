@@ -1,12 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { QueryKey } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { createContext, use, useEffect, useState } from "react";
 
 import { meQuery } from "~/lib/api";
 import type { RealtimeEvent } from "~/lib/api-types";
 import { subscribeRealtime } from "~/lib/realtime-transport";
 import { flashRemote } from "~/lib/remote-flash";
-import { issueStatuses, noticeOffscreen } from "~/lib/remote-notice";
+import { animateMoves, rowRects } from "~/lib/remote-move";
+import { issueSnapshots, noticeOffscreen } from "~/lib/remote-notice";
 import { retryFailedDrafts } from "~/lib/use-draft";
 import { hasPendingIssueWrites } from "~/lib/use-update-issue";
 
@@ -42,6 +44,7 @@ export const useRealtimeConnected = () => use(RealtimeStatus);
 
 export const useRealtime = (slug: string, userId: string | undefined) => {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [connected, setConnected] = useState(true);
 
   useEffect(() => {
@@ -51,6 +54,13 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
     const stale = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
     let flushing = false;
+
+    const openIssue = (key: string) => {
+      void router.navigate({
+        params: { issueKey: key, slug },
+        to: "/$slug/issue/$issueKey",
+      });
+    };
 
     const later = (run: () => void, delay: number) => {
       const timer = setTimeout(() => {
@@ -80,7 +90,8 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
       }
 
       const changedIssues = new Map(actors);
-      const before = issueStatuses(queryClient, [...changedIssues.keys()]);
+      const before = issueSnapshots(queryClient, [...changedIssues.keys()]);
+      const rects = rowRects(changedIssues.keys());
 
       actors.clear();
 
@@ -96,9 +107,13 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
       const flashChanged = async () => {
         await Promise.allSettled(refreshed);
         flashRemote(changed);
+
+        animateMoves(rects);
+
         noticeOffscreen({
           actors: changedIssues,
           before,
+          openIssue,
           queryClient,
           slug,
         });
@@ -180,7 +195,7 @@ export const useRealtime = (slug: string, userId: string | undefined) => {
         clearTimeout(timer);
       }
     };
-  }, [queryClient, slug, userId]);
+  }, [queryClient, router, slug, userId]);
 
   return connected;
 };
