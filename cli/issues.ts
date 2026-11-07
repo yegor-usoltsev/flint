@@ -113,6 +113,7 @@ const lookups = (config: Config) => {
         async () =>
           await call(config, "GET /workspaces/:slug/labels", {
             params: { slug },
+            query: { counts: false },
           })
       ),
     members: async (slug: string) =>

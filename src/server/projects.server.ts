@@ -91,7 +91,7 @@ export const findProject = async (actor: Actor, key: string) => {
 export const listProjects = async (
   actor: Actor,
   slug: string,
-  counts = false
+  counts = true
 ) => {
   const workspace = await requireWorkspace(actor, slug);
 

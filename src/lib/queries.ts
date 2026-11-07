@@ -21,7 +21,10 @@ import type { IssueSearch } from "~/lib/issue-view";
 export const projectsQuery = (slug: string) =>
   queryOptions({
     queryFn: async () =>
-      await request("GET /workspaces/:slug/projects", { params: { slug } }),
+      await request("GET /workspaces/:slug/projects", {
+        params: { slug },
+        query: { counts: false },
+      }),
     queryKey: ["workspaces", slug, "projects"],
   });
 
@@ -30,7 +33,6 @@ export const projectCountsQuery = (slug: string) =>
     queryFn: async () =>
       await request("GET /workspaces/:slug/projects", {
         params: { slug },
-        query: { counts: true },
       }),
     queryKey: ["workspaces", slug, "projects", "counts"],
     select: (projects) =>
@@ -58,7 +60,10 @@ export const tokensQuery = queryOptions({
 export const labelsQuery = (slug: string) =>
   queryOptions({
     queryFn: async () =>
-      await request("GET /workspaces/:slug/labels", { params: { slug } }),
+      await request("GET /workspaces/:slug/labels", {
+        params: { slug },
+        query: { counts: false },
+      }),
     queryKey: ["workspaces", slug, "labels"],
   });
 
@@ -67,7 +72,6 @@ export const labelCountsQuery = (slug: string) =>
     queryFn: async () =>
       await request("GET /workspaces/:slug/labels", {
         params: { slug },
-        query: { counts: true },
       }),
     queryKey: ["workspaces", slug, "labels", "counts"],
     select: (labels) =>

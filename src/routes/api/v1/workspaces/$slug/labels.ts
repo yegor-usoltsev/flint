@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/v1/workspaces/$slug/labels")({
           await listLabels(
             actor,
             params.slug,
-            new URL(request.url).searchParams.get("counts") === "true"
+            new URL(request.url).searchParams.get("counts") !== "false"
           )
       ),
       POST: endpoint<"POST /workspaces/:slug/labels">(

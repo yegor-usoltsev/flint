@@ -54,11 +54,7 @@ const labelChanged = (workspaceId: string, id: string) => {
   publish(workspaceId, { entity: "label", id, projectId: null });
 };
 
-export const listLabels = async (
-  actor: Actor,
-  slug: string,
-  counts = false
-) => {
+export const listLabels = async (actor: Actor, slug: string, counts = true) => {
   const workspace = await requireWorkspace(actor, slug);
 
   return await db<LabelSummary[]>`

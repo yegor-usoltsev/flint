@@ -236,7 +236,6 @@ const registerProjects = (program: Command) => {
 
       const projects = await call(config, "GET /workspaces/:slug/projects", {
         params: { slug: await workspaceOf(config, options) },
-        query: { counts: true },
       });
 
       return {
@@ -479,6 +478,7 @@ const registerMembers = (program: Command) => {
 const findLabel = async (config: Config, scope: Scope, name: string) => {
   const labels = await call(config, "GET /workspaces/:slug/labels", {
     params: { slug: await workspaceOf(config, scope) },
+    query: { counts: false },
   });
 
   const label = labels.find(
@@ -507,7 +507,6 @@ const registerLabels = (program: Command) => {
 
       const labels = await call(config, "GET /workspaces/:slug/labels", {
         params: { slug: await workspaceOf(config, options) },
-        query: { counts: true },
       });
 
       return {
