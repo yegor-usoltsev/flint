@@ -20,6 +20,7 @@ import { RouteNotFound } from "~/components/route-not-found";
 import { SelectionBar } from "~/components/selection-bar";
 import { SettingsSidebar } from "~/components/settings-sidebar";
 import { FlintMark, SignIn } from "~/components/sign-in";
+import { SyncStatus } from "~/components/sync-status";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { buttonVariants } from "~/components/ui/button";
 import {
@@ -89,7 +90,7 @@ const WorkspaceLayout = () => {
   const me = useMe();
   const workspace = me.data?.workspaces.find((item) => item.slug === slug);
 
-  const connected = useRealtime(
+  const connection = useRealtime(
     slug,
     workspace === undefined ? undefined : me.data?.id
   );
@@ -179,7 +180,7 @@ const WorkspaceLayout = () => {
   }
 
   return (
-    <RealtimeStatus value={connected}>
+    <RealtimeStatus value={connection}>
       <CreateIssueProvider>
         <SidebarProvider
           className="h-svh"
@@ -197,6 +198,7 @@ const WorkspaceLayout = () => {
                 <Outlet />
               </IssuePanelHost>
               <SelectionBar />
+              <SyncStatus />
             </SidebarInset>
           </CommandLayer>
         </SidebarProvider>

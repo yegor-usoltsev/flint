@@ -1,5 +1,7 @@
 export class Source extends EventTarget {
   static readonly CLOSED = 2;
+  static readonly CONNECTING = 0;
+  static readonly behavior = { blocked: false };
   static readonly OPEN = 1;
   static readonly instances: Source[] = [];
   readyState = 0;
@@ -7,6 +9,11 @@ export class Source extends EventTarget {
 
   constructor(url: string) {
     super();
+
+    if (Source.behavior.blocked) {
+      throw new Error("blocked");
+    }
+
     this.url = url;
     Source.instances.push(this);
   }

@@ -60,6 +60,8 @@ import {
 } from "~/components/ui/empty";
 import { Skeleton } from "~/components/ui/skeleton";
 import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
+import { rangeLabel, visibleRange } from "~/lib/board-range";
+import type { ColumnRange } from "~/lib/board-range";
 import { closeIssueMenu, selectByClick, toggleRow } from "~/lib/issue-focus";
 import { openIssueRow, openPanel, usePanelShows } from "~/lib/issue-panel";
 import {
@@ -91,6 +93,7 @@ import {
   labelsQuery,
   membersQuery,
 } from "~/lib/queries";
+import { rootRem } from "~/lib/rem";
 import { useRemoteFlash } from "~/lib/remote-flash";
 import { useUpdateIssue } from "~/lib/use-update-issue";
 import type { IssuePatch } from "~/lib/use-update-issue";
@@ -617,48 +620,60 @@ const ColumnJump = ({
   );
 };
 
-const useMoreRight = (
+const useColumnRange = (
   board: RefObject<HTMLDivElement | null>,
-  last: string | undefined
+  statuses: Status[]
 ) => {
-  const [more, setMore] = useState(false);
+  const [range, setRange] = useState<ColumnRange | null>(null);
+  const ids = statuses.map((status) => status.id).join(" ");
 
   useEffect(() => {
     const element = board.current;
+    const order = ids.split(" ");
+    const visible = new Set<string>();
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        setMore(entry !== undefined && entry.intersectionRatio < 0.99);
+      (entries) => {
+        for (const { intersectionRatio, target } of entries) {
+          const id =
+            target instanceof HTMLElement
+              ? target.dataset["column"]
+              : undefined;
+
+          if (id !== undefined && intersectionRatio >= 0.95) {
+            visible.add(id);
+          } else if (id !== undefined) {
+            visible.delete(id);
+          }
+        }
+
+        setRange(visibleRange(order, visible));
       },
-      { root: element, threshold: [0, 0.99] }
+      { root: element, threshold: [0, 0.95, 1] }
     );
 
-    const column =
-      last === undefined
-        ? null
-        : element?.querySelector(`[data-column="${CSS.escape(last)}"]`);
-
-    if (column !== null && column !== undefined) {
+    for (const column of element?.querySelectorAll("[data-column]") ?? []) {
       observer.observe(column);
     }
 
     return () => {
       observer.disconnect();
     };
-  }, [board, last]);
+  }, [board, ids]);
 
-  return more;
+  return range;
+};
+
+const jumpLabel = (more: boolean, range: ColumnRange | null) => {
+  const action = more ? "Show more columns" : "Show first columns";
+
+  return range === null ? action : `${action}, ${rangeLabel(range)} shown`;
 };
 
 const columnGapRem = 0.5;
 const columnMinRem = 15;
 const columnMaxRem = 25;
 const buttonStripRem = 3;
-
-const rootRem = () =>
-  Number(
-    getComputedStyle(document.documentElement).fontSize.replace(/px$/u, "")
-  ) || 16;
 
 const useColumnWidth = (
   board: RefObject<HTMLDivElement | null>,
@@ -708,7 +723,8 @@ const useColumnWidth = (
 const Board = ({ columns, statuses, ...props }: ViewProps) => {
   const frame = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
-  const more = useMoreRight(board, statuses.at(-1)?.id);
+  const range = useColumnRange(board, statuses);
+  const more = range === null || range.last < range.count;
   const layout = useColumnWidth(frame, statuses.length);
   const shownWidth = useRef(layout.width);
 
@@ -758,9 +774,9 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
           ))}
         </div>
         {layout.fits ? null : (
-          <div className="flex w-12 shrink-0 justify-center pt-4.5 max-md:hidden">
+          <div className="flex w-12 shrink-0 flex-col items-center gap-1.5 pt-4.5 max-md:hidden">
             <Button
-              aria-label={more ? "Show more columns" : "Show first columns"}
+              aria-label={jumpLabel(more, range)}
               onClick={() => {
                 const element = board.current;
 
@@ -774,6 +790,19 @@ const Board = ({ columns, statuses, ...props }: ViewProps) => {
             >
               {more ? <ChevronRightIcon /> : <ChevronLeftIcon />}
             </Button>
+            {range === null ? null : (
+              <span
+                aria-hidden
+                className="text-muted-foreground flex flex-col items-center text-xs tabular-nums"
+              >
+                <span>
+                  {range.first === range.last
+                    ? range.first
+                    : `${range.first}–${range.last}`}
+                </span>
+                <span>of {range.count}</span>
+              </span>
+            )}
           </div>
         )}
       </div>
