@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 
 import { Argument, Command, CommanderError, Option } from "commander";
 
+import { isLoopback } from "../src/lib/loopback.ts";
 import {
   action,
   call,
@@ -62,12 +63,6 @@ const fieldsOf = (fields: [string, boolean][]) => {
 
   return body;
 };
-
-const isLoopback = (hostname: string) =>
-  hostname === "localhost" ||
-  hostname.endsWith(".localhost") ||
-  hostname === "[::1]" ||
-  /^127(?:\.\d{1,3}){3}$/u.test(hostname);
 
 const loginOrigin = (value: string, insecure: boolean) => {
   const url = URL.parse(value);

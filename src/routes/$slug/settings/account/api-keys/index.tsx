@@ -31,6 +31,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { request } from "~/lib/api";
 import type { ApiToken } from "~/lib/api-types";
 import { copyText } from "~/lib/copy";
+import { loginCommand } from "~/lib/loopback";
 import { notifyError } from "~/lib/notify";
 import { tokensQuery } from "~/lib/queries";
 import { pageHead, site } from "~/lib/site";
@@ -149,7 +150,7 @@ const TokenRows = () => {
             <span className="max-md:leading-11 pointer-coarse:leading-11">
               Sign in the flint CLI with{" "}
               <CopyCode
-                copy={() => `flint login --url ${window.location.origin}`}
+                copy={() => loginCommand(window.location.origin)}
                 text="flint login"
                 what="command"
               />
