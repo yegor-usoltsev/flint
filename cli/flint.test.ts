@@ -30,6 +30,7 @@ type Fields = v.InferOutput<typeof FieldsSchema>;
 
 let requests: string[] = [];
 let printed: string[] = [];
+let errors: string[] = [];
 
 const stubApi = (answers: Record<string, Answer>) => {
   const fake = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -77,11 +78,13 @@ beforeEach(() => {
 
   requests = [];
   printed = [];
+  errors = [];
   spyOn(console, "log").mockImplementation((line: string) => {
     printed.push(line);
   });
   spyOn(console, "error").mockImplementation((line: string) => {
     printed.push(line);
+    errors.push(line);
   });
   Object.assign(process.env, {
     FLINT_TOKEN: "t",
@@ -202,7 +205,8 @@ test("issue list keeps JSON on stdout and names the next page of a cut list", as
     issue("ENG-3"),
     issue("ENG-4"),
   ]);
-  expect(printed.slice(1)).toEqual([
+  expect(printed).toHaveLength(2);
+  expect(errors).toEqual([
     "Showing 3-4 of 5 issues; pass --offset 4 for the next page or narrow the filters",
   ]);
 

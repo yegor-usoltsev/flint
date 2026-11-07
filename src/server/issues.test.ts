@@ -609,6 +609,32 @@ test("lists hold the working set, closed pages and filters", async () => {
     [status("Todo")]: 2,
   });
   expect(await counts("?q=migrations")).toEqual({ [status("Canceled")]: 1 });
+
+  await db`update issues set canceled_at = now() - interval '15 days'
+    where status_id = ${status("Canceled")}`;
+
+  const aged = await callApi(
+    countsRoute,
+    alice,
+    "GET",
+    "/api/v1/projects/ENG/issue-counts",
+    { params: { key: "ENG" } }
+  );
+
+  expect(
+    Object.fromEntries(
+      v
+        .parse(
+          v.array(v.object({ recent: v.number(), statusId: v.string() })),
+          aged.body
+        )
+        .map((row) => [row.statusId, row.recent])
+    )
+  ).toEqual({
+    [status("Canceled")]: 0,
+    [status("Done")]: 1,
+    [status("Todo")]: 2,
+  });
   expect(
     keysOf(
       await callApi(
@@ -712,6 +738,19 @@ test("working set pages keep every status and report the full count", async () =
 
   expect(await page(`?q=${todo1}&limit=1`)).toEqual({
     keys: [todo1],
+    total: "2",
+  });
+
+  await createIssue(alice, {
+    description: "Mentions a nightly migration",
+    sortKey: "Zy",
+    statusId: status("In Progress"),
+    title: "Unrelated title",
+  });
+  const named = await make("Nightly migration", "Backlog", "a9");
+
+  expect(await page("?q=migration&limit=1")).toEqual({
+    keys: [named],
     total: "2",
   });
 });

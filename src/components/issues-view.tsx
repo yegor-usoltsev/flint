@@ -860,6 +860,10 @@ const useClosedIssues = (
     counts.data?.map((count) => [count.statusId, count.count])
   );
 
+  const recents = new Map(
+    counts.data?.map((count) => [count.statusId, count.recent])
+  );
+
   const total = (status: Status, loaded: number) => {
     const counted = isClosedStatus(status) ? enabled : truncated;
 
@@ -874,10 +878,17 @@ const useClosedIssues = (
     return counts.data === undefined || loaded < total(status, loaded);
   };
 
-  const isCut = (status: Status, loaded: number) =>
-    truncated && !isClosedStatus(status) && loaded < total(status, loaded);
+  const shown = (status: Status, loaded: number) =>
+    isClosedStatus(status)
+      ? Math.max(loaded, recents.get(status.id) ?? 0)
+      : total(status, loaded);
 
-  return { closed, hasOlder, isCut, total };
+  const isCut = (status: Status, loaded: number) =>
+    truncated &&
+    !(enabled && isClosedStatus(status)) &&
+    loaded < shown(status, loaded);
+
+  return { closed, hasOlder, isCut, shown, total };
 };
 
 const Issues = ({
@@ -896,7 +907,7 @@ const Issues = ({
   const navigate = useNavigate();
   const { query: issues, truncated } = useWorkingSet(project, search);
 
-  const { closed, hasOlder, isCut, total } = useClosedIssues(
+  const { closed, hasOlder, isCut, shown, total } = useClosedIssues(
     project,
     search,
     truncated
@@ -1067,7 +1078,7 @@ const Issues = ({
         ) : null}
         {isCut(status, loaded) ? (
           <p className="text-muted-foreground m-1.5 text-xs">
-            Showing {loaded} of {total(status, loaded)}. Filter to see the rest.
+            Showing {loaded} of {shown(status, loaded)}. Filter to see the rest.
           </p>
         ) : null}
         {hasOlder(status, loaded) ? (

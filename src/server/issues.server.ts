@@ -889,6 +889,10 @@ const listIssues = async (
         ) as category,
         s.position, p.key, i.sort_key,
         lower(p.key || '-' || i.number) = lower(${query.q}) as exact,
+        (
+          i.title ilike ${`%${escapeLike(query.q)}%`}
+          or (p.key || '-' || i.number) ilike ${`%${escapeLike(query.q)}%`}
+        ) as named,
         coalesce(i.completed_at, i.canceled_at) as closed_at,
         row_number() over (
           partition by i.status_id
@@ -899,7 +903,7 @@ const listIssues = async (
     ),
     page as (
       select * from matched
-      order by exact desc, ${
+      order by exact desc, named desc, ${
         closed
           ? db`closed_at desc, id desc`
           : db`place, category, position, key, id`
@@ -953,7 +957,12 @@ export const countProjectIssues = async (
   const { project } = await findProject(actor, key);
 
   return await db<StatusCount[]>`
-    select i.status_id as "statusId", count(*)::int as count
+    select i.status_id as "statusId", count(*)::int as count,
+      count(*) filter (
+        where s.category not in ('completed', 'canceled')
+          or coalesce(i.completed_at, i.canceled_at)
+            > now() - interval '14 days'
+      )::int as recent
     from issues i
     join projects p on p.id = i.project_id
     join statuses s on s.id = i.status_id
