@@ -6,6 +6,7 @@ import * as v from "valibot";
 
 import { CenteredCard, FlintMark, SignIn } from "~/components/sign-in";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Skeleton } from "~/components/ui/skeleton";
 import { signOut, useMe } from "~/lib/api";
 import type { Me } from "~/lib/api-types";
 import { pageHead } from "~/lib/site";
@@ -31,7 +32,7 @@ const CreateFirstWorkspace = ({ me }: { me: Me }) => (
       </p>
     </div>
     <div className="w-full text-left">
-      <Suspense>
+      <Suspense fallback={<Skeleton aria-busy className="h-72 w-full" />}>
         <WorkspaceForm cta />
       </Suspense>
     </div>
