@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { QueryKey } from "@tanstack/react-query";
+import type { QueryFilters, QueryKey } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { createContext, use, useEffect, useState } from "react";
 
@@ -126,6 +126,11 @@ export const useRealtime = (
       timers.add(timer);
     };
 
+    const refresh = async (filters: QueryFilters) => {
+      await queryClient.cancelQueries({ ...filters, type: "inactive" });
+      await queryClient.invalidateQueries(filters);
+    };
+
     const flush = () => {
       if (hasPendingIssueWrites()) {
         later(flush, 300);
@@ -139,9 +144,7 @@ export const useRealtime = (
         const hashes = new Set(stale);
 
         stale.clear();
-        void queryClient.invalidateQueries({
-          predicate: (query) => hashes.has(query.queryHash),
-        });
+        void refresh({ predicate: (query) => hashes.has(query.queryHash) });
       }
 
       const changedIssues = new Map(actors);
@@ -153,7 +156,7 @@ export const useRealtime = (
       actors.clear();
 
       const refreshed = [...pending.values()].map(async (queryKey) => {
-        await queryClient.invalidateQueries({ queryKey });
+        await refresh({ queryKey });
       });
 
       const changed = new Map(remote);

@@ -32,10 +32,11 @@ export const loadProject = async (
   key: string,
   issueKey?: string
 ) => {
-  const cold =
+  const booting =
+    queryClient.getQueryData(meQuery.queryKey) === undefined &&
     queryClient.getQueryData(projectQuery(key).queryKey) === undefined;
 
-  const early = cold ? api<IssueSummary[]>(`/projects/${key}/issues`) : null;
+  const early = booting ? api<IssueSummary[]>(`/projects/${key}/issues`) : null;
 
   early?.catch(() => null);
 
