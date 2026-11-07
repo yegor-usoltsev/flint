@@ -17,6 +17,7 @@ import type { WikiPage } from "~/lib/api-types";
 import { discardDraft, editDraft } from "~/lib/use-draft";
 import {
   buildTree,
+  filterTree,
   contentsText,
   dropPlacement,
   freePath,
@@ -114,6 +115,7 @@ const summary = (path: string, title: string, sortKey = "a0") => ({
   sortKey,
   title,
   updatedAt: "",
+  updatedBy: page.updatedBy,
 });
 
 afterEach(() => {
@@ -181,6 +183,29 @@ describe("wiki tree", () => {
     expect(slugify("Setup & Deploy: S3!")).toBe("setup-deploy-s3");
     expect(slugify("  .hidden_file ")).toBe("hidden_file");
   });
+});
+
+test("filterTree keeps matching titles with their ancestors and opens those ancestors", () => {
+  const tree = buildTree([
+    { ...summary("eng", "Engineering"), kind: "folder" as const },
+    { ...summary("eng/runbooks", "Runbooks"), kind: "folder" as const },
+    summary("eng/runbooks/outage", "Payments outage"),
+    summary("eng/releases", "Releases"),
+    summary("pay", "Payments"),
+  ]);
+
+  const matched = filterTree(tree, "  PAYMENT ");
+
+  expect(matched.nodes.map((node) => node.path)).toEqual(["eng", "pay"]);
+  expect(matched.nodes[0]?.children.map((node) => node.path)).toEqual([
+    "eng/runbooks",
+  ]);
+  expect([...matched.open].toSorted()).toEqual(["eng", "eng/runbooks"]);
+  expect(filterTree(tree, "runbooks").nodes[0]?.children[0]?.children).toEqual(
+    tree[0]?.children[1]?.children
+  );
+  expect(filterTree(tree, "nothing").nodes).toEqual([]);
+  expect(filterTree(tree, " ")).toEqual({ nodes: tree, open: new Set() });
 });
 
 test("recentPages lists a folder's pages at any depth, newest edit first", () => {
