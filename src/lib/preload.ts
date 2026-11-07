@@ -1,12 +1,13 @@
 import type { QueryClient } from "@tanstack/react-query";
 
-import { meQuery } from "~/lib/api";
+import { api, meQuery } from "~/lib/api";
 import type { IssueSummary } from "~/lib/api-types";
 import { prefetchDiagrams } from "~/lib/mermaid";
 import {
   assignedIssuesQuery,
   issueQuery,
   issuesQuery,
+  prefetchIssue,
   projectQuery,
   projectsQuery,
   timelineQuery,
@@ -23,13 +24,45 @@ export const preload = async (load: () => Promise<void>) => {
   }
 };
 
-export const loadProject = async (queryClient: QueryClient, key: string) => {
+export const loadIssueDetail = async () =>
+  await import("~/components/issue-detail");
+
+export const loadProject = async (
+  queryClient: QueryClient,
+  key: string,
+  issueKey?: string
+) => {
+  const booting =
+    queryClient.getQueryData(meQuery.queryKey) === undefined &&
+    queryClient.getQueryData(projectQuery(key).queryKey) === undefined;
+
+  const early = booting ? api<IssueSummary[]>(`/projects/${key}/issues`) : null;
+
+  early?.catch(() => null);
+
   const project = await queryClient.query({
     ...projectQuery(key),
     staleTime: "static",
   });
 
-  await queryClient.query({ ...issuesQuery(project), staleTime: "static" });
+  if (issueKey !== undefined) {
+    void queryClient.query(issueQuery(project.id, issueKey)).catch(() => null);
+  }
+
+  if (early !== null) {
+    queryClient.setQueryData(issuesQuery(project).queryKey, await early);
+  }
+
+  const issues = await queryClient.query({
+    ...issuesQuery(project),
+    staleTime: "static",
+  });
+
+  const shown = issues.find((issue) => issue.key === issueKey);
+
+  if (shown !== undefined) {
+    void prefetchIssue(queryClient, shown);
+  }
 };
 
 const loadTimeline = async (

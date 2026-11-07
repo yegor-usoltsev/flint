@@ -956,7 +956,7 @@ export const IssueTimeline = ({
         Activity
       </h2>
       {timeline.isPending ? (
-        <div aria-busy className="flex flex-col gap-2">
+        <div aria-busy className="skeleton-delay flex flex-col gap-2">
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-16 w-full" />
         </div>

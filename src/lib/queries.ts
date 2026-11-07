@@ -3,6 +3,7 @@ import {
   queryOptions,
   useQuery,
 } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 
 import { api, request } from "~/lib/api";
 import type {
@@ -170,3 +171,13 @@ export const timelineQuery = (issue: Pick<IssueSummary, "id" | "key">) =>
     },
     queryKey: ["timeline", issue.id],
   });
+
+export const prefetchIssue = async (
+  queryClient: QueryClient,
+  issue: Pick<IssueSummary, "id" | "key" | "projectId">
+) => {
+  await Promise.all([
+    queryClient.query(issueQuery(issue.projectId, issue.key)),
+    queryClient.query(timelineQuery(issue)),
+  ]).catch(() => null);
+};

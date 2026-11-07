@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { InfiniteData } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import {
   Link,
   linkOptions,
@@ -64,7 +64,12 @@ import type {
 import { branchName } from "~/lib/branch";
 import { copyText, issueUrl } from "~/lib/copy";
 import { useDeleteIssue } from "~/lib/issue-actions";
-import { useContextIssue } from "~/lib/issue-focus";
+import {
+  findIssue,
+  findIssueByKey,
+  rowOrder,
+  useContextIssue,
+} from "~/lib/issue-focus";
 import {
   stepFromPanel,
   useWideEntry,
@@ -79,6 +84,7 @@ import { useMyIssues } from "~/lib/my-issues";
 import {
   closedIssuesQuery,
   issueQuery,
+  prefetchIssue,
   projectQuery,
   useWorkingSet,
 } from "~/lib/queries";
@@ -668,6 +674,19 @@ const useIssueQuery = (project: ProjectDetail, issueKey: string) => {
   });
 };
 
+const prefetchKeys = (
+  queryClient: QueryClient,
+  keys: (string | undefined)[]
+) => {
+  for (const key of keys) {
+    const issue = key === undefined ? null : findIssueByKey(queryClient, key);
+
+    if (issue !== null) {
+      void prefetchIssue(queryClient, issue);
+    }
+  }
+};
+
 const recentIssue = (slug: string, issue: Issue): RecentItem => ({
   href: issueHref(slug, issue.key),
   kind: "issue",
@@ -749,7 +768,11 @@ const IssueBody = ({
           />
         ) : (
           <h2 className="text-title">
-            {data?.title ?? <Skeleton className="h-8 w-2/3" />}
+            {data?.title ?? (
+              <div aria-busy className="skeleton-delay">
+                <Skeleton className="h-8 w-2/3" />
+              </div>
+            )}
           </h2>
         )}
         {wide ? null : (
@@ -770,7 +793,7 @@ const IssueBody = ({
             key={`description-${data.id}`}
           />
         ) : (
-          <div aria-busy className="flex flex-col gap-2">
+          <div aria-busy className="skeleton-delay flex flex-col gap-2">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-5/6" />
             <Skeleton className="h-4 w-2/3" />
@@ -814,6 +837,12 @@ const IssueScreen = ({
   const back = useBack(origin);
   const username = useUsername();
   const full = useLocation({ select: (location) => location.state.full });
+  const queryClient = useQueryClient();
+  const { next, previous } = neighbors;
+
+  useEffect(() => {
+    prefetchKeys(queryClient, [issueKey, previous, next]);
+  }, [issueKey, next, previous, queryClient]);
 
   const go = (key: string | undefined) => {
     if (key !== undefined) {
@@ -992,6 +1021,18 @@ const PanelScreen = ({
   const editable = ready && data.deletedAt === null;
   const panel = usePanel();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const ids = rowOrder();
+    const at = ids.indexOf(findIssueByKey(queryClient, issueKey)?.id ?? "");
+
+    const nearby = (at === -1 ? [] : [ids[at - 1], ids[at + 1]]).map((id) =>
+      id === undefined ? undefined : findIssue(queryClient, id)?.key
+    );
+
+    prefetchKeys(queryClient, [issueKey, ...nearby]);
+  }, [issueKey, queryClient]);
 
   const fullPage = linkOptions({
     params: { issueKey, slug: workspace.slug },
@@ -1090,7 +1131,7 @@ export const IssuePanelContent = ({
 
   if (project.data === undefined) {
     return (
-      <div aria-busy className="flex flex-col gap-3 p-4">
+      <div aria-busy className="skeleton-delay flex flex-col gap-3 p-4">
         <Skeleton className="h-6 w-1/2" />
         <Skeleton className="h-4 w-full" />
       </div>
@@ -1178,7 +1219,7 @@ export const IssueDetail = ({ issueKey }: { issueKey: string }) => {
   if (project.data === undefined) {
     return (
       <Page title={key}>
-        <div aria-busy className="flex flex-col gap-3 p-8">
+        <div aria-busy className="skeleton-delay flex flex-col gap-3 p-8">
           <Skeleton className="h-8 w-1/2" />
           <Skeleton className="h-4 w-full" />
         </div>
