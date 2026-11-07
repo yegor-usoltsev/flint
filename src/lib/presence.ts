@@ -33,6 +33,10 @@ export const applyPresence = (
   slug: string,
   event: RealtimeEvent
 ) => {
+  if (event.entity !== "presence") {
+    return;
+  }
+
   events.set(slug, (events.get(slug) ?? 0) + 1);
   queryClient.setQueryData<Presence[]>(
     presenceQuery(slug).queryKey,

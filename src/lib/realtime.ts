@@ -216,11 +216,7 @@ export const useRealtime = (
               // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The SSE contract types the payload.
               const event = JSON.parse(message.data) as RealtimeEvent;
 
-              if (event.entity === "presence") {
-                applyPresence(queryClient, slug, event);
-
-                return;
-              }
+              applyPresence(queryClient, slug, event);
 
               for (const queryKey of eventKeys(slug, event)) {
                 pending.set(JSON.stringify(queryKey), queryKey);
