@@ -62,6 +62,22 @@ const report = (slug: string) => {
   send(slug, [...(viewed.get(slug)?.keys() ?? [])]);
 };
 
+const changed = new Set<string>();
+let flush: ReturnType<typeof setTimeout> | null = null;
+
+const reportSoon = (slug: string) => {
+  changed.add(slug);
+  flush ??= setTimeout(() => {
+    flush = null;
+
+    for (const item of changed) {
+      report(item);
+    }
+
+    changed.clear();
+  }, 0);
+};
+
 const beat = () => {
   if (document.visibilityState === "visible") {
     for (const slug of viewed.keys()) {
@@ -71,9 +87,14 @@ const beat = () => {
 };
 
 const leaveAll = () => {
-  for (const slug of viewed.keys()) {
+  clearTimeout(flush ?? undefined);
+  flush = null;
+
+  for (const slug of new Set([...viewed.keys(), ...changed])) {
     send(slug, []);
   }
+
+  changed.clear();
 };
 
 const start = () => {
@@ -91,7 +112,7 @@ const stop = () => {
   window.removeEventListener("pagehide", leaveAll);
 };
 
-const view = (slug: string, targetId: string) => {
+export const viewTarget = (slug: string, targetId: string) => {
   const targets = viewed.get(slug) ?? new Map<string, number>();
   const count = targets.get(targetId) ?? 0;
 
@@ -103,7 +124,7 @@ const view = (slug: string, targetId: string) => {
   }
 
   if (count === 0 && document.visibilityState === "visible") {
-    report(slug);
+    reportSoon(slug);
   }
 
   return () => {
@@ -116,7 +137,7 @@ const view = (slug: string, targetId: string) => {
     }
 
     targets.delete(targetId);
-    report(slug);
+    reportSoon(slug);
 
     if (targets.size === 0) {
       viewed.delete(slug);
@@ -133,7 +154,7 @@ export const usePresence = (slug: string, targetId: string) => {
   const members = useQuery(membersQuery(slug)).data;
   const presence = useQuery(presenceQuery(slug)).data;
 
-  useEffect(() => view(slug, targetId), [slug, targetId]);
+  useEffect(() => viewTarget(slug, targetId), [slug, targetId]);
 
   const userIds =
     presence?.find((item) => item.targetId === targetId)?.userIds ?? [];
