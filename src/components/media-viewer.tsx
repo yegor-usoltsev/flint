@@ -288,6 +288,7 @@ export const MediaViewer = (props: ViewerProps) => {
   const [slots, setSlots] = useState<Slots>(new Map());
   const viewer = useRef<ReturnType<typeof mount> | null>(null);
   const latest = useRef(props);
+  const popup = useRef<HTMLDivElement>(null);
   const item = index === null ? undefined : items[index];
 
   useEffect(() => {
@@ -341,6 +342,7 @@ export const MediaViewer = (props: ViewerProps) => {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Popup
           className="fixed inset-0 z-50 outline-none"
+          initialFocus={popup}
           onKeyDown={(event) => {
             const pswp = viewer.current?.pswp;
 
@@ -354,6 +356,7 @@ export const MediaViewer = (props: ViewerProps) => {
               event.preventDefault();
             }
           }}
+          ref={popup}
         >
           <DialogPrimitive.Title className="sr-only">
             {item?.name}

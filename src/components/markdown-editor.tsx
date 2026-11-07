@@ -3,6 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Extension, InputRule } from "@tiptap/core";
 import type { Editor } from "@tiptap/core";
 import { Placeholder } from "@tiptap/extensions";
+import { NodeSelection } from "@tiptap/pm/state";
+import type { Selection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import {
   EditorContent,
@@ -120,6 +122,9 @@ const BubbleButton = ({
   </button>
 );
 
+const formatsText = (selection: Selection) =>
+  !(selection instanceof CellSelection || selection instanceof NodeSelection);
+
 const Bubble = ({ editor }: { editor: Editor }) => {
   const [linking, setLinking] = useState<string | null>(null);
 
@@ -150,7 +155,7 @@ const Bubble = ({ editor }: { editor: Editor }) => {
         current.isEditable &&
         from !== to &&
         !current.isActive("codeBlock") &&
-        !(state.selection instanceof CellSelection)
+        formatsText(state.selection)
       }
     >
       {linking === null ? (
