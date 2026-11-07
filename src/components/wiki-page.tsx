@@ -17,7 +17,14 @@ import {
   TriangleAlertIcon,
   TypeIcon,
 } from "lucide-react";
-import { createContext, use, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  use,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type {
   ComponentProps,
   KeyboardEvent,
@@ -93,6 +100,7 @@ import { discardDraft, useDraft, useHasDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
 import { useCommands, useHotkey } from "~/lib/use-hotkey";
 import { useWorkspace } from "~/lib/use-workspace";
+import { fitWideBlocks } from "~/lib/wide-blocks";
 import {
   ancestors,
   buildTree,
@@ -1001,6 +1009,41 @@ const Contents = ({
   </nav>
 );
 
+const useWideBlocks = (
+  scroller: RefObject<HTMLDivElement | null>,
+  body: RefObject<HTMLDivElement | null>,
+  rail: boolean,
+  headings: number
+) => {
+  const railShown = rail && headings > 1;
+
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    const text = body.current;
+    const aside = railShown ? element?.querySelector("[data-rail]") : null;
+
+    const fit = () => {
+      if (element !== null && text !== null) {
+        fitWideBlocks(element, text, aside ?? null);
+      }
+    };
+
+    const observer = new ResizeObserver(fit);
+
+    for (const target of [element, text, aside]) {
+      if (target !== null && target !== undefined) {
+        observer.observe(target);
+      }
+    }
+
+    fit();
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [body, railShown, scroller]);
+};
+
 const PageGrid = ({
   children,
   scroller,
@@ -1012,7 +1055,7 @@ const PageGrid = ({
     className={cn(
       "min-w-0 flex-1 overflow-y-auto xl:grid xl:items-start",
       use(PagePane) === "detail"
-        ? "xl:grid-cols-[2rem_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)]"
+        ? "xl:grid-cols-[minmax(2rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)]"
         : "xl:grid-cols-[minmax(6rem,1fr)_minmax(0,calc(var(--container-document)+6rem))_minmax(14rem,1fr)]"
     )}
     ref={scroller}
@@ -1040,7 +1083,8 @@ const ContentsRail = ({
   return (
     <aside
       aria-label="Page details"
-      className="sticky top-0 col-start-3 row-start-1 flex max-h-[calc(100svh-2.75rem)] max-w-72 flex-col gap-6 overflow-y-auto py-8 pr-6"
+      className="sticky top-0 col-start-3 row-start-1 flex max-h-[calc(100svh-2.75rem)] max-w-72 flex-col gap-6 justify-self-end overflow-y-auto py-8 pr-6"
+      data-rail
     >
       <Contents active={active} headings={headings} onJump={onJump} />
     </aside>
@@ -1420,6 +1464,8 @@ const PageEditor = ({
     );
 
   const headings = headingsOf(body.value);
+
+  useWideBlocks(scroller, bodyBox, rail, headings.length);
 
   const jump = (index: number) => {
     headingElements()[index]?.scrollIntoView({
