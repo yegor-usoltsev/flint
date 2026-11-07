@@ -353,6 +353,12 @@
     min-width: var(--diagram-min, 0px);
     max-width: min(100%, var(--diagram-width, 100%)) !important;
   }
+  &[data-fit] > svg {
+    min-width: 0;
+  }
+  &[data-fade] {
+    mask-image: linear-gradient(to right, black calc(100% - 1rem), transparent);
+  }
 }
 
 @utility fade-right {
@@ -398,18 +404,33 @@
 }
 
 @utility mention {
-  @apply bg-surface-2 hover:bg-surface-3 text-foreground -my-1 inline-flex items-baseline rounded-[4px] border-[0.5px] font-normal no-underline;
+  @apply bg-surface-2 hover:bg-surface-3 text-foreground rounded-[4px] border-[0.5px] box-decoration-clone font-normal no-underline;
   padding: 1.5px 4.5px 1.5px 3px;
-  max-width: calc(100% - 1em);
 
   & svg {
-    @apply mr-1 inline size-3.5 shrink-0 self-center align-[-2px];
+    @apply mr-1 inline size-3.5 align-[-2px];
   }
   & svg:not([data-color]) {
     @apply text-muted-foreground;
   }
+  & > span:first-child {
+    @apply whitespace-nowrap;
+  }
   & > span + span {
     @apply ml-1;
+  }
+  @variant md {
+    :is(td, th) & {
+      @apply inline-flex items-baseline align-bottom;
+      max-width: calc(100% - 1em);
+
+      & > span:last-child {
+        @apply truncate;
+      }
+      & svg {
+        @apply shrink-0 self-center;
+      }
+    }
   }
   .ProseMirror-selectednode & {
     @apply ring-ring/50 ring-2;
@@ -737,6 +758,18 @@
     & > * > [data-diagram] {
       margin-inline: calc(var(--wide-extra, 0px) / -2);
     }
+    & > .tableWrapper {
+      @apply flex;
+
+      &::before,
+      &::after {
+        content: "";
+        flex: 0 1000 calc(var(--wide-extra, 0px) / 2);
+      }
+      & > table {
+        @apply mr-auto;
+      }
+    }
     & > .media:has(> img:not([width])),
     & > p > .media:has(> img:not([width])) {
       @apply w-max;
@@ -747,8 +780,7 @@
       @apply w-full border-collapse overflow-hidden text-left;
     }
     & > .tableWrapper > table {
-      @apply mx-auto w-auto;
-      min-width: calc(100% - var(--wide-extra, 0px));
+      @apply w-auto;
     }
     & th,
     & td {

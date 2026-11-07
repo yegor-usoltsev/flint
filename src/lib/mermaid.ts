@@ -194,6 +194,17 @@ export const diagramVars = (size: DiagramSize, smallest = labelPx) => ({
   width: `${size.width / 16}rem`,
 });
 
+const minFitScale = 0.45;
+
+export const fitsColumn = (
+  size: DiagramSize,
+  available: number,
+  smallest = labelPx
+) =>
+  (Math.min(1, available / size.width) * Math.min(smallest, labelPx)) /
+    labelPx >=
+  minFitScale;
+
 const sizesKey = "flint:diagram-sizes";
 const sizeLimit = 200;
 const SizesSchema = v.record(v.string(), v.tuple([v.number(), v.number()]));
