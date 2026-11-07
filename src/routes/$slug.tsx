@@ -196,8 +196,8 @@ const WorkspaceLayout = () => {
             <SidebarInset className="min-h-0 overflow-hidden" id="main">
               <IssuePanelHost enabled={panelPages.test(pathname)}>
                 <Outlet />
+                <SelectionBar />
               </IssuePanelHost>
-              <SelectionBar />
               <SyncStatus />
             </SidebarInset>
           </CommandLayer>

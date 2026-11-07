@@ -362,7 +362,7 @@ export const SettingsChoice = <Value extends string>({
 }) => (
   <fieldset
     aria-label={label}
-    className="bg-surface-3 flex rounded-lg p-0.5 max-sm:w-full"
+    className="bg-surface-3 dark:ring-border flex rounded-lg p-0.5 max-sm:w-full dark:ring-1"
   >
     {items.map((item) => (
       <Button

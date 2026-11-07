@@ -117,8 +117,9 @@ export const IssueLabels = ({
         >
           <span
             className={cn(
-              "text-muted-foreground border-hairline inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs tabular-nums",
-              className
+              "text-muted-foreground border-hairline inline-flex h-6 items-center rounded-full px-2 text-xs tabular-nums",
+              className,
+              "shrink-0"
             )}
           >
             +{hidden}

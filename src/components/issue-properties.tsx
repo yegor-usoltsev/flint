@@ -251,17 +251,6 @@ const Section = ({
   </section>
 );
 
-const AssigneeName = ({ name, short }: { name: string; short: boolean }) => {
-  const [first = name] = name.split(" ");
-
-  return (
-    <span className="truncate">
-      <span className="max-sm:hidden">{name}</span>
-      <span className="sm:hidden">{short ? first : name}</span>
-    </span>
-  );
-};
-
 const Text = ({
   children,
   compact,
@@ -435,7 +424,7 @@ export const IssueProperties = ({
         ) : (
           <>
             <MemberAvatar member={assignee} />
-            <AssigneeName name={assignee.displayName} short={pills} />
+            <Text compact={false}>{assignee.displayName}</Text>
           </>
         )
       )}
