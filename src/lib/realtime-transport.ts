@@ -191,6 +191,8 @@ export const subscribeRealtime = (
   document.addEventListener("visibilitychange", visibility);
   window.addEventListener("pagehide", pagehide);
   window.addEventListener("pageshow", pageshow);
+  document.addEventListener("freeze", pagehide);
+  document.addEventListener("resume", pageshow);
   window.addEventListener("online", online);
 
   return () => {
@@ -198,6 +200,8 @@ export const subscribeRealtime = (
     document.removeEventListener("visibilitychange", visibility);
     window.removeEventListener("pagehide", pagehide);
     window.removeEventListener("pageshow", pageshow);
+    document.removeEventListener("freeze", pagehide);
+    document.removeEventListener("resume", pageshow);
     clearTimeout(away);
     disconnect();
   };

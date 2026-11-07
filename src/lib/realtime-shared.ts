@@ -208,7 +208,10 @@ export const createRealtimeHub = () => {
         }
 
         subscriber.at = Date.now();
-        subscriber.hidden = data.type === "hide";
+
+        if (data.type === "hide" || data.type === "ping") {
+          subscriber.hidden = data.type === "hide";
+        }
 
         if (data.type === "unsubscribe") {
           detach(port);

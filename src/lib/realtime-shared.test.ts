@@ -279,6 +279,32 @@ test("working worker keeps hidden tabs subscribed without a heartbeat and releas
   expect(Source.instances[0]?.readyState).toBe(Source.CLOSED);
 });
 
+test("a hidden tab stays exempt from the sweep after asking to reconnect", async () => {
+  const hidden = await subscribe();
+
+  hidden.port.postMessage({ type: "hide" }, []);
+  hidden.port.postMessage({ type: "reconnect" }, []);
+  await settle();
+  jest.advanceTimersByTime(leaseMs * 2);
+  Source.instances.at(-1)?.message("later");
+  await settle();
+  expect(hidden.messages).toContainEqual({ data: "later", type: "message" });
+});
+
+test("a frozen tab releases the shared stream and rejoins on resume", async () => {
+  const tab = client(Worker);
+
+  await settle();
+  Source.instances[0]?.open();
+  await settle();
+  tab.document.dispatchEvent(new Event("freeze"));
+  await settle();
+  expect(Source.instances[0]?.readyState).toBe(Source.CLOSED);
+  tab.document.dispatchEvent(new Event("resume"));
+  await settle();
+  expect(Source.instances).toHaveLength(2);
+});
+
 test("a tab that starts hidden joins the shared stream at once", async () => {
   const document = Object.assign(new EventTarget(), { hidden: true });
 
