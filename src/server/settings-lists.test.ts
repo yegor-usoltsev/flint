@@ -61,6 +61,11 @@ test("settings lists carry open issue counts, label usage and join dates", async
     { key: "ENG", openIssues: 1 },
     { key: "OPS", openIssues: 0 },
   ]);
+  const [plainProject] = await listProjects(actor, "acme", false);
+  const [plainLabel] = await listLabels(actor, "acme", false);
+
+  expect(plainProject).not.toHaveProperty("openIssues");
+  expect(plainLabel).not.toHaveProperty("issueCount");
   expect([...(await listLabels(actor, "acme"))]).toMatchObject([
     { issueCount: 0, name: "Bug" },
     { issueCount: 0, name: "Feature" },

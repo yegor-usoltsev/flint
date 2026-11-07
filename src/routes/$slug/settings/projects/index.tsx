@@ -27,7 +27,7 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import type { ProjectSummary } from "~/lib/api-types";
 import { formatDate } from "~/lib/issue-view";
-import { projectsQuery } from "~/lib/queries";
+import { projectCountsQuery, projectsQuery } from "~/lib/queries";
 import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
@@ -94,6 +94,7 @@ const ProjectRow = ({
 const Projects = () => {
   const workspace = useWorkspace();
   const projects = useQuery(projectsQuery(workspace.slug));
+  const counts = useQuery(projectCountsQuery(workspace.slug));
   const [creating, setCreating] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   const [filter, setFilter] = useState("");
@@ -171,6 +172,15 @@ const Projects = () => {
               title="Projects could not load"
             />
           ) : null}
+          {counts.isError && counts.data === undefined ? (
+            <LoadFailed
+              error={counts.error}
+              onRetry={() => {
+                void counts.refetch();
+              }}
+              title="Open issue counts could not load"
+            />
+          ) : null}
           {shown?.length === 0 ? (
             <TableEmpty
               action={createButton}
@@ -192,7 +202,10 @@ const Projects = () => {
                 <ProjectRow
                   index={index}
                   key={project.id}
-                  project={project}
+                  project={{
+                    ...project,
+                    openIssues: counts.data?.get(project.id),
+                  }}
                   sortable={sortable}
                   moving={reorder.moving}
                   sorting={words === ""}

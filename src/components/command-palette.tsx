@@ -293,22 +293,33 @@ const searchQuery = (slug: string, q: string, mode: "fts" | "hybrid") => ({
 
 const useSearch = (slug: string, query: string) => {
   const q = useDebounced(query.trim(), 120);
+  const semantic = useMe().data?.semanticSearch === true;
 
   const fts = useQuery({
     ...searchQuery(slug, q, "fts"),
     placeholderData: keepPreviousData,
   });
 
-  const hybrid = useQuery(searchQuery(slug, q, "hybrid"));
+  const hybridQuery = searchQuery(slug, q, "hybrid");
+
+  const hybrid = useQuery({
+    ...hybridQuery,
+    enabled: semantic && hybridQuery.enabled,
+  });
+
   const fresh = hybrid.data !== undefined || !fts.isPlaceholderData;
 
   return {
     current: fresh && q === query.trim(),
-    failed: query.trim().length >= 2 && fts.isError && hybrid.isError,
+    failed:
+      query.trim().length >= 2 && fts.isError && (!semantic || hybrid.isError),
     results: query.trim().length < 2 ? null : (hybrid.data ?? fts.data ?? null),
     retry: () => {
       void fts.refetch();
-      void hybrid.refetch();
+
+      if (semantic) {
+        void hybrid.refetch();
+      }
     },
   };
 };

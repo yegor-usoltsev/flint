@@ -26,6 +26,7 @@ test("the deleted workspace leaves the cached /me", () => {
     displayName: "Alice",
     email: "",
     giteaUrl: "http://gitea.test",
+    semanticSearch: false,
     trashDays: 30,
     id: "u",
     isInstanceAdmin: false,

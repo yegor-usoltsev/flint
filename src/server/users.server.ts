@@ -4,6 +4,7 @@ import type { Me } from "~/lib/api-types";
 import { isInstanceAdmin } from "~/server/access.server";
 import type { Actor } from "~/server/api.server";
 import { db } from "~/server/db.server";
+import { embeddingsEnabled } from "~/server/embeddings.server";
 import { env } from "~/server/env.server";
 import { listWorkspaces } from "~/server/workspaces.server";
 
@@ -63,7 +64,7 @@ export const signIn = async (profile: GiteaProfile) =>
 
 export const getMe = async (actor: Actor): Promise<Me> => {
   const [[user], workspaces] = await Promise.all([
-    db<Omit<Me, "giteaUrl" | "trashDays" | "workspaces">[]>`
+    db<Omit<Me, "giteaUrl" | "semanticSearch" | "trashDays" | "workspaces">[]>`
       select u.id, u.username, u.display_name as "displayName", u.email,
         u.avatar_url as "avatarUrl",
         ${isInstanceAdmin()} as "isInstanceAdmin"
@@ -79,6 +80,7 @@ export const getMe = async (actor: Actor): Promise<Me> => {
   return {
     ...user,
     giteaUrl: env.GITEA_PUBLIC_URL,
+    semanticSearch: embeddingsEnabled(),
     trashDays: env.TRASH_RETENTION_DAYS,
     workspaces,
   };

@@ -17,6 +17,7 @@ import { countChecklist } from "~/lib/checklist";
 import { maxIssueLimit } from "~/lib/endpoints";
 import {
   isInstanceAdmin,
+  isUuid,
   notFound,
   requireWorkspace,
   userRef,
@@ -330,6 +331,10 @@ const checkLabels = async (
 ) => {
   const unique = [...new Set(labelIds)];
 
+  if (unique.length === 0) {
+    return unique;
+  }
+
   const [row] = await tx<{ count: number }[]>`
     select count(*)::int as count from labels
     where workspace_id = ${workspaceId}
@@ -374,8 +379,8 @@ const nextLabels = async (
 };
 
 const closedDates = (category: StatusCategory) => ({
-  canceledAt: category === "canceled" ? new Date() : null,
-  completedAt: category === "completed" ? new Date() : null,
+  canceled_at: category === "canceled" ? new Date() : null,
+  completed_at: category === "completed" ? new Date() : null,
 });
 
 interface EventInput {
@@ -484,8 +489,8 @@ export const createIssue = async (
         ${input.description}, ${status.id}, ${input.priority},
         ${input.assigneeId}, ${actor.userId},
         ${input.sortKey ?? generateKeyBetween(null, first?.sortKey ?? null)},
-        ${checklist.done}, ${checklist.total}, ${dates.completedAt},
-        ${dates.canceledAt}
+        ${checklist.done}, ${checklist.total}, ${dates.completed_at},
+        ${dates.canceled_at}
       )
       on conflict (id) do nothing
       returning id
@@ -617,6 +622,58 @@ const changedFields = (
   ...(row.description === next.description ? [] : (["description"] as const)),
 ];
 
+interface IssueColumns {
+  assignee_id: string | null;
+  canceled_at: Date | null;
+  checklist_done: number;
+  checklist_total: number;
+  completed_at: Date | null;
+  description_md: string;
+  priority: number;
+  sort_key: string;
+  status_id: string;
+  title: string;
+}
+
+const changedColumns = (
+  row: IssueRow,
+  next: Omit<IssueRow, "deletedAt" | "version">,
+  status: { category: StatusCategory; id: string } | null
+) => {
+  const columns: Partial<IssueColumns> = {};
+
+  if (row.title !== next.title) {
+    columns.title = next.title;
+  }
+
+  if (row.description !== next.description) {
+    const checklist = countChecklist(next.description);
+
+    columns.description_md = next.description;
+    columns.checklist_done = checklist.done;
+    columns.checklist_total = checklist.total;
+  }
+
+  if (status !== null) {
+    Object.assign(columns, closedDates(status.category));
+    columns.status_id = status.id;
+  }
+
+  if (row.priority !== next.priority) {
+    columns.priority = next.priority;
+  }
+
+  if (row.assigneeId !== next.assigneeId) {
+    columns.assignee_id = next.assigneeId;
+  }
+
+  if (row.sortKey !== next.sortKey) {
+    columns.sort_key = next.sortKey;
+  }
+
+  return columns;
+};
+
 export const updateIssue = async (
   actor: Actor,
   key: string,
@@ -671,29 +728,16 @@ export const updateIssue = async (
       await checkAssignee(tx, issue.workspaceId, next.assigneeId);
     }
 
-    const statusChanged = row.statusId !== next.statusId;
+    const status =
+      row.statusId === next.statusId
+        ? null
+        : await findStatus(tx, issue.projectId, next.statusId);
 
-    const status = await findStatus(tx, issue.projectId, next.statusId);
-    const dates = closedDates(status.category);
-
-    const checklist = countChecklist(next.description);
+    const columns = changedColumns(row, next, status);
 
     await tx`
-      update issues set
-        title = ${next.title},
-        description_md = ${next.description},
-        status_id = ${next.statusId},
-        priority = ${next.priority},
-        assignee_id = ${next.assigneeId},
-        sort_key = ${next.sortKey},
-        checklist_done = ${checklist.done},
-        checklist_total = ${checklist.total},
-        completed_at = case when ${statusChanged}
-          then ${dates.completedAt}::timestamptz else completed_at end,
-        canceled_at = case when ${statusChanged}
-          then ${dates.canceledAt}::timestamptz else canceled_at end,
-        version = version + 1,
-        updated_at = now()
+      update issues set version = version + 1, updated_at = now()
+        ${Object.keys(columns).length === 0 ? tx`` : tx`, ${tx(columns)}`}
       where id = ${issue.id}
     `;
 
@@ -808,9 +852,17 @@ export const escapeLike = (text: string) => text.replaceAll(/[\\%_]/gu, "\\$&");
 
 // oxlint-disable-next-line typescript/promise-function-async -- Returns an unexecuted Bun SQL fragment, which is thenable.
 const issueFilters = (actor: Actor, query: IssueQuery) => {
-  const assignees = query.assignee.map((value) =>
-    value === "me" || value === "@me" ? actor.userId : value.replace(/^@/u, "")
-  );
+  const assignees = query.assignee.map((value) => value.replace(/^@/u, ""));
+  const names = assignees.filter((value) => value !== "me");
+
+  const ids = [
+    ...(assignees.includes("me") ? [actor.userId] : []),
+    ...names.filter((name) => isUuid(name)),
+  ];
+
+  const unassigned = assignees.includes("none")
+    ? db`or i.assignee_id is null`
+    : db``;
 
   return db`
     ${
@@ -830,12 +882,11 @@ const issueFilters = (actor: Actor, query: IssueQuery) => {
       assignees.length === 0
         ? db``
         : db`and (
-            (${assignees.includes("none")} and i.assignee_id is null)
-            or i.assignee_id::text = any(${db.array(assignees, "text")})
-            or i.assignee_id in (
+            i.assignee_id = any(${db.array(ids, "uuid")} || array(
               select id from users
-              where lower(username) = any(${db.array(assignees, "text")})
-            )
+              where lower(username) = any(${db.array(names, "text")})
+            ))
+            ${unassigned}
           )`
     }
     ${
@@ -905,17 +956,25 @@ const listIssues = async (
           s.category
         ) as category,
         s.position, p.key, i.sort_key,
-        lower(p.key || '-' || i.number) = lower(${query.q}) as exact,
-        (
-          i.title ilike ${`%${escapeLike(query.q)}%`}
-          or (p.key || '-' || i.number) ilike ${`%${escapeLike(query.q)}%`}
-        ) as named,
-        coalesce(i.completed_at, i.canceled_at) as closed_at,
-        row_number() over (
-          partition by i.status_id
-          order by coalesce(i.completed_at, i.canceled_at) desc nulls last,
-            i.sort_key, i.id
-        ) as place
+        ${
+          query.q === ""
+            ? db`false as exact, false as named,`
+            : db`lower(p.key || '-' || i.number) = lower(${query.q}) as exact,
+              (
+                i.title ilike ${`%${escapeLike(query.q)}%`}
+                or (p.key || '-' || i.number) ilike ${`%${escapeLike(query.q)}%`}
+              ) as named,`
+        }
+        coalesce(i.completed_at, i.canceled_at) as closed_at
+        ${
+          closed
+            ? db``
+            : db`, row_number() over (
+                partition by i.status_id
+                order by coalesce(i.completed_at, i.canceled_at) desc nulls last,
+                  i.sort_key, i.id
+              ) as place`
+        }
       ${matchingIssues(actor, scope, query)}
     ),
     page as (

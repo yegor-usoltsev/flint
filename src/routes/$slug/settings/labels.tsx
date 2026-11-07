@@ -48,7 +48,7 @@ import type { Label, LabelSummary } from "~/lib/api-types";
 import { colors } from "~/lib/colors";
 import type { Color } from "~/lib/colors";
 import { notifyError } from "~/lib/notify";
-import { labelsQuery } from "~/lib/queries";
+import { labelCountsQuery, labelsQuery } from "~/lib/queries";
 import { pageHead } from "~/lib/site";
 import { useAutosaveText } from "~/lib/use-autosave-text";
 import { useWorkspace } from "~/lib/use-workspace";
@@ -204,7 +204,7 @@ const DeleteLabel = ({
       <AlertDialogHeader>
         <AlertDialogTitle>Delete “{label.name}”?</AlertDialogTitle>
         <AlertDialogDescription>
-          {usage(label.issueCount)}
+          {label.issueCount === undefined ? null : usage(label.issueCount)}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
@@ -387,6 +387,7 @@ const LabelRow = ({
 const Labels = () => {
   const workspace = useWorkspace();
   const labels = useQuery(labelsQuery(workspace.slug));
+  const counts = useQuery(labelCountsQuery(workspace.slug));
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState("");
   const words = filter.trim().toLowerCase();
@@ -440,6 +441,15 @@ const Labels = () => {
               title="Labels could not load"
             />
           ) : null}
+          {counts.isError && counts.data === undefined ? (
+            <LoadFailed
+              error={counts.error}
+              onRetry={() => {
+                void counts.refetch();
+              }}
+              title="Issue counts could not load"
+            />
+          ) : null}
           {shown?.length === 0 && !creating ? (
             <TableEmpty
               action={
@@ -470,7 +480,7 @@ const Labels = () => {
                   <LabelRow
                     index={index}
                     key={label.id}
-                    label={label}
+                    label={{ ...label, issueCount: counts.data?.get(label.id) }}
                     slug={workspace.slug}
                     moving={reorder.moving}
                     sorting={words === ""}

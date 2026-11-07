@@ -22,6 +22,7 @@ export interface Me {
   giteaUrl: string;
   id: string;
   isInstanceAdmin: boolean;
+  semanticSearch: boolean;
   trashDays: number;
   username: string;
   workspaces: Workspace[];
@@ -68,7 +69,7 @@ export interface Status {
 
 export interface ProjectSummary extends Project {
   createdAt: string;
-  openIssues: number;
+  openIssues?: number;
 }
 
 export interface ProjectDetail extends Project {
@@ -82,7 +83,7 @@ export interface Label {
 }
 
 export interface LabelSummary extends Label {
-  issueCount: number;
+  issueCount?: number;
 }
 
 export interface ApiToken {

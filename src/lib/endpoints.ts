@@ -78,6 +78,10 @@ export interface IssueListQuery {
   status?: string[];
 }
 
+export interface CountsQuery {
+  counts?: boolean;
+}
+
 export interface SearchQuery {
   limit?: number;
   mode?: "fts" | "hybrid";
@@ -124,10 +128,16 @@ export interface Endpoints {
     query: IssueListQuery;
     response: IssueSummary[];
   };
-  "GET /workspaces/:slug/labels": { response: LabelSummary[] };
+  "GET /workspaces/:slug/labels": {
+    query: CountsQuery;
+    response: LabelSummary[];
+  };
   "GET /workspaces/:slug/members": { response: Member[] };
   "GET /workspaces/:slug/presence": { response: Presence[] };
-  "GET /workspaces/:slug/projects": { response: ProjectSummary[] };
+  "GET /workspaces/:slug/projects": {
+    query: CountsQuery;
+    response: ProjectSummary[];
+  };
   "GET /workspaces/:slug/search": {
     query: SearchQuery;
     response: SearchResults;

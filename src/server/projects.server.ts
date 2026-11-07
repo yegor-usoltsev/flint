@@ -88,17 +88,26 @@ export const findProject = async (actor: Actor, key: string) => {
   return { project: rest, role, workspaceId };
 };
 
-export const listProjects = async (actor: Actor, slug: string) => {
+export const listProjects = async (
+  actor: Actor,
+  slug: string,
+  counts = true
+) => {
   const workspace = await requireWorkspace(actor, slug);
 
   return await db<ProjectSummary[]>`
     select p.id, p.key, p.name, p.icon, p.color,
-      ${workspace.slug} as "workspaceSlug", p.created_at as "createdAt",
-      (
-        select count(*)::int from issues i join statuses s on s.id = i.status_id
-        where i.project_id = p.id and i.deleted_at is null
-          and s.category not in ('completed', 'canceled')
-      ) as "openIssues"
+      ${workspace.slug} as "workspaceSlug", p.created_at as "createdAt"
+      ${
+        counts
+          ? db`, (
+              select count(*)::int from issues i
+              join statuses s on s.id = i.status_id
+              where i.project_id = p.id and i.deleted_at is null
+                and s.category not in ('completed', 'canceled')
+            ) as "openIssues"`
+          : db``
+      }
     from projects p where p.workspace_id = ${workspace.id}
     order by p.position, p.created_at, p.id
   `;

@@ -12,7 +12,12 @@ export const Route = createFileRoute("/api/v1/workspaces/$slug/projects")({
     handlers: {
       ANY: methodNotAllowed,
       GET: endpoint<"GET /workspaces/:slug/projects">(
-        async ({ actor, params }) => await listProjects(actor, params.slug)
+        async ({ actor, params, request }) =>
+          await listProjects(
+            actor,
+            params.slug,
+            new URL(request.url).searchParams.get("counts") !== "false"
+          )
       ),
       POST: endpoint<"POST /workspaces/:slug/projects">(
         async ({ actor, body, params }) =>
