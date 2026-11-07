@@ -92,11 +92,23 @@ export const issuesQuery = (project: Project) =>
     queryKey: ["issues", project.id],
   });
 
-export const assignedIssuesQuery = (project: Project, userId: string) =>
+const assignedPages = async (
+  slug: string,
+  offset = 0
+): Promise<IssueSummary[]> => {
+  const page = await api<IssueSummary[]>(
+    `/workspaces/${slug}/issues?assignee=me&offset=${offset}`
+  );
+
+  return page.length < maxIssueLimit
+    ? page
+    : [...page, ...(await assignedPages(slug, offset + page.length))];
+};
+
+export const assignedIssuesQuery = (slug: string, userId: string) =>
   queryOptions({
-    queryFn: async () =>
-      await api<IssueSummary[]>(`/projects/${project.key}/issues?assignee=me`),
-    queryKey: ["issues", project.id, "assigned", userId],
+    queryFn: async () => await assignedPages(slug),
+    queryKey: ["issues", "workspace", slug, "mine", userId],
   });
 
 const filterParams = (search: IssueSearch) =>
@@ -122,15 +134,19 @@ export const filteredIssuesQuery = (project: Project, search: IssueSearch) => {
   });
 };
 
-export const useWorkingSet = (project: Project, search: IssueSearch) => {
-  const issues = useQuery(issuesQuery(project));
+export const useWorkingSet = (
+  project: Project,
+  search: IssueSearch,
+  enabled = true
+) => {
+  const issues = useQuery({ ...issuesQuery(project), enabled });
 
   const narrow =
     isFiltered(search) && (issues.data?.length ?? 0) >= maxIssueLimit;
 
   const filtered = useQuery({
     ...filteredIssuesQuery(project, search),
-    enabled: narrow,
+    enabled: enabled && narrow,
   });
 
   const query = narrow ? filtered : issues;

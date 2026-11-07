@@ -54,7 +54,7 @@ import {
 } from "~/lib/queries";
 import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
-import { withLabelChanges } from "~/lib/use-update-issue";
+import { issueListKeys, withLabelChanges } from "~/lib/use-update-issue";
 import { useVisualViewport } from "~/lib/use-visual-viewport";
 import { useWorkspace } from "~/lib/use-workspace";
 
@@ -163,9 +163,13 @@ const useSubmitIssue = () => {
     draft: NewIssue,
     submitted: Submitted
   ) => {
-    const { queryKey } = issuesQuery(project);
+    const lists = issueListKeys(project.id);
 
-    await queryClient.cancelQueries({ queryKey });
+    await Promise.all(
+      lists.map(async (queryKey) => {
+        await queryClient.cancelQueries({ queryKey });
+      })
+    );
     updateLists(queryClient, project, (issues) => [
       ...issues,
       pendingIssue(project, draft),
@@ -211,7 +215,11 @@ const useSubmitIssue = () => {
       });
     }
 
-    await queryClient.invalidateQueries({ queryKey });
+    await Promise.all(
+      lists.map(async (queryKey) => {
+        await queryClient.invalidateQueries({ queryKey });
+      })
+    );
   };
 
   return submit;

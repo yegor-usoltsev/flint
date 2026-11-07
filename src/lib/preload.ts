@@ -108,15 +108,19 @@ export const loadMyIssues = async (queryClient: QueryClient, slug: string) => {
     return;
   }
 
-  await Promise.all(
-    projects.flatMap((project) => [
-      queryClient.query({ ...projectQuery(project.key), staleTime: "static" }),
-      queryClient.query({
-        ...assignedIssuesQuery(project, me.id),
-        staleTime: "static",
-      }),
-    ])
-  );
+  await Promise.all([
+    queryClient.query({
+      ...assignedIssuesQuery(slug, me.id),
+      staleTime: "static",
+    }),
+    ...projects.map(
+      async (project) =>
+        await queryClient.query({
+          ...projectQuery(project.key),
+          staleTime: "static",
+        })
+    ),
+  ]);
 };
 
 export const loadWiki = async (
