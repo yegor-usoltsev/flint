@@ -387,7 +387,7 @@ const LabelRow = ({
 const Labels = () => {
   const workspace = useWorkspace();
   const labels = useQuery(labelsQuery(workspace.slug));
-  const counts = useQuery(labelCountsQuery(workspace.slug)).data;
+  const counts = useQuery(labelCountsQuery(workspace.slug));
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState("");
   const words = filter.trim().toLowerCase();
@@ -441,6 +441,15 @@ const Labels = () => {
               title="Labels could not load"
             />
           ) : null}
+          {counts.isError && counts.data === undefined ? (
+            <LoadFailed
+              error={counts.error}
+              onRetry={() => {
+                void counts.refetch();
+              }}
+              title="Issue counts could not load"
+            />
+          ) : null}
           {shown?.length === 0 && !creating ? (
             <TableEmpty
               action={
@@ -471,7 +480,7 @@ const Labels = () => {
                   <LabelRow
                     index={index}
                     key={label.id}
-                    label={{ ...label, issueCount: counts?.get(label.id) }}
+                    label={{ ...label, issueCount: counts.data?.get(label.id) }}
                     slug={workspace.slug}
                     moving={reorder.moving}
                     sorting={words === ""}

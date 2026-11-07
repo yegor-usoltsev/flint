@@ -94,7 +94,7 @@ const ProjectRow = ({
 const Projects = () => {
   const workspace = useWorkspace();
   const projects = useQuery(projectsQuery(workspace.slug));
-  const counts = useQuery(projectCountsQuery(workspace.slug)).data;
+  const counts = useQuery(projectCountsQuery(workspace.slug));
   const [creating, setCreating] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   const [filter, setFilter] = useState("");
@@ -172,6 +172,15 @@ const Projects = () => {
               title="Projects could not load"
             />
           ) : null}
+          {counts.isError && counts.data === undefined ? (
+            <LoadFailed
+              error={counts.error}
+              onRetry={() => {
+                void counts.refetch();
+              }}
+              title="Open issue counts could not load"
+            />
+          ) : null}
           {shown?.length === 0 ? (
             <TableEmpty
               action={createButton}
@@ -193,7 +202,10 @@ const Projects = () => {
                 <ProjectRow
                   index={index}
                   key={project.id}
-                  project={{ ...project, openIssues: counts?.get(project.id) }}
+                  project={{
+                    ...project,
+                    openIssues: counts.data?.get(project.id),
+                  }}
                   sortable={sortable}
                   moving={reorder.moving}
                   sorting={words === ""}
