@@ -298,12 +298,18 @@ export interface Attachment {
   url: string;
 }
 
+export interface Presence {
+  targetId: string;
+  userIds: string[];
+}
+
 export type RealtimeEntity =
   | "attachment"
   | "comment"
   | "issue"
   | "label"
   | "member"
+  | "presence"
   | "project"
   | "wiki"
   | "workspace";
@@ -324,4 +330,5 @@ export interface RealtimeEvent {
   issueId?: string;
   pageId?: string;
   projectId: string | null;
+  userIds?: string[];
 }

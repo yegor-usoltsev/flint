@@ -35,6 +35,7 @@ import { MarkdownEditor, SourceToggle } from "~/components/markdown-editor";
 import type { MarkdownEditorHandle } from "~/components/markdown-editor";
 import { MenuKeys } from "~/components/menu-filter";
 import { Page } from "~/components/page";
+import { PresenceAvatars } from "~/components/presence-avatars";
 import { RouteNotFound } from "~/components/route-not-found";
 import {
   Alert,
@@ -862,6 +863,7 @@ const IssueScreen = ({
     <Page
       actions={
         <>
+          {ready ? <PresenceAvatars targetId={data.id} /> : null}
           <Neighbors
             count={neighbors.count}
             index={neighbors.index}
@@ -996,6 +998,7 @@ const PanelScreen = ({
               <span className="sr-only"> {data.title}</span>
             )}
           </h2>
+          {ready ? <PresenceAvatars targetId={data.id} /> : null}
           {origin === undefined ? null : <PanelSteps />}
           <Hint label="Open full page">
             <Link

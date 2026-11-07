@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { LoadFailed } from "~/components/load-failed";
 import { NavSwitcher } from "~/components/nav-switcher";
 import { Page } from "~/components/page";
+import { PresenceAvatars } from "~/components/presence-avatars";
 import { RouteNotFound } from "~/components/route-not-found";
 import { Skeleton } from "~/components/ui/skeleton";
 import { isNotFound, useMe } from "~/lib/api";
@@ -55,7 +56,12 @@ export const ProjectPage = ({
   return (
     <Page
       actions={
-        project.data === undefined ? undefined : renderActions?.(project.data)
+        project.data === undefined ? undefined : (
+          <>
+            <PresenceAvatars targetId={project.data.id} />
+            {renderActions?.(project.data)}
+          </>
+        )
       }
       bounded={bounded}
       className={className}
