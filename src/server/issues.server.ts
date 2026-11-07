@@ -837,7 +837,7 @@ const issueFilters = (actor: Actor, query: IssueQuery) => {
         ? db``
         : db`and (
             i.title ilike ${`%${escapeLike(query.q)}%`}
-            or lower(p.key || '-' || i.number) = lower(${query.q})
+            or (p.key || '-' || i.number) ilike ${`%${escapeLike(query.q)}%`}
             or i.search @@ websearch_to_tsquery('english', ${query.q})
           )`
     }

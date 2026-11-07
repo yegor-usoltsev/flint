@@ -839,10 +839,7 @@ export const registerIssues = (program: Command) => {
       "none|urgent|high|medium|low or 0-4 (repeatable)",
       collect
     )
-    .option(
-      "-q, --query <text>",
-      "title text, an exact key or full-text search"
-    )
+    .option("-q, --query <text>", "title or key text, or full-text search")
     .option("--closed", "list completed and canceled issues, newest first")
     .option(
       "--limit <n>",

@@ -568,6 +568,7 @@ test("lists hold the working set, closed pages and filters", async () => {
     [`?status=${status("Todo")}`, [open.issue.key, other.issue.key]],
     ["?q=crash", [open.issue.key]],
     [`?q=${open.issue.key.toLowerCase()}`, [open.issue.key]],
+    [`?q=${other.issue.key.slice(1)}`, [other.issue.key]],
     ["?closed=true&q=migrations", [old.issue.key]],
   ];
 
