@@ -470,7 +470,8 @@ const Item = ({
   const { id } = issue;
   const element = useRef<HTMLButtonElement>(null);
   const { height, near } = useNearRows(element, initial);
-  const shown = near || dragged;
+  const [focused, setFocused] = useState(false);
+  const shown = near || dragged || focused;
   const selected = useSelected(id);
   const current = usePanelShows(issue.key);
   const remote = useRemoteFlash(id, shownFields(issue, assignee, card));
@@ -505,7 +506,16 @@ const Item = ({
           onOpen(issue, "open");
         }
       }}
+      onBlur={() => {
+        if (focused) {
+          setFocused(false);
+        }
+      }}
       onFocus={() => {
+        if (!near) {
+          setFocused(true);
+        }
+
         onOpen(issue, "prefetch");
       }}
       onPointerEnter={() => {

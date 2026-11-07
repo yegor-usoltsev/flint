@@ -56,18 +56,20 @@ export const useNearRows = (
   const [nearness, setNearness] = useState<Nearness>({ near: initial });
   const near = useRef(initial);
 
-  useEffect(
-    () =>
-      element.current === null
-        ? undefined
-        : watchNearness(element.current, (next) => {
-            if (next.near !== near.current) {
-              near.current = next.near;
-              setNearness(next);
-            }
-          }),
-    [element]
-  );
+  useEffect(() => {
+    const target = element.current;
+
+    return target === null
+      ? undefined
+      : watchNearness(target, (next) => {
+          const kept = !next.near && target.contains(document.activeElement);
+
+          if (next.near !== near.current && !kept) {
+            near.current = next.near;
+            setNearness(next);
+          }
+        });
+  }, [element]);
 
   return nearness;
 };
