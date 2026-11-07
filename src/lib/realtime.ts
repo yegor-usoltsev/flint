@@ -127,7 +127,7 @@ export const useRealtime = (
     };
 
     const refresh = async (filters: QueryFilters) => {
-      await queryClient.cancelQueries({ ...filters, type: "inactive" });
+      await queryClient.cancelQueries(filters);
       await queryClient.invalidateQueries(filters);
     };
 
