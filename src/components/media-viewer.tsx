@@ -209,7 +209,13 @@ const mount = (
           height: image.naturalHeight,
           width: image.naturalWidth,
         });
-        pswp.refreshSlideContent(content.index);
+
+        if (!pswp.isDestroying) {
+          pswp.refreshSlideContent(content.index);
+        }
+      });
+      image.addEventListener("error", () => {
+        content.onError();
       });
       image.src = shown.src;
     }
@@ -289,8 +295,18 @@ export const MediaViewer = (props: ViewerProps) => {
 
     latest.current = props;
 
-    if (resized) {
-      viewer.current?.dispatch("change");
+    const pswp = viewer.current;
+
+    if (resized && pswp !== null) {
+      const { currIndex } = pswp;
+
+      for (const step of [-1, 1]) {
+        const neighbor = pswp.getLoopedIndex(currIndex + step);
+
+        if (neighbor !== currIndex) {
+          pswp.refreshSlideContent(neighbor);
+        }
+      }
     }
   });
 
