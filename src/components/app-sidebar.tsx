@@ -523,8 +523,8 @@ export const AppSidebar = ({
                 setOpenMobile(false);
                 createIssue();
               }}
-              size="icon-round"
-              variant="secondary"
+              size="icon-sm"
+              variant="ghost"
             >
               <SquarePenIcon />
             </Button>

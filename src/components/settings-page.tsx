@@ -524,28 +524,38 @@ export const TableEmpty = ({
   );
 };
 
+const filterFrom = 9;
+
 export const SettingsFilter = ({
+  count,
   label,
   onChange,
   value,
 }: {
+  count: number;
   label: string;
   onChange: (value: string) => void;
   value: string;
-}) => (
-  <InputGroup>
-    <InputGroupAddon>
-      <SearchIcon aria-hidden />
-    </InputGroupAddon>
-    <InputGroupInput
-      aria-label={label}
-      autoComplete="off"
-      onChange={(event) => {
-        onChange(event.target.value);
-      }}
-      placeholder={`${label}…`}
-      type="search"
-      value={value}
-    />
-  </InputGroup>
-);
+}) => {
+  if (count < filterFrom && value === "") {
+    return null;
+  }
+
+  return (
+    <InputGroup>
+      <InputGroupAddon>
+        <SearchIcon aria-hidden />
+      </InputGroupAddon>
+      <InputGroupInput
+        aria-label={label}
+        autoComplete="off"
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+        placeholder={`${label}…`}
+        type="search"
+        value={value}
+      />
+    </InputGroup>
+  );
+};

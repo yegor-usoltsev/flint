@@ -138,13 +138,12 @@ const Projects = () => {
       title="Projects"
     >
       <div className="flex flex-col gap-2">
-        {projects.data?.length === 0 ? null : (
-          <SettingsFilter
-            label="Filter by name or key"
-            onChange={setFilter}
-            value={filter}
-          />
-        )}
+        <SettingsFilter
+          count={projects.data?.length ?? 0}
+          label="Filter by name or key"
+          onChange={setFilter}
+          value={filter}
+        />
         <SettingsTable>
           {projects.data?.length === 0 ? null : (
             <div aria-hidden className={tableHead}>

@@ -53,7 +53,7 @@ import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const DeletedBy = ({ user }: { user: UserRef | null }) => (
-  <span className="text-muted-foreground flex w-40 shrink-0 items-center gap-2 @max-2xl/trash:hidden">
+  <span className="text-muted-foreground flex w-32 shrink-0 items-center gap-2 @max-2xl/trash:hidden">
     {user === null ? null : (
       <>
         <UserAvatar
@@ -228,7 +228,6 @@ const ExpiresLine = ({
 
 const TrashRow = ({
   children,
-  deletedAt,
   deletedBy,
   isAdmin,
   name,
@@ -239,7 +238,6 @@ const TrashRow = ({
   purgeText,
 }: {
   children: ReactNode;
-  deletedAt: string;
   deletedBy: UserRef | null;
   isAdmin: boolean;
   name: string;
@@ -253,13 +251,10 @@ const TrashRow = ({
 
   return (
     <li className={cn(tableRow, "max-md:py-1.5")}>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex min-w-0 items-start gap-2">{children}</div>
-        <ExpiresLine deletedAt={deletedAt} purgeAt={purgeAt} />
-      </div>
+      <div className="flex min-w-0 flex-1 items-start gap-2">{children}</div>
       <DeletedBy user={deletedBy} />
       <ExpiresIn purgeAt={purgeAt} />
-      <div className="flex shrink-0 items-center justify-end gap-1 md:w-28">
+      <div className="flex shrink-0 items-center justify-end gap-1 md:w-26">
         <Button
           className="max-md:hidden"
           disabled={pending}
@@ -331,7 +326,6 @@ const IssueRow = ({
 
   return (
     <TrashRow
-      deletedAt={issue.deletedAt}
       purgeAt={issue.purgeAt}
       deletedBy={issue.deletedBy}
       isAdmin={isAdmin}
@@ -352,13 +346,16 @@ const IssueRow = ({
       <span className="text-muted-foreground tracking-key shrink-0 tabular-nums">
         {issue.key}
       </span>
-      <Link
-        className="line-clamp-2 font-medium wrap-anywhere hover:underline"
-        params={{ issueKey: issue.key, slug }}
-        to="/$slug/issue/$issueKey"
-      >
-        {issue.title}
-      </Link>
+      <span className="flex min-w-0 flex-col">
+        <Link
+          className="line-clamp-2 font-medium wrap-anywhere hover:underline"
+          params={{ issueKey: issue.key, slug }}
+          to="/$slug/issue/$issueKey"
+        >
+          {issue.title}
+        </Link>
+        <ExpiresLine deletedAt={issue.deletedAt} purgeAt={issue.purgeAt} />
+      </span>
     </TrashRow>
   );
 };
@@ -414,7 +411,6 @@ const PageRow = ({
 
   return (
     <TrashRow
-      deletedAt={page.deletedAt}
       purgeAt={page.purgeAt}
       deletedBy={page.deletedBy}
       isAdmin={isAdmin}
@@ -438,6 +434,7 @@ const PageRow = ({
           {page.path}
           {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
         </span>
+        <ExpiresLine deletedAt={page.deletedAt} purgeAt={page.purgeAt} />
       </span>
     </TrashRow>
   );
@@ -447,6 +444,7 @@ const matches = (words: string, ...texts: string[]) =>
   texts.some((text) => text.toLowerCase().includes(words));
 
 const TrashTable = ({
+  count,
   filter,
   isAdmin,
   issues,
@@ -454,6 +452,7 @@ const TrashTable = ({
   pages,
   slug,
 }: {
+  count: number;
   filter: string;
   isAdmin: boolean;
   issues: TrashedIssue[];
@@ -463,6 +462,7 @@ const TrashTable = ({
 }) => (
   <>
     <SettingsFilter
+      count={count}
       label="Filter by title"
       onChange={onFilter}
       value={filter}
@@ -470,9 +470,11 @@ const TrashTable = ({
     <SettingsTable>
       <div aria-hidden className={tableHead}>
         <span className="flex-1">Name</span>
-        <span className="w-40 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
-        <span className={tableDate}>Deleted forever</span>
-        <span className="w-8 shrink-0 md:w-28" />
+        <span className="w-32 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
+        <span className={cn(tableDate, "whitespace-nowrap")}>
+          Deleted forever
+        </span>
+        <span className="w-8 shrink-0 md:w-26" />
       </div>
       {issues.length === 0 && pages.length === 0 ? (
         <TableEmpty
@@ -580,6 +582,7 @@ const Trash = () => {
         ) : null}
         {trash.data === undefined || empty ? null : (
           <TrashTable
+            count={trash.data.issues.length + trash.data.pages.length}
             filter={filter}
             isAdmin={isAdmin}
             issues={issues}
