@@ -86,7 +86,8 @@ const load = () => {
 const update = (patch: Partial<PanelState>) => {
   load();
 
-  const next = { ...state, pending: null, ...patch };
+  const replaces = "issue" in patch || "open" in patch;
+  const next = { ...state, ...(replaces && { pending: null }), ...patch };
 
   const sameView =
     next.available === state.available &&
@@ -442,7 +443,7 @@ export const followFocus = (queryClient: QueryClient) => {
   update({ pending: key });
 
   follow = setTimeout(() => {
-    if (panelShown()) {
+    if (panelShown() && snapshot().pending === key) {
       openPanel(key);
     }
   }, 80);
