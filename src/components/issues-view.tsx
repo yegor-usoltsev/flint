@@ -297,7 +297,12 @@ export const RowContent = ({
       <Checklist issue={issue} />
     </span>
     {assignee ? (
-      <span className="order-first self-start md:order-none md:flex md:w-6 md:shrink-0 md:justify-end md:self-auto">
+      <span
+        className={cn(
+          "order-first self-start md:order-none md:flex md:w-6 md:shrink-0 md:justify-end md:self-auto",
+          issue.assigneeId === null && "max-md:contents"
+        )}
+      >
         <Assignee issue={issue} lookup={lookup} />
       </span>
     ) : null}

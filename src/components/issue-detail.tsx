@@ -353,19 +353,43 @@ const Description = ({
 }) => {
   const description = useIssueDraft(issue, "description", 600);
   const [source, setSource] = useState(false);
+  const [pressing, setPressing] = useState(false);
 
-  const quiet =
-    !source &&
-    description.status !== "error" &&
-    description.status !== "pending" &&
-    description.status !== "saving";
+  const busy = ["error", "pending", "saving"].includes(description.status);
+  const quiet = !pressing && !source && !busy;
 
   return (
     <section aria-label="Description" className="flex flex-col gap-2">
-      <div className="group/description flex flex-col gap-2">
+      <div
+        className="group/description flex flex-col gap-2"
+        onBlur={(event) => {
+          if (
+            event.currentTarget.contains(event.relatedTarget) ||
+            document.querySelector(":active") === null
+          ) {
+            return;
+          }
+
+          setPressing(true);
+
+          const release = () => {
+            window.removeEventListener("pointerup", release);
+            window.removeEventListener("pointercancel", release);
+            setTimeout(() => {
+              setPressing(false);
+            }, 0);
+          };
+
+          window.addEventListener("pointerup", release);
+          window.addEventListener("pointercancel", release);
+        }}
+      >
         <MarkdownEditor
           checkable={editable}
-          className="text-prose focus-within:min-h-24"
+          className={cn(
+            "text-prose focus-within:min-h-24",
+            pressing && "min-h-24"
+          )}
           draft={description.draft}
           editable={editable}
           label="Description"
@@ -376,12 +400,11 @@ const Description = ({
           uploadTo={`/issues/${issue.key}/attachments`}
           value={description.value}
         />
-        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Pressing a tool keeps focus in the description, so the footer that focus reveals on touch stays open. */}
+        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Pressing a tool keeps focus in the description, so the footer that focus reveals stays open. */}
         <div
           className={cn(
             "flex min-h-6 items-center justify-end gap-3",
-            quiet &&
-              "opacity-0 group-focus-within/description:opacity-100 group-hover/description:opacity-100 pointer-coarse:hidden pointer-coarse:group-focus-within/description:flex"
+            quiet && "hidden group-focus-within/description:flex"
           )}
           onMouseDown={(event) => {
             if (event.target !== event.currentTarget) {
