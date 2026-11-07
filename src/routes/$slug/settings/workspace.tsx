@@ -103,7 +103,7 @@ const LogoSetting = ({
   const { saveInBackground } = useSettingsSave();
 
   const change = (file: File | null) => {
-    saveInBackground(async () => {
+    saveInBackground("logo", async () => {
       await logo.mutateAsync(file);
     });
   };
@@ -181,7 +181,7 @@ const ColorSetting = ({
           disabled={disabled}
           label="Workspace color"
           onChange={(color) => {
-            saveInBackground(async () => {
+            saveInBackground("color", async () => {
               await update.mutateAsync({ color });
             });
           }}

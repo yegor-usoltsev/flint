@@ -294,10 +294,14 @@ const LabelRow = ({
     },
   });
 
-  const name = useAutosaveText(label.name, async (text) => {
-    await save(async () => {
-      await update.mutateAsync({ name: text });
-    });
+  const name = useAutosaveText(label.name, async (text, retry) => {
+    await save(
+      `${label.id}:name`,
+      async () => {
+        await update.mutateAsync({ name: text });
+      },
+      retry
+    );
   });
 
   const problem = name.status === "error" ? name.problem : null;
@@ -317,7 +321,7 @@ const LabelRow = ({
       <ColorPicker
         label={`Color of ${label.name}`}
         onChange={(color) => {
-          saveInBackground(async () => {
+          saveInBackground(`${label.id}:color`, async () => {
             await update.mutateAsync({ color });
           });
         }}

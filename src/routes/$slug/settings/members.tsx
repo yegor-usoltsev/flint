@@ -355,7 +355,7 @@ const MemberRow = ({
           <RoleSelect
             label={`Role of @${member.username}`}
             onChange={(role) => {
-              saveInBackground(async () => {
+              saveInBackground(`${member.username}:role`, async () => {
                 await changeRole.mutateAsync(role);
               });
             }}

@@ -16,7 +16,7 @@ export const rejection = (error: ApiError) =>
 
 export const useAutosaveText = (
   value: string,
-  save: (text: string) => Promise<void>,
+  save: (text: string, retry: () => void) => Promise<void>,
   validate: (text: string) => string | null = () => null
 ) => {
   const [draft, setDraft] = useState<string | null>(null);
@@ -51,7 +51,9 @@ export const useAutosaveText = (
     setProblem(null);
 
     try {
-      await save(text);
+      await save(text, () => {
+        void flush();
+      });
       setDraft((current) => afterSave(current, text));
       setStatus("idle");
     } catch (error) {

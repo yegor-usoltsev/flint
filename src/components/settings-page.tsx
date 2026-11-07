@@ -41,36 +41,46 @@ export interface SettingsParent {
 
 type SaveRun = () => Promise<void>;
 
-const SaveContext = createContext<((run: SaveRun) => Promise<void>) | null>(
-  null
-);
+type Save = (key: string, run: SaveRun, retry?: () => void) => Promise<void>;
+
+const SaveContext = createContext<Save | null>(null);
+
+const ignore = () => null;
 
 const useSaveScope = () => {
-  const [state, dispatch] = useReducer<
-    SaveTrack<SaveRun>,
-    [SaveEvent<SaveRun>]
-  >(trackSave, idleSave);
+  const [state, dispatch] = useReducer(trackSave, idleSave);
+  const settled = useRef(0);
 
-  const latest = useRef(0);
+  const settle = (event: SaveEvent) => {
+    settled.current += 1;
+    const { current } = settled;
+    dispatch(event);
+    setTimeout(() => {
+      if (settled.current === current) {
+        dispatch({ type: "expire" });
+      }
+    }, savedForMs);
+  };
 
-  const save = async (run: SaveRun) => {
-    latest.current += 1;
-    const { current } = latest;
-    dispatch({ type: "start" });
+  const save: Save = async (key, run, retry) => {
+    dispatch({ key, type: "start" });
 
     try {
       await run();
-      dispatch({ type: "succeed" });
-      setTimeout(() => {
-        if (latest.current === current) {
-          dispatch({ type: "expire" });
-        }
-      }, savedForMs);
+      settle({ key, type: "succeed" });
     } catch (error) {
-      dispatch(
+      settle(
         error instanceof ApiError && rejection(error) !== null
-          ? { type: "reject" }
-          : { run, type: "fail" }
+          ? { key, type: "reject" }
+          : {
+              key,
+              retry:
+                retry ??
+                (() => {
+                  save(key, run).catch(ignore);
+                }),
+              type: "fail",
+            }
       );
       throw error;
     }
@@ -79,44 +89,37 @@ const useSaveScope = () => {
   return { save, state };
 };
 
-const ignore = () => null;
-
 export const useSettingsSave = () => {
   const scope = useContext(SaveContext);
 
-  const save =
+  const save: Save =
     scope ??
-    (async (run: SaveRun) => {
+    (async (_key, run) => {
       await run();
     });
 
   return {
     save,
-    saveInBackground: (run: SaveRun) => {
-      save(run).catch(ignore);
+    saveInBackground: (key: string, run: SaveRun) => {
+      save(key, run).catch(ignore);
     },
   };
 };
 
-const SaveStatus = ({
-  onRetry,
-  state,
-}: {
-  onRetry: (run: SaveRun) => void;
-  state: SaveTrack<SaveRun>;
-}) => {
+const SaveStatus = ({ state }: { state: SaveTrack }) => {
   const status = saveStatus(state);
-  const { failed } = state;
 
   return (
     <output className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
       {status === "saving" ? "Saving…" : null}
       {status === "saved" ? "Saved" : null}
-      {status === "failed" && failed !== null ? (
+      {status === "failed" ? (
         <button
           className="text-destructive hit-area relative underline-offset-2 hover:underline"
           onClick={() => {
-            onRetry(failed);
+            for (const retry of Object.values(state.failed)) {
+              retry?.();
+            }
           }}
           type="button"
         >
@@ -136,14 +139,7 @@ const SaveScope = ({
 
   return (
     <SaveContext value={save}>
-      {children(
-        <SaveStatus
-          onRetry={(run) => {
-            save(run).catch(ignore);
-          }}
-          state={state}
-        />
-      )}
+      {children(<SaveStatus state={state} />)}
     </SaveContext>
   );
 };
@@ -380,10 +376,14 @@ export const SettingsInput = ({
 
   const field = useAutosaveText(
     value,
-    async (text) => {
-      await save(async () => {
-        await onSave(text);
-      });
+    async (text, retry) => {
+      await save(
+        id,
+        async () => {
+          await onSave(text);
+        },
+        retry
+      );
     },
     validate
   );

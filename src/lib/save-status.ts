@@ -1,67 +1,64 @@
-export interface SaveTrack<Run> {
-  failed: Run | null;
+type Retry = () => void;
+
+export interface SaveTrack {
+  failed: Partial<Record<string, Retry>>;
   pending: number;
   saved: boolean;
 }
 
-export type SaveEvent<Run> =
+export type SaveEvent =
   | { type: "expire" }
-  | { type: "fail"; run: Run }
-  | { type: "reject" }
-  | { type: "start" }
-  | { type: "succeed" };
+  | { key: string; retry: Retry; type: "fail" }
+  | { key: string; type: "reject" | "start" | "succeed" };
 
 export const savedForMs = 2000;
 
-export const idleSave = { failed: null, pending: 0, saved: false };
+export const idleSave: SaveTrack = { failed: {}, pending: 0, saved: false };
 
-export const trackSave = <Run>(
-  state: SaveTrack<Run>,
-  event: SaveEvent<Run>
-): SaveTrack<Run> => {
-  switch (event.type) {
-    case "start": {
-      return { failed: null, pending: state.pending + 1, saved: false };
-    }
+const without = (failed: SaveTrack["failed"], key: string) =>
+  Object.fromEntries(Object.entries(failed).filter(([name]) => name !== key));
 
-    case "succeed": {
-      const pending = Math.max(0, state.pending - 1);
-
-      return {
-        failed: state.failed,
-        pending,
-        saved: pending === 0 && state.failed === null,
-      };
-    }
-
-    case "fail": {
-      return {
-        failed: event.run,
-        pending: Math.max(0, state.pending - 1),
-        saved: false,
-      };
-    }
-
-    case "reject": {
-      return { ...state, pending: Math.max(0, state.pending - 1) };
-    }
-
-    case "expire": {
-      return { ...state, saved: false };
-    }
-
-    default: {
-      return state;
-    }
+export const trackSave = (state: SaveTrack, event: SaveEvent): SaveTrack => {
+  if (event.type === "expire") {
+    return { ...state, saved: false };
   }
+
+  if (event.type === "start") {
+    return {
+      failed: without(state.failed, event.key),
+      pending: state.pending + 1,
+      saved: false,
+    };
+  }
+
+  const pending = Math.max(0, state.pending - 1);
+
+  if (event.type === "fail") {
+    return {
+      failed: { ...state.failed, [event.key]: event.retry },
+      pending,
+      saved: false,
+    };
+  }
+
+  const failed = without(state.failed, event.key);
+
+  return {
+    failed,
+    pending,
+    saved:
+      event.type === "succeed" &&
+      pending === 0 &&
+      Object.keys(failed).length === 0,
+  };
 };
 
-export const saveStatus = <Run>(state: SaveTrack<Run>) => {
+export const saveStatus = (state: SaveTrack) => {
   if (state.pending > 0) {
     return "saving";
   }
 
-  if (state.failed !== null) {
+  if (Object.keys(state.failed).length > 0) {
     return "failed";
   }
 
