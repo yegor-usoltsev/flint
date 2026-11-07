@@ -453,10 +453,10 @@ const BoardColumn = ({
   railed: boolean;
   status: Status;
 }) => {
-  const { isDropTarget, ref } = useColumn(status);
   const closed = railed && isClosedStatus(status);
   const expanded = useRailExpanded(status.id);
   const rail = closed && !expanded;
+  const { isDropTarget, ref } = useColumn(status, rail);
 
   return (
     <section

@@ -339,7 +339,7 @@ const AssignedIssues = ({
           }
         }}
         onOpen={onOpen}
-        statuses={groups}
+        statuses={view === "board" ? shown : groups}
         total={(_status, loaded) => loaded}
         view={view}
       />

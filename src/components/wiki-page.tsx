@@ -263,7 +263,12 @@ const RowLink = ({
     }
   >
     <NodeIcon kind={node.page?.kind} />
-    <span className="flex h-11 min-w-0 flex-1 flex-wrap items-center gap-x-3 overflow-hidden">
+    <span
+      className={cn(
+        "flex h-11 min-w-0 flex-1 items-center gap-x-3 overflow-hidden",
+        use(PagePane) === "list" && "flex-wrap"
+      )}
+    >
       <span className="h-11 max-w-full truncate leading-11">{node.title}</span>
       <span className="text-muted-foreground hidden w-0 flex-1 truncate font-mono text-xs leading-11 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
         {node.path}

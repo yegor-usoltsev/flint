@@ -267,16 +267,27 @@ const railsKey = "expanded-rails";
 
 const railListeners = new Set<() => void>();
 
-const storedRails = () =>
-  (localStorage.getItem(railsKey) ?? "").split("\n").filter((id) => id !== "");
+const storedRails = () => {
+  try {
+    return (localStorage.getItem(railsKey) ?? "")
+      .split("\n")
+      .filter((id) => id !== "");
+  } catch {
+    return [];
+  }
+};
 
 export const setRailExpanded = (statusId: string, expanded: boolean) => {
   const ids = storedRails().filter((id) => id !== statusId);
 
-  localStorage.setItem(
-    railsKey,
-    (expanded ? [...ids, statusId] : ids).join("\n")
-  );
+  try {
+    localStorage.setItem(
+      railsKey,
+      (expanded ? [...ids, statusId] : ids).join("\n")
+    );
+  } catch {
+    return;
+  }
 
   for (const listener of railListeners) {
     listener();
