@@ -439,6 +439,31 @@ test("?thumb serves a 128-pixel WebP of an image, made once and kept, and other 
 
   read.mockRestore();
 
+  const animated = await uploaded(
+    alice,
+    new File([await fixture("animated.webp")], "a.webp", { type: "image/webp" })
+  );
+
+  const original = await download(alice, animated.id, {}, "?thumb");
+
+  expect(original.headers.get("content-type")).toBe("image/webp");
+  expect(original.headers.get("etag")).toBe(`"${animated.id}"`);
+
+  const [marker] = await db<{ size: number }[]>`
+    select octet_length(thumbnail) as size from attachments
+    where id = ${animated.id}
+  `;
+
+  expect(marker).toEqual({ size: 0 });
+  expect(
+    await download(
+      alice,
+      animated.id,
+      { "if-none-match": `"${animated.id}"` },
+      "?thumb"
+    )
+  ).toMatchObject({ status: 304 });
+
   const plain = await download(alice, notes.id, {}, "?thumb");
 
   expect(plain.headers.get("content-type")).toBe("text/plain");

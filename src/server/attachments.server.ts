@@ -464,9 +464,10 @@ const storedThumbnail = async (
     async () => await thumbnailOf(await s3.file(storageKey).bytes())
   );
 
-  if (created !== null) {
-    await db`update attachments set thumbnail = ${created} where id = ${id}`;
-  }
+  await db`
+    update attachments set thumbnail = ${created ?? new Uint8Array()}
+    where id = ${id}
+  `;
 
   return created;
 };
@@ -480,7 +481,8 @@ export const downloadFile = async (
 
   const thumbnail =
     new URL(request.url).searchParams.has("thumb") &&
-    normalizedTypes.has(file.contentType);
+    normalizedTypes.has(file.contentType) &&
+    file.thumbnail?.byteLength !== 0;
 
   const etag = `"${id}"`;
   const thumbnailEtag = `"${id}.thumb"`;
