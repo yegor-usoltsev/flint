@@ -78,7 +78,7 @@ import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
 import { rangeLabel, visibleRange } from "~/lib/board-range";
 import type { ColumnRange } from "~/lib/board-range";
 import { closeIssueMenu, selectByClick, toggleRow } from "~/lib/issue-focus";
-import { openPanel, showInPanel, usePanelShows } from "~/lib/issue-panel";
+import { openIssueRow, openPanel, usePanelShows } from "~/lib/issue-panel";
 import {
   useSelected,
   useSelecting,
@@ -359,7 +359,7 @@ const ListGroup = ({
 
   return (
     <section aria-labelledby={`group-${status.id}`} ref={ref}>
-      <h2 className="sticky top-0 z-10" id={`group-${status.id}`}>
+      <h2 className="bg-background sticky top-0 z-10" id={`group-${status.id}`}>
         <button
           aria-expanded={open}
           className={cn(
@@ -1101,10 +1101,10 @@ const Issues = ({
       queryClient.query(issueQuery(project.id, issue.key)).catch(() => null);
     } else if (how === "tab") {
       window.open(`/${workspace.slug}/issue/${issue.key}`, "_blank");
-    } else if (!showInPanel(issue.key)) {
+    } else if (!openIssueRow(issue.key)) {
       void navigate({
         params: { issueKey: issue.key, slug: workspace.slug },
-        state: { from: { projectKey: project.key, search, view } },
+        state: { from: { projectKey: project.key, search, view }, full: true },
         to: "/$slug/issue/$issueKey",
       });
     }

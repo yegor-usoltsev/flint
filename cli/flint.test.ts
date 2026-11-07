@@ -678,6 +678,12 @@ const page = (pagePath: string, sortKey: string, kind = "page") => ({
   sortKey,
   title: pagePath.toUpperCase(),
   updatedAt: "",
+  updatedBy: {
+    avatarUrl: "",
+    displayName: "Alice",
+    id: "u",
+    username: "alice",
+  },
 });
 
 test("the wiki tree nests children under parents in sibling order", () => {

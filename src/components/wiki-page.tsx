@@ -13,6 +13,7 @@ import {
   HistoryIcon,
   LinkIcon,
   PlusIcon,
+  SearchIcon,
   TriangleAlertIcon,
   TypeIcon,
 } from "lucide-react";
@@ -24,7 +25,13 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ComponentProps, ReactElement, ReactNode, RefObject } from "react";
+import type {
+  ComponentProps,
+  KeyboardEvent,
+  ReactElement,
+  ReactNode,
+  RefObject,
+} from "react";
 
 import { AttachButton } from "~/components/attach-button";
 import { ConflictDialog, SaveState } from "~/components/conflict-dialog";
@@ -64,6 +71,12 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "~/components/ui/input-group";
+import { Kbd } from "~/components/ui/kbd";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -85,12 +98,13 @@ import { forgetRecentHrefs, pageHref, useRememberRecent } from "~/lib/recent";
 import { usePageTitle } from "~/lib/site";
 import { discardDraft, useDraft, useHasDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
-import { useCommands } from "~/lib/use-hotkey";
+import { useCommands, useHotkey } from "~/lib/use-hotkey";
 import { useWorkspace } from "~/lib/use-workspace";
 import { fitWideBlocks } from "~/lib/wide-blocks";
 import {
   ancestors,
   buildTree,
+  filterTree,
   findNode,
   humanize,
   keptKey,
@@ -100,8 +114,10 @@ import {
   recentPages,
   rememberWikiSort,
   saveAsNewPage,
+  setFolderOpen,
   setPage,
   storeKept,
+  useOpenFolders,
   useWikiSort,
   wikiDraftId,
   wikiDraftKeys,
@@ -185,6 +201,26 @@ const pageCount = (node: WikiNode) => {
   return count === 0 ? "No pages" : `${count} pages`;
 };
 
+interface Folding {
+  isOpen: (path: string) => boolean;
+  toggle: (path: string, open: boolean) => void;
+}
+
+const Editor = ({ page }: { page: WikiPageSummary }) => (
+  <>
+    <Hint label={page.updatedBy.displayName}>
+      <span className="flex">
+        <UserAvatar
+          avatarUrl={page.updatedBy.avatarUrl}
+          className="size-5"
+          name={page.updatedBy.displayName}
+        />
+      </span>
+    </Hint>
+    <span className="sr-only">by {page.updatedBy.displayName}</span>
+  </>
+);
+
 const RowLink = ({
   node,
   wiki,
@@ -193,9 +229,11 @@ const RowLink = ({
   <Link
     {...props}
     {...wikiTarget(wiki, node.path)}
-    className="group/row hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus data-shown:shadow-focus-bar flex h-11 min-w-0 items-center gap-3 rounded-md px-2 outline-none"
+    className="group/row hover:bg-row-focus focus-visible:bg-row-focus data-shown:bg-row-focus data-shown:shadow-focus-bar flex h-11 min-w-0 items-center gap-3 rounded-md pr-2 pl-8 outline-none"
     aria-current={use(WikiShown) === node.path ? "page" : undefined}
     data-shown={use(WikiShown) === node.path ? "" : undefined}
+    data-kind={node.page?.kind}
+    data-wiki-row={node.path}
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- The element is an a; dnd-kit gives a drag handle without an explicit role the button role.
     role="link"
   >
@@ -204,15 +242,58 @@ const RowLink = ({
     <span className="text-muted-foreground hidden w-0 flex-1 truncate font-mono text-xs opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
       {node.path}
     </span>
-    <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-      {node.page?.kind === "page"
-        ? formatRelative(node.page.updatedAt)
-        : pageCount(node)}
+    <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-2 text-xs">
+      {node.page?.kind === "page" ? (
+        <>
+          {formatRelative(node.page.updatedAt)}
+          <Editor page={node.page} />
+        </>
+      ) : (
+        pageCount(node)
+      )}
     </span>
   </Link>
 );
 
-const IndexRow = ({ node, wiki }: { node: WikiNode; wiki: Wiki }) => {
+const FoldButton = ({
+  folding,
+  node,
+}: {
+  folding: Folding;
+  node: WikiNode;
+}) => {
+  const open = folding.isOpen(node.path);
+
+  return (
+    <button
+      aria-expanded={open}
+      aria-label={`${open ? "Collapse" : "Expand"} ${node.title}`}
+      className="text-muted-foreground hover:text-foreground hover:bg-row-focus focus-visible:ring-ring hit-area absolute top-3 left-1.5 flex size-5 items-center justify-center rounded-sm outline-none focus-visible:ring-2"
+      onClick={() => {
+        folding.toggle(node.path, !open);
+      }}
+      tabIndex={-1}
+      type="button"
+    >
+      <ChevronRightIcon
+        className={cn(
+          "size-3.5 transition-transform duration-150",
+          open && "rotate-90"
+        )}
+      />
+    </button>
+  );
+};
+
+const IndexRow = ({
+  folding,
+  node,
+  wiki,
+}: {
+  folding: Folding;
+  node: WikiNode;
+  wiki: Wiki;
+}) => {
   const { dragging, handleRef, row, zone } = useWikiDrag<HTMLDivElement>(node);
 
   const frame = (
@@ -221,7 +302,17 @@ const IndexRow = ({ node, wiki }: { node: WikiNode; wiki: Wiki }) => {
       data-drop={zone ?? undefined}
       ref={row}
     >
-      <RowLink node={node} ref={handleRef} wiki={wiki} />
+      <RowLink
+        aria-expanded={
+          node.children.length > 0 ? folding.isOpen(node.path) : undefined
+        }
+        node={node}
+        ref={handleRef}
+        wiki={wiki}
+      />
+      {node.children.length > 0 ? (
+        <FoldButton folding={folding} node={node} />
+      ) : null}
       {zone === "before" || zone === "after" ? (
         <span
           aria-hidden
@@ -246,10 +337,12 @@ const IndexRow = ({ node, wiki }: { node: WikiNode; wiki: Wiki }) => {
 };
 
 const PageRows = ({
+  folding,
   label,
   nodes,
   wiki,
 }: {
+  folding: Folding;
   label?: string;
   nodes: WikiNode[];
   wiki: Wiki;
@@ -257,10 +350,10 @@ const PageRows = ({
   <ul aria-label={label} className={cn(label === undefined ? "pl-5" : "p-2")}>
     {nodes.map((node) => (
       <li key={node.path}>
-        <IndexRow node={node} wiki={wiki} />
-        {node.children.length === 0 ? null : (
-          <PageRows nodes={node.children} wiki={wiki} />
-        )}
+        <IndexRow folding={folding} node={node} wiki={wiki} />
+        {node.children.length > 0 && folding.isOpen(node.path) ? (
+          <PageRows folding={folding} nodes={node.children} wiki={wiki} />
+        ) : null}
       </li>
     ))}
   </ul>
@@ -290,6 +383,148 @@ const RecentRows = ({
     ))}
   </ul>
 );
+
+const rowLinks = (list: HTMLElement) => [
+  ...list.querySelectorAll<HTMLAnchorElement>("a[data-wiki-row]"),
+];
+
+const PageFilter = ({
+  list,
+  onChange,
+  value,
+}: {
+  list: RefObject<HTMLDivElement | null>;
+  onChange: (value: string) => void;
+  value: string;
+}) => {
+  const input = useRef<HTMLInputElement>(null);
+
+  useHotkey("f", () => {
+    input.current?.focus();
+  });
+
+  return (
+    <div className="px-2 pt-2">
+      <InputGroup>
+        <InputGroupAddon>
+          <SearchIcon aria-hidden />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-keyshortcuts="F"
+          aria-label="Filter pages"
+          autoComplete="off"
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) {
+              return;
+            }
+
+            const links = list.current === null ? [] : rowLinks(list.current);
+
+            if (event.key === "Escape" && value !== "") {
+              event.stopPropagation();
+              onChange("");
+            } else if (event.key === "ArrowDown") {
+              event.preventDefault();
+              links[0]?.focus();
+            } else if (event.key === "Enter") {
+              event.preventDefault();
+              links.find((link) => link.dataset["kind"] === "page")?.click();
+            }
+          }}
+          placeholder="Filter pages…"
+          ref={input}
+          type="search"
+          value={value}
+        />
+        <InputGroupAddon align="inline-end" className="max-md:hidden">
+          <Kbd>F</Kbd>
+        </InputGroupAddon>
+      </InputGroup>
+    </div>
+  );
+};
+
+const moveFocus = (event: KeyboardEvent<HTMLDivElement>, folding: Folding) => {
+  const link = event.target;
+
+  if (
+    event.defaultPrevented ||
+    !(link instanceof HTMLAnchorElement) ||
+    link.dataset["wikiRow"] === undefined
+  ) {
+    return;
+  }
+
+  const links = rowLinks(event.currentTarget);
+  const index = links.indexOf(link);
+  const path = link.dataset["wikiRow"];
+  const expandable = link.getAttribute("aria-expanded");
+
+  const focus = (target: HTMLElement | undefined) => {
+    event.preventDefault();
+    target?.focus();
+  };
+
+  if (event.key === "ArrowDown") {
+    focus(links[index + 1]);
+  } else if (event.key === "ArrowUp") {
+    focus(
+      links[index - 1] ??
+        event.currentTarget.querySelector<HTMLElement>("input[type=search]") ??
+        undefined
+    );
+  } else if (event.key === "ArrowRight" && expandable === "false") {
+    event.preventDefault();
+    folding.toggle(path, true);
+  } else if (event.key === "ArrowLeft") {
+    if (expandable === "true") {
+      event.preventDefault();
+      folding.toggle(path, false);
+    } else {
+      focus(
+        links.findLast((other) =>
+          path.startsWith(`${other.dataset["wikiRow"]}/`)
+        )
+      );
+    }
+  }
+};
+
+const useFolding = (wiki: Wiki, folder: string, nodes: WikiNode[]) => {
+  const stored = useOpenFolders(wiki, folder);
+
+  const [state, setState] = useState({
+    open: new Map<string, boolean>(),
+    query: "",
+  });
+
+  const { open: local, query } = state;
+  const filtered = filterTree(nodes, query);
+  const filtering = query.trim() !== "";
+
+  const folding: Folding = {
+    isOpen: (path) =>
+      filtering
+        ? (local.get(path) ?? (filtered.open.has(path) || stored.has(path)))
+        : stored.has(path),
+    toggle: (path, open) => {
+      if (filtering) {
+        setState({ open: new Map(local).set(path, open), query });
+      } else {
+        setFolderOpen(wiki, path, open);
+      }
+    },
+  };
+
+  const setQuery = (next: string) => {
+    setState({ open: new Map(), query: next });
+  };
+
+  return { filtered, folding, query, setQuery };
+};
 
 const SortMenu = () => {
   const sort = useWikiSort();
@@ -414,6 +649,69 @@ const latestPages = (pages: WikiPageSummary[], shown: boolean) => {
   return shown && all.length > 15 ? all.slice(0, 8) : [];
 };
 
+const FilteredPages = ({
+  folder,
+  nodes,
+  pages,
+  tree,
+  wiki,
+}: {
+  folder: string;
+  nodes: WikiNode[];
+  pages: WikiPageSummary[];
+  tree: WikiNode[];
+  wiki: Wiki;
+}) => {
+  const sort = useWikiSort();
+  const list = useRef<HTMLDivElement>(null);
+
+  const { filtered, folding, query, setQuery } = useFolding(
+    wiki,
+    folder,
+    nodes
+  );
+
+  const needle = query.trim().toLocaleLowerCase();
+
+  const edited = sort === "edited" ? recentPages(pages, folder) : [];
+  const showRecent = edited.length > 0;
+
+  const recent = edited.filter((page) =>
+    page.title.toLocaleLowerCase().includes(needle)
+  );
+
+  const shown = showRecent ? recent.length : filtered.nodes.length;
+
+  return (
+    <div
+      onKeyDown={(event) => {
+        moveFocus(event, folding);
+      }}
+      ref={list}
+      role="presentation"
+    >
+      <PageFilter list={list} onChange={setQuery} value={query} />
+      {shown === 0 && needle !== "" ? (
+        <p className="text-muted-foreground px-4 py-3 text-sm">
+          No pages match “{query.trim()}”
+        </p>
+      ) : null}
+      {showRecent ? (
+        <RecentRows pages={recent} wiki={wiki} />
+      ) : (
+        <WikiDragDrop tree={tree} wiki={wiki}>
+          <PageRows
+            folding={folding}
+            label="Pages"
+            nodes={filtered.nodes}
+            wiki={wiki}
+          />
+        </WikiDragDrop>
+      )}
+    </div>
+  );
+};
+
 const NodeList = ({
   compact = false,
   create,
@@ -431,8 +729,6 @@ const NodeList = ({
 
   const nodes =
     folder === "" ? pagesTree : (findNode(pagesTree, folder)?.children ?? []);
-
-  const recent = sort === "edited" ? recentPages(pages.data ?? [], folder) : [];
 
   if (pages.isPending) {
     return (
@@ -456,24 +752,20 @@ const NodeList = ({
     );
   }
 
-  if (recent.length > 0) {
-    return (
-      <div className="mx-auto w-full max-w-3xl">
-        <RecentRows pages={recent} wiki={wiki} />
-      </div>
-    );
-  }
-
   if (nodes.length > 0) {
     const latest = latestPages(pages.data ?? [], folder === "" && !compact);
 
     const tree = (
-      <WikiDragDrop tree={pagesTree} wiki={wiki}>
-        <PageRows label="Pages" nodes={nodes} wiki={wiki} />
-      </WikiDragDrop>
+      <FilteredPages
+        folder={folder}
+        pages={pages.data ?? []}
+        tree={pagesTree}
+        nodes={nodes}
+        wiki={wiki}
+      />
     );
 
-    if (latest.length === 0) {
+    if (latest.length === 0 || sort === "edited") {
       return <div className="mx-auto w-full max-w-3xl">{tree}</div>;
     }
 

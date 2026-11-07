@@ -78,13 +78,13 @@ const RevisionSchema = v.pipe(
 
 const summaryColumns = db`
   w.id, w.kind, w.path, w.revision, w.sort_key as "sortKey", w.title,
-  w.updated_at as "updatedAt"
+  w.updated_at as "updatedAt", ${userRef} as "updatedBy"
 `;
 
 const selectPage = async (sql: SQL, id: string) => {
   const [page] = await sql<WikiPage[]>`
     select ${summaryColumns}, w.body_md as body, w.created_at as "createdAt",
-      ${userRef} as "updatedBy", s.slug as "workspaceSlug"
+      s.slug as "workspaceSlug"
     from wiki_pages w
     join users u on u.id = w.updated_by
     join workspaces s on s.id = w.workspace_id
@@ -406,6 +406,7 @@ export const listPages = async (actor: Actor, slug: string, prefix: string) => {
 
   return await db<WikiPageSummary[]>`
     select ${summaryColumns} from wiki_pages w
+    join users u on u.id = w.updated_by
     where w.workspace_id = ${workspace.id} and w.deleted_at is null
       and starts_with(w.path, ${prefix.toLowerCase()})
     order by w.path

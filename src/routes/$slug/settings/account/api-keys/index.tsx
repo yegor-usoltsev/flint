@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowUpRightIcon } from "lucide-react";
 
 import { LoadFailed } from "~/components/load-failed";
 import {
@@ -21,6 +22,7 @@ import {
 import { Button, buttonVariants } from "~/components/ui/button";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
@@ -28,9 +30,11 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { request } from "~/lib/api";
 import type { ApiToken } from "~/lib/api-types";
+import { copyText } from "~/lib/copy";
+import { loginCommand } from "~/lib/loopback";
 import { notifyError } from "~/lib/notify";
 import { tokensQuery } from "~/lib/queries";
-import { pageHead } from "~/lib/site";
+import { pageHead, site } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
@@ -85,12 +89,30 @@ const RevokeToken = ({ token }: { token: ApiToken }) => {
   );
 };
 
-const inlineCode =
-  "bg-surface-2 border-hairline rounded px-1 py-px font-mono text-xs";
+const CopyCode = ({
+  copy,
+  text,
+  what,
+}: {
+  copy?: () => string;
+  text: string;
+  what: string;
+}) => (
+  <button
+    aria-label={`Copy ${text}`}
+    className="bg-surface-2 border-hairline hover:bg-surface-3 focus-visible:ring-ring/50 hit-area relative rounded px-1 py-px font-mono text-xs outline-none focus-visible:ring-2"
+    onClick={() => {
+      void copyText(copy?.() ?? text, what);
+    }}
+    type="button"
+  >
+    {text}
+  </button>
+);
 
 const NewKey = ({ slug }: { slug: string }) => (
   <Link
-    className={buttonVariants()}
+    className={buttonVariants({ className: "max-sm:h-10" })}
     params={{ slug }}
     to="/$slug/settings/account/api-keys/new"
   >
@@ -125,11 +147,33 @@ const TokenRows = () => {
         <EmptyHeader>
           <EmptyTitle>No API keys yet</EmptyTitle>
           <EmptyDescription>
-            Sign in the flint CLI with{" "}
-            <code className={inlineCode}>flint login</code>, or set a key as{" "}
-            <code className={inlineCode}>FLINT_TOKEN</code> in your scripts.
+            <span className="max-md:leading-11 pointer-coarse:leading-11">
+              Sign in the flint CLI with{" "}
+              <CopyCode
+                copy={() => loginCommand(window.location.origin)}
+                text="flint login"
+                what="command"
+              />
+              , or set a key as{" "}
+              <CopyCode text="FLINT_TOKEN" what="variable name" /> in your
+              scripts.
+            </span>
           </EmptyDescription>
         </EmptyHeader>
+        <EmptyContent>
+          <a
+            className={buttonVariants({
+              className: "max-sm:h-10",
+              variant: "outline",
+            })}
+            href={site.cliGuide}
+            rel="noreferrer"
+            target="_blank"
+          >
+            CLI guide
+            <ArrowUpRightIcon data-icon="inline-end" />
+          </a>
+        </EmptyContent>
       </Empty>
     );
   }

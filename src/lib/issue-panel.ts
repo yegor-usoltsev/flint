@@ -23,14 +23,23 @@ export const splitQuery = `(min-width: ${splitByDefault}px)`;
 
 const openKey = "flint:issue-panel";
 const widthKey = "flint:issue-panel-width";
+const openingKey = "flint:issue-opening";
 
 export type PanelScope = "list" | "wiki";
+
+export const issueOpenings = ["panel", "page"] as const;
+
+export type IssueOpening = (typeof issueOpenings)[number];
+
+const isOpening = (value: unknown): value is IssueOpening =>
+  issueOpenings.some((opening) => opening === value);
 
 interface PanelState {
   available: boolean;
   fits: boolean;
   issue: string | null;
   open: boolean;
+  opening: IssueOpening | null;
   picked: boolean;
   scope: PanelScope;
   width: number | null;
@@ -41,6 +50,7 @@ let state: PanelState = {
   fits: false,
   issue: null,
   open: false,
+  opening: null,
   picked: false,
   scope: "list",
   width: null,
@@ -58,10 +68,12 @@ const load = () => {
 
   const width = Number(localStorage.getItem(widthKey));
   const open = localStorage.getItem(openKey);
+  const opening = localStorage.getItem(openingKey);
 
   state = {
     ...state,
     open: open === null ? window.innerWidth >= splitByDefault : open === "true",
+    opening: isOpening(opening) ? opening : null,
     width: Number.isFinite(width) && width > 0 ? width : null,
   };
 };
@@ -78,6 +90,7 @@ const update = (patch: Partial<PanelState>) => {
     next.open === state.open;
 
   const sameLayout =
+    next.opening === state.opening &&
     next.picked === state.picked &&
     next.scope === state.scope &&
     next.width === state.width;
@@ -112,6 +125,7 @@ const serverState: PanelState = {
   fits: false,
   issue: null,
   open: false,
+  opening: null,
   picked: false,
   scope: "list",
   width: null,
@@ -299,6 +313,24 @@ export const peekIssue = (key: string) => {
 
 export const showInPanel = (key: string) => panelShown() && openPanel(key);
 
+const effectiveOpening = (current: PanelState): IssueOpening =>
+  current.opening ?? (current.open ? "panel" : "page");
+
+export const useIssueOpening = () =>
+  useSyncExternalStore(
+    subscribe,
+    () => effectiveOpening(snapshot()),
+    () => "panel" as const
+  );
+
+export const setIssueOpening = (opening: IssueOpening) => {
+  localStorage.setItem(openingKey, opening);
+  update({ opening });
+};
+
+export const openIssueRow = (key: string) =>
+  effectiveOpening(snapshot()) === "panel" && openPanel(key);
+
 const issueKeyOfRow = (queryClient: QueryClient, id: string | undefined) =>
   id === undefined ? null : (findIssue(queryClient, id)?.key ?? null);
 
@@ -402,18 +434,23 @@ export const stepFromPanel = (queryClient: QueryClient, step: 1 | -1) => {
   }
 };
 
-export const interceptIssueClick = (event: MouseEvent, key: string) => {
-  const modified = event.metaKey || event.ctrlKey || event.shiftKey;
+const intercept =
+  (open: (key: string) => boolean) => (event: MouseEvent, key: string) => {
+    const modified = event.metaKey || event.ctrlKey || event.shiftKey;
 
-  if (event.defaultPrevented || event.button !== 0 || modified) {
-    return false;
-  }
+    if (event.defaultPrevented || event.button !== 0 || modified) {
+      return false;
+    }
 
-  const handled = event.altKey ? openPanel(key) : showInPanel(key);
+    const handled = event.altKey ? openPanel(key) : open(key);
 
-  if (handled) {
-    event.preventDefault();
-  }
+    if (handled) {
+      event.preventDefault();
+    }
 
-  return handled;
-};
+    return handled;
+  };
+
+export const interceptIssueClick = intercept(showInPanel);
+
+export const interceptRowClick = intercept(openIssueRow);
