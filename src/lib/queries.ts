@@ -92,10 +92,22 @@ export const issuesQuery = (project: Project) =>
     queryKey: ["issues", project.id],
   });
 
+const assignedPages = async (
+  slug: string,
+  offset = 0
+): Promise<IssueSummary[]> => {
+  const page = await api<IssueSummary[]>(
+    `/workspaces/${slug}/issues?assignee=me&offset=${offset}`
+  );
+
+  return page.length < maxIssueLimit
+    ? page
+    : [...page, ...(await assignedPages(slug, offset + page.length))];
+};
+
 export const assignedIssuesQuery = (slug: string, userId: string) =>
   queryOptions({
-    queryFn: async () =>
-      await api<IssueSummary[]>(`/workspaces/${slug}/issues?assignee=me`),
+    queryFn: async () => await assignedPages(slug),
     queryKey: ["issues", "workspace", slug, "mine", userId],
   });
 
