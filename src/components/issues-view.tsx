@@ -945,6 +945,12 @@ export const IssueLayout = ({
     if (blocked) {
       event.preventDefault();
 
+      if (foreign) {
+        setDrag((current) =>
+          current === null ? null : { ...current, columns: sorted }
+        );
+      }
+
       return;
     }
 
