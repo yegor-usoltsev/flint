@@ -357,7 +357,7 @@ const LabelRow = ({
           />
           <PencilIcon
             aria-hidden
-            className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 group-focus-within/name:hidden pointer-fine:opacity-0 pointer-fine:group-hover/name:opacity-100"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 group-focus-within/name:hidden pointer-fine:opacity-0 pointer-fine:group-focus-within/sortable:opacity-100 pointer-fine:group-hover/sortable:opacity-100"
           />
         </div>
       </div>
@@ -412,13 +412,12 @@ const Labels = () => {
       title="Labels"
     >
       <div className="flex flex-col gap-2">
-        {empty ? null : (
-          <SettingsFilter
-            label="Filter by name"
-            onChange={setFilter}
-            value={filter}
-          />
-        )}
+        <SettingsFilter
+          count={labels.data?.length ?? 0}
+          label="Filter by name"
+          onChange={setFilter}
+          value={filter}
+        />
         <SettingsTable>
           {empty ? null : (
             <div aria-hidden className={tableHead}>

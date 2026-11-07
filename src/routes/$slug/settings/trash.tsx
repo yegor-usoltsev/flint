@@ -53,7 +53,7 @@ import { pageHead } from "~/lib/site";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const DeletedBy = ({ user }: { user: UserRef | null }) => (
-  <span className="text-muted-foreground flex w-40 shrink-0 items-center gap-2 @max-2xl/trash:hidden">
+  <span className="text-muted-foreground flex w-32 shrink-0 items-center gap-2 @max-2xl/trash:hidden">
     {user === null ? null : (
       <>
         <UserAvatar
@@ -218,7 +218,7 @@ const ExpiresLine = ({
   deletedAt: string;
   purgeAt: string;
 }) => (
-  <span className="text-muted-foreground text-xs">
+  <span className="text-muted-foreground pl-6 text-xs">
     Deleted {formatDate(deletedAt)}
     <span className="md:hidden">
       , deleted forever {expiresText(daysLeft(purgeAt))}
@@ -259,7 +259,7 @@ const TrashRow = ({
       </div>
       <DeletedBy user={deletedBy} />
       <ExpiresIn purgeAt={purgeAt} />
-      <div className="flex shrink-0 items-center justify-end gap-1 md:w-28">
+      <div className="flex shrink-0 items-center justify-end gap-1 md:w-26">
         <Button
           className="max-md:hidden"
           disabled={pending}
@@ -447,6 +447,7 @@ const matches = (words: string, ...texts: string[]) =>
   texts.some((text) => text.toLowerCase().includes(words));
 
 const TrashTable = ({
+  count,
   filter,
   isAdmin,
   issues,
@@ -454,6 +455,7 @@ const TrashTable = ({
   pages,
   slug,
 }: {
+  count: number;
   filter: string;
   isAdmin: boolean;
   issues: TrashedIssue[];
@@ -463,6 +465,7 @@ const TrashTable = ({
 }) => (
   <>
     <SettingsFilter
+      count={count}
       label="Filter by title"
       onChange={onFilter}
       value={filter}
@@ -470,9 +473,11 @@ const TrashTable = ({
     <SettingsTable>
       <div aria-hidden className={tableHead}>
         <span className="flex-1">Name</span>
-        <span className="w-40 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
-        <span className={tableDate}>Deleted forever</span>
-        <span className="w-8 shrink-0 md:w-28" />
+        <span className="w-32 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
+        <span className={cn(tableDate, "whitespace-nowrap")}>
+          Deleted forever
+        </span>
+        <span className="w-8 shrink-0 md:w-26" />
       </div>
       {issues.length === 0 && pages.length === 0 ? (
         <TableEmpty
@@ -580,6 +585,7 @@ const Trash = () => {
         ) : null}
         {trash.data === undefined || empty ? null : (
           <TrashTable
+            count={trash.data.issues.length + trash.data.pages.length}
             filter={filter}
             isAdmin={isAdmin}
             issues={issues}

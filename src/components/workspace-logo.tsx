@@ -26,7 +26,7 @@ export const WorkspaceLogo = ({
     <span
       aria-hidden
       className={cn(
-        "bg-swatch text-2xs dark:text-background flex size-5 shrink-0 items-center justify-center rounded-md font-semibold text-white",
+        "bg-swatch ring-logo-ring text-2xs dark:text-background flex size-5 shrink-0 items-center justify-center rounded-md font-semibold text-white ring-1 ring-inset",
         className
       )}
       data-color={workspace.color}

@@ -453,6 +453,7 @@ const Members = () => {
     >
       <div className="flex flex-col gap-2">
         <SettingsFilter
+          count={members.data?.length ?? 0}
           label="Search by name or username"
           onChange={setFilter}
           value={filter}

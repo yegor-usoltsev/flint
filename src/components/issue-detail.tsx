@@ -291,7 +291,29 @@ const AttachmentsChip = ({ issue }: { issue: Issue }) => {
     queryKey: ["attachments", issue.id],
   }).data?.length;
 
-  if (count === undefined || count === 0) {
+  const sectionId = attachmentsId(issue);
+  const [sectionInView, setSectionInView] = useState(false);
+
+  useEffect(() => {
+    const section = document.querySelector(`#${CSS.escape(sectionId)}`);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setSectionInView((entry?.intersectionRatio ?? 0) >= 0.5);
+      },
+      { threshold: 0.5 }
+    );
+
+    if (section !== null) {
+      observer.observe(section);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [sectionId]);
+
+  if (count === undefined || count === 0 || sectionInView) {
     return null;
   }
 
@@ -300,7 +322,7 @@ const AttachmentsChip = ({ issue }: { issue: Issue }) => {
       aria-label={count === 1 ? "1 attachment" : `${count} attachments`}
       onClick={() => {
         const section = document.querySelector<HTMLElement>(
-          `#${CSS.escape(attachmentsId(issue))}`
+          `#${CSS.escape(sectionId)}`
         );
 
         section?.scrollIntoView({
