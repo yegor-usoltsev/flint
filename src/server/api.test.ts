@@ -299,6 +299,7 @@ test("JSON over 1 KB is gzipped for clients that accept it", async () => {
 
   const gzipped = await list({ "accept-encoding": "gzip, deflate, br, zstd" });
   const plain = await list({});
+  const refused = await list({ "accept-encoding": "gzip;q=0, identity" });
   const small = await getMe({ "accept-encoding": "gzip", cookie });
 
   const body: unknown = JSON.parse(
@@ -311,6 +312,7 @@ test("JSON over 1 KB is gzipped for clients that accept it", async () => {
   expect(body).toEqual(await plain.json());
   expect(body).toHaveLength(12);
   expect(plain.headers.get("content-encoding")).toBeNull();
+  expect(refused.headers.get("content-encoding")).toBeNull();
   expect(small.headers.get("content-encoding")).toBeNull();
   expect(await small.json()).toMatchObject({ username: "alice" });
 });

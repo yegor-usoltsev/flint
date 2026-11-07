@@ -247,9 +247,20 @@ export const apiHandler =
 
 const compressAbove = 1024;
 
+const acceptsGzip = (request: Request) =>
+  (request.headers.get("accept-encoding") ?? "").split(",").some((part) => {
+    const [name = "", ...params] = part
+      .split(";")
+      .map((item) => item.trim().toLowerCase());
+
+    return (
+      name === "gzip" && !params.some((param) => /^q=0(?:\.0*)?$/u.test(param))
+    );
+  });
+
 const compressed = async (request: Request, response: Response) => {
   if (
-    request.headers.get("accept-encoding")?.includes("gzip") !== true ||
+    !acceptsGzip(request) ||
     response.headers.get("content-type")?.startsWith("application/json") !==
       true
   ) {
