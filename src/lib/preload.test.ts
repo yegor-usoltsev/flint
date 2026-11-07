@@ -21,7 +21,9 @@ test("My issues preloads assigned rows without filling full project lists", asyn
 
         const body = {
           "/api/v1/me": { id: "alice" },
-          "/api/v1/workspaces/acme/projects": [{ id: "p", key: "ENG" }],
+          "/api/v1/workspaces/acme/projects?counts=false": [
+            { id: "p", key: "ENG" },
+          ],
           "/api/v1/projects/ENG": { id: "p", key: "ENG", statuses: [] },
           "/api/v1/projects/ENG/issues?assignee=me": [{ id: "mine" }],
         }[path];
