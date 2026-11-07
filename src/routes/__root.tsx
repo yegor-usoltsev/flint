@@ -1,3 +1,4 @@
+import interLatin from "@fontsource-variable/inter/files/inter-latin-opsz-normal.woff2?url";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -66,6 +67,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     links: [
       { href: appCss, rel: "stylesheet" },
+      {
+        as: "font",
+        crossOrigin: "anonymous",
+        href: interLatin,
+        rel: "preload",
+        type: "font/woff2",
+      },
       { href: "/favicon.ico", rel: "icon", sizes: "16x16 32x32 48x48" },
       { href: "/favicon.svg", rel: "icon", type: "image/svg+xml" },
       {
