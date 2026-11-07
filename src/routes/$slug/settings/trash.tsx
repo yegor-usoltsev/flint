@@ -19,7 +19,6 @@ import {
   SettingsTable,
   TableEmpty,
   tableDate,
-  tableGroup,
   tableHead,
   tableRow,
 } from "~/components/settings-page";
@@ -206,22 +205,25 @@ const expiresText = (days: number) => {
 
 const ExpiresIn = ({ purgeAt }: { purgeAt: string }) => (
   <span className={tableDate}>
-    <span className="sr-only">Deleted forever </span>
+    <span className="sr-only">Expires </span>
     {expiresText(daysLeft(purgeAt))}
   </span>
 );
 
-const ExpiresLine = ({
+const Subtitle = ({
   deletedAt,
   purgeAt,
+  where,
 }: {
   deletedAt: string;
   purgeAt: string;
+  where: string;
 }) => (
-  <span className="text-muted-foreground text-xs">
-    Deleted {formatDate(deletedAt)}
+  <span className="text-muted-foreground text-xs wrap-anywhere md:truncate">
+    {where} · Deleted {formatDate(deletedAt)}
     <span className="md:hidden">
-      , deleted forever {expiresText(daysLeft(purgeAt))}
+      {" "}
+      · expires {expiresText(daysLeft(purgeAt))}
     </span>
   </span>
 );
@@ -250,8 +252,8 @@ const TrashRow = ({
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <li className={cn(tableRow, "max-md:py-1.5")}>
-      <div className="flex min-w-0 flex-1 items-start gap-2">{children}</div>
+    <li className={cn(tableRow, "py-1.5")}>
+      <div className="flex min-w-0 flex-1 items-center gap-3">{children}</div>
       <DeletedBy user={deletedBy} />
       <ExpiresIn purgeAt={purgeAt} />
       <div className="flex shrink-0 items-center justify-end gap-1 md:w-26">
@@ -341,11 +343,8 @@ const IssueRow = ({
     >
       <CircleDotIcon
         aria-hidden
-        className="text-muted-foreground mt-0.5 size-4 shrink-0"
+        className="text-muted-foreground size-4 shrink-0"
       />
-      <span className="text-muted-foreground tracking-key shrink-0 tabular-nums">
-        {issue.key}
-      </span>
       <span className="flex min-w-0 flex-col">
         <Link
           className="line-clamp-2 font-medium wrap-anywhere hover:underline"
@@ -354,7 +353,11 @@ const IssueRow = ({
         >
           {issue.title}
         </Link>
-        <ExpiresLine deletedAt={issue.deletedAt} purgeAt={issue.purgeAt} />
+        <Subtitle
+          deletedAt={issue.deletedAt}
+          purgeAt={issue.purgeAt}
+          where={issue.key}
+        />
       </span>
     </TrashRow>
   );
@@ -424,17 +427,20 @@ const PageRow = ({
       pending={restore.isPending || purge.isPending}
       purgeText={`The ${page.kind}${inside(page.descendants)} are deleted for everyone with their history and attachments. This cannot be undone.`}
     >
-      <Icon
-        aria-hidden
-        className="text-muted-foreground mt-2 size-4 shrink-0"
-      />
-      <span className="flex min-w-0 flex-col py-1.5">
-        <span className="font-medium wrap-anywhere">{page.title}</span>
-        <span className="text-muted-foreground text-xs wrap-anywhere md:truncate">
-          {page.path}
-          {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
+      <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
+      <span className="flex min-w-0 flex-col">
+        <span className="line-clamp-2 font-medium wrap-anywhere">
+          {page.title}
         </span>
-        <ExpiresLine deletedAt={page.deletedAt} purgeAt={page.purgeAt} />
+        <Subtitle
+          deletedAt={page.deletedAt}
+          purgeAt={page.purgeAt}
+          where={
+            page.descendants > 0
+              ? `${page.path} · ${page.descendants} inside`
+              : page.path
+          }
+        />
       </span>
     </TrashRow>
   );
@@ -442,6 +448,32 @@ const PageRow = ({
 
 const matches = (words: string, ...texts: string[]) =>
   texts.some((text) => text.toLowerCase().includes(words));
+
+const TrashSection = ({
+  children,
+  count,
+  label,
+}: {
+  children: ReactNode;
+  count: number;
+  label: string;
+}) => (
+  <section aria-label={label} className="not-first:mt-3">
+    <div className={tableHead}>
+      <h2 className="flex-1 pl-7">
+        {label} <span className="font-normal">{count}</span>
+      </h2>
+      <span aria-hidden className="w-32 shrink-0 @max-2xl/trash:hidden">
+        Deleted by
+      </span>
+      <span aria-hidden className={tableDate}>
+        Expires
+      </span>
+      <span aria-hidden className="w-8 shrink-0 md:w-26" />
+    </div>
+    <ul>{children}</ul>
+  </section>
+);
 
 const TrashTable = ({
   count,
@@ -468,14 +500,6 @@ const TrashTable = ({
       value={filter}
     />
     <SettingsTable>
-      <div aria-hidden className={tableHead}>
-        <span className="flex-1">Name</span>
-        <span className="w-32 shrink-0 @max-2xl/trash:hidden">Deleted by</span>
-        <span className={cn(tableDate, "whitespace-nowrap")}>
-          Deleted forever
-        </span>
-        <span className="w-8 shrink-0 md:w-26" />
-      </div>
       {issues.length === 0 && pages.length === 0 ? (
         <TableEmpty
           description=""
@@ -487,44 +511,23 @@ const TrashTable = ({
         />
       ) : null}
       {issues.length === 0 ? null : (
-        <section aria-label="Issues">
-          <h2 className={tableGroup}>
-            Issues
-            <span className="text-muted-foreground font-normal">
-              {issues.length}
-            </span>
-          </h2>
-          <ul>
-            {issues.map((issue) => (
-              <IssueRow
-                isAdmin={isAdmin}
-                issue={issue}
-                key={issue.id}
-                slug={slug}
-              />
-            ))}
-          </ul>
-        </section>
+        <TrashSection count={issues.length} label="Issues">
+          {issues.map((issue) => (
+            <IssueRow
+              isAdmin={isAdmin}
+              issue={issue}
+              key={issue.id}
+              slug={slug}
+            />
+          ))}
+        </TrashSection>
       )}
       {pages.length === 0 ? null : (
-        <section aria-label="Wiki pages">
-          <h2 className={tableGroup}>
-            Wiki pages
-            <span className="text-muted-foreground font-normal">
-              {pages.length}
-            </span>
-          </h2>
-          <ul>
-            {pages.map((page) => (
-              <PageRow
-                isAdmin={isAdmin}
-                key={page.id}
-                page={page}
-                slug={slug}
-              />
-            ))}
-          </ul>
-        </section>
+        <TrashSection count={pages.length} label="Wiki pages">
+          {pages.map((page) => (
+            <PageRow isAdmin={isAdmin} key={page.id} page={page} slug={slug} />
+          ))}
+        </TrashSection>
       )}
     </SettingsTable>
   </>

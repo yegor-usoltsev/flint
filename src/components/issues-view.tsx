@@ -359,7 +359,7 @@ export const RowContent = ({
       {assignee ? (
         <span
           className={cn(
-            "order-first self-start md:order-none md:flex md:w-6 md:shrink-0 md:justify-end md:self-auto",
+            "order-first flex self-start md:order-none md:w-6 md:shrink-0 md:justify-end md:self-auto",
             issue.assigneeId === null && "max-md:contents"
           )}
         >

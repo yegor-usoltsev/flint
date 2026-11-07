@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronLeftIcon, SearchIcon } from "lucide-react";
 import { Fragment, use, useRef } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
 
@@ -55,9 +55,11 @@ const SearchButton = () => {
 
 const ContextLine = ({
   context,
+  only,
   syncing,
 }: {
   context?: string;
+  only: boolean;
   syncing: boolean;
 }) => {
   if (syncing) {
@@ -65,18 +67,25 @@ const ContextLine = ({
   }
 
   return context === undefined ? null : (
-    <span className="text-muted-foreground max-w-full truncate text-xs font-normal md:hidden">
+    <span
+      className={cn(
+        "max-w-full truncate md:hidden",
+        only ? "text-heading" : "text-muted-foreground text-xs font-normal"
+      )}
+    >
       {context}
     </span>
   );
 };
 
 const PageTitle = ({
+  bodyTitle,
   context,
   header,
   switcher,
   title,
 }: {
+  bodyTitle: boolean;
   context?: string;
   header: RefObject<HTMLElement | null>;
   switcher?: ReactNode;
@@ -84,6 +93,7 @@ const PageTitle = ({
 }) => {
   const { isMobile, open } = useSidebar();
   const syncing = useSyncShown() !== null;
+  const only = bodyTitle && context !== undefined && !syncing;
 
   if (switcher === undefined || (open && !isMobile)) {
     return (
@@ -105,8 +115,13 @@ const PageTitle = ({
           }
         >
           <span className="flex min-w-0 flex-col items-start">
-            <ContextLine context={context} syncing={syncing} />
-            <span className="max-md:text-heading max-w-full truncate">
+            <ContextLine context={context} only={only} syncing={syncing} />
+            <span
+              className={cn(
+                "max-md:text-heading max-w-full truncate",
+                only && "max-md:hidden"
+              )}
+            >
               {title}
             </span>
           </span>
@@ -145,16 +160,21 @@ const PhoneContext = ({
   }
 
   return context === undefined ? null : (
-    <BreadcrumbItem className="max-w-full md:hidden">
-      <BreadcrumbLink
-        className="hit-area relative min-w-0"
-        render={context.link}
-      >
-        <span className="block truncate text-xs">
-          {context.short ?? context.label}
-        </span>
-      </BreadcrumbLink>
-    </BreadcrumbItem>
+    <>
+      <BreadcrumbItem className="min-w-6 shrink-[100] md:hidden">
+        <BreadcrumbLink
+          className="hit-area relative flex min-w-0 items-center"
+          render={context.link}
+        >
+          <ChevronLeftIcon
+            aria-hidden
+            className="mr-0.5 -ml-1 size-4 shrink-0"
+          />
+          <span className="truncate">{context.short ?? context.label}</span>
+        </BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator className="md:hidden" />
+    </>
   );
 };
 
@@ -175,6 +195,7 @@ export const PagePending = () => (
 
 export const Page = ({
   actions,
+  bodyTitle = false,
   bounded = false,
   children,
   className,
@@ -183,6 +204,7 @@ export const Page = ({
   title,
 }: {
   actions?: ReactNode;
+  bodyTitle?: boolean;
   bounded?: boolean;
   children: ReactNode;
   className?: string;
@@ -217,7 +239,7 @@ export const Page = ({
             aria-label={pane === "detail" ? "Page breadcrumb" : "breadcrumb"}
             className="@container min-w-0 flex-1"
           >
-            <BreadcrumbList className="flex-nowrap max-md:flex-col max-md:items-start">
+            <BreadcrumbList className="flex-nowrap">
               {crumbs.map((crumb, index) => {
                 const hidden = cn(
                   "max-md:hidden",
@@ -247,13 +269,9 @@ export const Page = ({
               {switcher === undefined ? (
                 <PhoneContext context={context} syncing={syncing} />
               ) : null}
-              <BreadcrumbItem
-                className={cn(
-                  "min-w-24 max-md:max-w-full",
-                  switcher === undefined && "max-md:-mt-1"
-                )}
-              >
+              <BreadcrumbItem className="min-w-12 max-md:max-w-full md:min-w-24">
                 <PageTitle
+                  bodyTitle={bodyTitle}
                   context={context?.short ?? context?.label}
                   header={header}
                   switcher={switcher}

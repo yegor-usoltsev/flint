@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { SearchIcon } from "lucide-react";
+import { ChevronLeftIcon, SearchIcon } from "lucide-react";
 import { createContext, useContext, useReducer, useRef } from "react";
 import type { ReactElement, ReactNode } from "react";
 
@@ -162,50 +162,45 @@ export const SettingsHeader = ({
         orientation="vertical"
       />
       <Breadcrumb className="min-w-0 flex-1">
-        <BreadcrumbList className="flex-nowrap max-md:flex-col max-md:items-start">
+        <BreadcrumbList className="flex-nowrap">
           {syncing ? (
-            <BreadcrumbItem className="max-w-full md:hidden">
+            <BreadcrumbItem className="min-w-6 shrink-[100] md:hidden">
               <SyncText />
             </BreadcrumbItem>
           ) : null}
           {parent === undefined ? (
-            <BreadcrumbItem
-              className={cn(
-                "md:hidden",
-                syncing && label !== undefined && "hidden"
-              )}
-            >
-              {label === undefined ? (
-                <span className="text-foreground text-heading font-medium">
-                  Settings
-                </span>
-              ) : (
-                <span className="text-xs">Settings</span>
-              )}
+            <BreadcrumbItem className={cn("md:hidden", syncing && "hidden")}>
+              <span
+                className={cn(
+                  label === undefined &&
+                    "text-foreground text-heading font-medium"
+                )}
+              >
+                Settings
+              </span>
             </BreadcrumbItem>
           ) : (
             <BreadcrumbItem
-              className={cn(
-                "min-w-6 shrink-[100] max-md:max-w-full",
-                syncing && label !== undefined && "max-md:hidden"
-              )}
+              className={cn("min-w-6 shrink-[100]", syncing && "max-md:hidden")}
             >
               <BreadcrumbLink
-                className="hit-area relative min-w-0"
+                className="hit-area relative flex min-w-0 items-center"
                 render={parent.link}
               >
-                <span className="block truncate max-md:text-xs">
-                  {parent.label}
-                </span>
+                <ChevronLeftIcon
+                  aria-hidden
+                  className="mr-0.5 -ml-1 size-4 shrink-0 md:hidden"
+                />
+                <span className="truncate">{parent.label}</span>
               </BreadcrumbLink>
             </BreadcrumbItem>
           )}
           {label === undefined ? null : (
             <>
-              {parent === undefined ? null : (
-                <BreadcrumbSeparator className="max-md:hidden" />
-              )}
-              <BreadcrumbItem className="min-w-12 max-md:-mt-1 max-md:max-w-full">
+              <BreadcrumbSeparator
+                className={cn(parent === undefined && "md:hidden")}
+              />
+              <BreadcrumbItem className="min-w-12">
                 <span className="text-foreground max-md:text-heading truncate font-medium">
                   {label}
                 </span>
@@ -240,8 +235,8 @@ export const SettingsPage = ({
       <SaveScope>
         {(status) => (
           <div className="mx-auto flex w-full max-w-192 flex-col gap-8 px-4 pt-8 pb-16 md:pt-12">
-            <div className="flex flex-col gap-1 px-0.5">
-              <div className="flex items-start gap-4">
+            <div className="flex flex-col gap-2 px-0.5">
+              <div className="flex items-center gap-4">
                 {leading}
                 <div className="flex min-h-8 min-w-0 flex-1 items-baseline gap-3">
                   <h1 className="min-w-0 truncate text-2xl font-semibold">
@@ -250,7 +245,7 @@ export const SettingsPage = ({
                   {status}
                 </div>
                 {actions === undefined ? null : (
-                  <div className="flex h-8 shrink-0 items-center gap-2">
+                  <div className="flex min-h-8 shrink-0 items-center gap-2">
                     {actions}
                   </div>
                 )}

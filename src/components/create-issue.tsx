@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronRightIcon, EllipsisIcon, SquarePenIcon } from "lucide-react";
+import { ChevronRightIcon, SquarePenIcon } from "lucide-react";
 import { createContext, use, useCallback, useRef, useState } from "react";
 import type { RefObject, ReactNode } from "react";
 
@@ -20,7 +20,6 @@ import {
 } from "~/components/ui/dialog";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -494,27 +493,8 @@ const CreateForm = ({
         />
       </div>
       <div className="bg-surface-1 flex items-center gap-3 border-t px-4 py-2.5 sm:rounded-b-xl">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                aria-label="More options"
-                className="sm:hidden"
-                size="icon"
-                variant="ghost"
-              />
-            }
-          >
-            <EllipsisIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top">
-            <DropdownMenuCheckboxItem checked={more} onCheckedChange={setMore}>
-              Create more
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
         {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- The Switch renders the control inside the label. */}
-        <label className="text-muted-foreground flex items-center gap-2 text-xs max-sm:hidden">
+        <label className="text-muted-foreground hit-area relative flex items-center gap-2 text-xs whitespace-nowrap">
           <Switch checked={more} onCheckedChange={setMore} size="sm" />
           Create more
         </label>
