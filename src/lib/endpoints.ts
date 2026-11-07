@@ -103,6 +103,7 @@ export interface Endpoints {
   "DELETE /workspaces/:slug/logo": { response: Workspace };
   "DELETE /workspaces/:slug/members/:username": { response: undefined };
   "DELETE /workspaces/:slug/wiki/*": { response: undefined };
+  "GET /comments/:commentId": { response: Comment };
   "GET /issues/:issueKey": { response: Issue };
   "GET /issues/:issueKey/activity": { response: IssueEvent[] };
   "GET /issues/:issueKey/attachments": { response: Attachment[] };

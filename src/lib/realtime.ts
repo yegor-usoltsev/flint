@@ -1,5 +1,4 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { QueryFilters, QueryKey } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { createContext, use, useEffect, useState } from "react";
 
@@ -8,6 +7,7 @@ import type { RealtimeEvent } from "~/lib/api-types";
 import { projectView } from "~/lib/issue-view";
 import type { IssueOrigin } from "~/lib/issue-view";
 import { applyPresence } from "~/lib/presence";
+import { applyEvents, refresh } from "~/lib/realtime-cache";
 import { subscribeRealtime } from "~/lib/realtime-transport";
 import { flashRemote } from "~/lib/remote-flash";
 import type { RemoteChange } from "~/lib/remote-flash";
@@ -20,33 +20,11 @@ import {
 import { retryFailedDrafts } from "~/lib/use-draft";
 import { hasPendingIssueWrites } from "~/lib/use-update-issue";
 
-export const eventKeys = (slug: string, event: RealtimeEvent) =>
-  ({
-    attachment: [["attachments"]],
-    comment: [["timeline", event.issueId]],
-    issue: [
-      ["issues", event.projectId],
-      ["issues", "workspace", slug],
-      ["timeline", event.id],
-      ["workspaces", slug, "projects"],
-      ["workspaces", slug, "labels"],
-      ["workspaces", slug, "trash"],
-    ],
-    label: [["workspaces", slug, "labels"], ["issues"]],
-    member: [["workspaces", slug, "members"], ["me"]],
-    presence: [],
-    project: [
-      ["workspaces", slug, "projects"],
-      ["projects"],
-      ["workspaces", slug, "labels"],
-    ],
-    wiki: [
-      ["wiki", event.projectId ?? slug],
-      ["doc", event.id],
-      ["workspaces", slug, "trash"],
-    ],
-    workspace: [["me"], ["workspaces", slug], ["projects"]],
-  })[event.entity] satisfies QueryKey[];
+const openedGraceMs = 5000;
+const maxQueuedEvents = 500;
+let synced = false;
+
+export const refetchOnFocus = () => !synced;
 
 export type Connection = "connecting" | "live" | "offline";
 
@@ -75,13 +53,15 @@ export const useRealtime = (
   const [online, setOnline] = useState(isOnline);
 
   useEffect(() => {
-    const pending = new Map<string, QueryKey>();
+    const events: RealtimeEvent[] = [];
     const remote = new Map<string, RemoteChange>();
     const actors = new Map<string, Set<string>>();
     const stale = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
     let flushing = false;
     let active = true;
+    let opened = false;
+    let connectingAt = Date.now();
 
     const origin = (): IssueOrigin | undefined => {
       const { location, matches } = router.state;
@@ -126,19 +106,13 @@ export const useRealtime = (
       timers.add(timer);
     };
 
-    const refresh = async (filters: QueryFilters) => {
-      const preloads = queryClient
-        .getQueryCache()
-        .findAll({ ...filters, fetchStatus: "fetching", type: "inactive" });
-
-      await queryClient.cancelQueries(filters);
-      await Promise.allSettled([
-        queryClient.invalidateQueries(filters),
-        ...preloads.map(async (query) => await query.fetch()),
-      ]);
-    };
-
     const flush = () => {
+      if (document.hidden) {
+        flushing = false;
+
+        return;
+      }
+
       if (hasPendingIssueWrites()) {
         later(flush, 300);
 
@@ -151,7 +125,7 @@ export const useRealtime = (
         const hashes = new Set(stale);
 
         stale.clear();
-        void refresh({ predicate: (query) => hashes.has(query.queryHash) });
+        void refresh(queryClient, (query) => hashes.has(query.queryHash));
       }
 
       const changedIssues = new Map(actors);
@@ -162,17 +136,13 @@ export const useRealtime = (
 
       actors.clear();
 
-      const refreshed = [...pending.values()].map(async (queryKey) => {
-        await refresh({ queryKey });
-      });
-
+      const refreshed = applyEvents(queryClient, slug, events.splice(0));
       const changed = new Map(remote);
 
-      pending.clear();
       remote.clear();
 
       const flashChanged = async () => {
-        await Promise.allSettled(refreshed);
+        await refreshed;
 
         if (!active) {
           return;
@@ -201,23 +171,45 @@ export const useRealtime = (
       }
     };
 
+    const missed = (before: number, all: boolean) => {
+      for (const query of queryClient.getQueryCache().getAll()) {
+        if (
+          all ||
+          (query.state.dataUpdatedAt > 0 &&
+            query.state.dataUpdatedAt < before &&
+            query.state.fetchStatus === "idle")
+        ) {
+          stale.add(query.queryHash);
+        }
+      }
+
+      schedule();
+    };
+
+    const shown = () => {
+      if (!document.hidden && (events.length > 0 || stale.size > 0)) {
+        schedule();
+      }
+    };
+
     const unsubscribe =
       userId === undefined
         ? undefined
         : subscribeRealtime(slug, userId, (message) => {
             if (message.type === "open") {
               setLive(true);
+              synced = true;
               void retryFailedDrafts();
-
-              for (const query of queryClient.getQueryCache().getAll()) {
-                stale.add(query.queryHash);
-              }
-
-              schedule();
+              missed(connectingAt - openedGraceMs, opened);
+              opened = true;
             } else if (message.type === "connecting") {
               setLive(false);
+              synced = false;
+              connectingAt = Date.now();
             } else if (message.type === "error") {
               setLive(false);
+              synced = false;
+              opened = true;
               void queryClient.invalidateQueries({
                 queryKey: meQuery.queryKey,
               });
@@ -228,8 +220,9 @@ export const useRealtime = (
 
               applyPresence(queryClient, slug, event);
 
-              for (const queryKey of eventKeys(slug, event)) {
-                pending.set(JSON.stringify(queryKey), queryKey);
+              if (events.push(event) > maxQueuedEvents) {
+                events.length = 0;
+                missed(Date.now(), true);
               }
 
               const byOther =
@@ -280,12 +273,15 @@ export const useRealtime = (
 
     window.addEventListener("online", reachable);
     window.addEventListener("offline", reachable);
+    document.addEventListener("visibilitychange", shown);
 
     return () => {
       active = false;
+      synced = false;
       cancelNotices();
       window.removeEventListener("online", reachable);
       window.removeEventListener("offline", reachable);
+      document.removeEventListener("visibilitychange", shown);
       unsubscribe?.();
       setLive(false);
 

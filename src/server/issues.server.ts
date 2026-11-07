@@ -674,6 +674,13 @@ const changedColumns = (
   return columns;
 };
 
+const summaryOf = ({
+  deletedAt: _deletedAt,
+  description: _description,
+  links: _links,
+  ...summary
+}: Issue): IssueSummary => summary;
+
 export const updateIssue = async (
   actor: Actor,
   key: string,
@@ -768,18 +775,21 @@ export const updateIssue = async (
     return changedFields(row, next);
   });
 
+  const updated = await selectIssue(db, issue.id);
+
   if (fields !== null) {
     publish(issue.workspaceId, {
       actorId: actor.userId,
       entity: "issue",
       fields,
       id: issue.id,
+      issue: summaryOf(updated),
       projectId: issue.projectId,
     });
     void refreshEmbedding("issue", issue.id);
   }
 
-  return await selectIssue(db, issue.id);
+  return updated;
 };
 
 const setDeleted = async (actor: Actor, key: string, deleted: boolean) => {

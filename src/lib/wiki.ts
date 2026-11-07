@@ -13,6 +13,7 @@ import type {
 } from "~/lib/api-types";
 import { newId } from "~/lib/ids";
 import { sortKeyBetween } from "~/lib/issue-view";
+import { refresh } from "~/lib/realtime-cache";
 import { readDraft } from "~/lib/use-draft";
 import type { DraftWrite } from "~/lib/use-draft";
 
@@ -450,15 +451,44 @@ const maxRetries = 3;
 
 const queues = new Map<string, PageQueue>();
 
+const pageSummary = ({
+  body: _body,
+  createdAt: _createdAt,
+  workspaceSlug: _workspaceSlug,
+  ...summary
+}: WikiPage): WikiPageSummary => summary;
+
 export const setPage = (
   queryClient: QueryClient,
   wiki: Wiki,
   page: WikiPage
 ) => {
+  const { queryKey } = wikiPagesQuery(wiki);
+  const tree = queryClient.getQueryCache().find({ exact: true, queryKey });
+
+  const listed =
+    tree?.state.fetchStatus === "idle" &&
+    !tree.state.isInvalidated &&
+    queryClient
+      .getQueryData(queryKey)
+      ?.some((row) => row.id === page.id && row.path === page.path);
+
   queryClient.setQueryData(wikiPageQuery(wiki, page.path).queryKey, page);
-  void queryClient.invalidateQueries({
-    queryKey: wikiPagesQuery(wiki).queryKey,
-  });
+
+  if (listed === true) {
+    queryClient.setQueryData(
+      queryKey,
+      (pages) =>
+        pages?.map((row) =>
+          row.id === page.id && row.revision < page.revision
+            ? pageSummary(page)
+            : row
+        ),
+      { updatedAt: tree.state.dataUpdatedAt }
+    );
+  } else {
+    void refresh(queryClient, (query) => query === tree);
+  }
 };
 
 const atQueuePath = (queue: PageQueue, page: WikiPage) =>
