@@ -1,12 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "cn";
-import { TrashIcon } from "lucide-react";
+import { EllipsisIcon, PencilIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
 import { ColorPicker } from "~/components/color-picker";
-import { SaveState } from "~/components/conflict-dialog";
 import { LoadFailed } from "~/components/load-failed";
 import {
   SettingsFilter,
@@ -16,6 +15,7 @@ import {
   tableHead,
   tableNumber,
   tableRow,
+  useSettingsSave,
 } from "~/components/settings-page";
 import {
   DragHandle,
@@ -32,9 +32,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { FieldError } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -138,25 +143,63 @@ const usage = (count: number) => {
     : `It is removed from ${count} issues.`;
 };
 
-const DeleteLabel = ({
+const LabelMenu = ({
   label,
   onDelete,
 }: {
   label: LabelSummary;
   onDelete: () => void;
+}) => {
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <div className="flex pointer-fine:opacity-0 pointer-fine:group-hover/sortable:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-data-popup-open:opacity-100">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={`Actions for ${label.name}`}
+              size="icon-sm"
+              variant="quiet"
+            />
+          }
+        >
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem
+            onClick={() => {
+              setConfirming(true);
+            }}
+            variant="destructive"
+          >
+            <TrashIcon />
+            Delete label…
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DeleteLabel
+        label={label}
+        onDelete={onDelete}
+        onOpenChange={setConfirming}
+        open={confirming}
+      />
+    </div>
+  );
+};
+
+const DeleteLabel = ({
+  label,
+  onDelete,
+  onOpenChange,
+  open,
+}: {
+  label: LabelSummary;
+  onDelete: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
 }) => (
-  <AlertDialog>
-    <AlertDialogTrigger
-      render={
-        <Button
-          aria-label={`Delete ${label.name}`}
-          size="icon-sm"
-          variant="quiet"
-        />
-      }
-    >
-      <TrashIcon />
-    </AlertDialogTrigger>
+  <AlertDialog onOpenChange={onOpenChange} open={open}>
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>Delete “{label.name}”?</AlertDialogTitle>
@@ -222,11 +265,12 @@ const LabelRow = ({
 
       return previous;
     },
-    onError: (error, _changes, previous) => {
+    onError: (_error, _changes, previous) => {
       queryClient.setQueryData(queryKey, previous);
-      notifyError("Label not saved")(error);
     },
   });
+
+  const { save, saveInBackground } = useSettingsSave();
 
   const remove = useMutation({
     ...optimistic,
@@ -250,9 +294,17 @@ const LabelRow = ({
     },
   });
 
-  const name = useAutosaveText(label.name, async (text) => {
-    await update.mutateAsync({ name: text });
+  const name = useAutosaveText(label.name, async (text, retry) => {
+    await save(
+      `${label.id}:name`,
+      async () => {
+        await update.mutateAsync({ name: text });
+      },
+      retry
+    );
   });
+
+  const problem = name.status === "error" ? name.problem : null;
 
   return (
     <li
@@ -269,46 +321,60 @@ const LabelRow = ({
       <ColorPicker
         label={`Color of ${label.name}`}
         onChange={(color) => {
-          update.mutate({ color });
+          saveInBackground(`${label.id}:color`, async () => {
+            await update.mutateAsync({ color });
+          });
         }}
         value={label.color}
       />
-      <input
-        aria-label={`Name of ${label.name}`}
-        className="hover:border-input focus-visible:border-ring focus-visible:ring-ring/50 h-8 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2.5 text-base outline-none focus-visible:ring-3 max-sm:h-10 md:text-sm"
-        maxLength={40}
-        onBlur={() => {
-          void name.flush();
-        }}
-        onChange={(event) => {
-          name.edit(event.target.value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            void name.flush();
-          }
+      <div className="flex min-w-0 flex-1">
+        <div className="group/name relative min-w-0">
+          <input
+            aria-describedby={
+              problem === null ? undefined : `label-${label.id}-problem`
+            }
+            aria-invalid={problem !== null || undefined}
+            aria-label={`Name of ${label.name}`}
+            className="hover:border-input hover:bg-background focus-visible:border-ring focus-visible:bg-background focus-visible:ring-ring/50 aria-invalid:border-destructive field-sizing-content h-8 max-w-full min-w-16 cursor-text rounded-lg border border-transparent bg-transparent pr-8 pl-2.5 text-base outline-none focus-visible:ring-3 max-sm:h-10 md:text-sm"
+            maxLength={40}
+            onBlur={() => {
+              void name.flush();
+            }}
+            onChange={(event) => {
+              name.edit(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                void name.flush();
+              }
 
-          if (event.key === "Escape") {
-            name.revert();
-          }
-        }}
-        readOnly={name.status === "saving"}
-        value={name.text}
-      />
-      {name.status === "idle" ? null : (
-        <SaveState
-          onRetry={() => {
-            void name.flush();
-          }}
-          problem={name.problem}
-          status={name.status}
-        />
+              if (event.key === "Escape") {
+                name.revert();
+              }
+            }}
+            readOnly={name.status === "saving"}
+            value={name.text}
+          />
+          <PencilIcon
+            aria-hidden
+            className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 group-focus-within/name:hidden pointer-fine:opacity-0 pointer-fine:group-hover/name:opacity-100"
+          />
+        </div>
+      </div>
+      {problem === null ? null : (
+        <p
+          className="text-destructive max-w-40 text-xs"
+          id={`label-${label.id}-problem`}
+          role="alert"
+        >
+          {problem}
+        </p>
       )}
-      <span className={tableNumber}>
+      <span className={cn(tableNumber, "max-sm:w-8")}>
         {label.issueCount}
         <span className="sr-only"> issues</span>
       </span>
-      <DeleteLabel
+      <LabelMenu
         label={label}
         onDelete={() => {
           remove.mutate();
@@ -342,7 +408,7 @@ const Labels = () => {
           New label
         </Button>
       }
-      description="Labels are shared by every project in this workspace. Click a name to rename it."
+      description="Labels are shared by every project in this workspace."
       title="Labels"
     >
       <div className="flex flex-col gap-2">
@@ -357,7 +423,7 @@ const Labels = () => {
           {empty ? null : (
             <div aria-hidden className={tableHead}>
               <span className="flex-1 pl-20 pointer-coarse:pl-14">Name</span>
-              <span className={tableNumber}>Issues</span>
+              <span className={cn(tableNumber, "max-sm:w-8")}>Issues</span>
               <span className="w-7 max-sm:w-10" />
             </div>
           )}

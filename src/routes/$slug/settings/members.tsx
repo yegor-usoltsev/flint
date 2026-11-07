@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { XIcon } from "lucide-react";
+import { cn } from "cn";
+import { EllipsisIcon, UserMinusIcon } from "lucide-react";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
@@ -14,6 +15,7 @@ import {
   tableGroup,
   tableHead,
   tableRow,
+  useSettingsSave,
 } from "~/components/settings-page";
 import {
   AlertDialog,
@@ -24,7 +26,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
 import {
@@ -36,6 +37,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import {
   Field,
   FieldError,
@@ -53,12 +60,13 @@ import {
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 import { UserAvatar } from "~/components/user-avatar";
-import { meQuery, request, useMe } from "~/lib/api";
+import { ApiError, meQuery, request, useMe } from "~/lib/api";
 import type { Member, Role } from "~/lib/api-types";
 import { formatDate } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
 import { membersQuery } from "~/lib/queries";
 import { pageHead } from "~/lib/site";
+import { rejection } from "~/lib/use-autosave-text";
 import { useWorkspace } from "~/lib/use-workspace";
 
 const roles = [
@@ -205,6 +213,7 @@ const AddMember = ({ slug }: { slug: string }) => {
 
 const RemoveMember = ({ member, slug }: { member: Member; slug: string }) => {
   const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
 
   const remove = useMutation({
     mutationFn: async () => {
@@ -221,41 +230,56 @@ const RemoveMember = ({ member, slug }: { member: Member; slug: string }) => {
   });
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button
-            aria-label={`Remove @${member.username}`}
-            size="icon-sm"
-            variant="quiet"
-          />
-        }
-      >
-        <XIcon />
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Remove @{member.username}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {member.pending
-              ? "The invite is withdrawn."
-              : "They lose access to this workspace right away. Their issues and comments stay."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={remove.isPending}
+    <div className="flex pointer-fine:opacity-0 pointer-fine:group-hover/member:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-data-popup-open:opacity-100">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={`Actions for @${member.username}`}
+              size="icon-sm"
+              variant="quiet"
+            />
+          }
+        >
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-60">
+          <DropdownMenuItem
             onClick={() => {
-              remove.mutate();
+              setConfirming(true);
             }}
             variant="destructive"
           >
-            Remove
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            <UserMinusIcon />
+            {member.pending ? "Withdraw invite…" : "Remove from workspace…"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AlertDialog onOpenChange={setConfirming} open={confirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove @{member.username}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {member.pending
+                ? "The invite is withdrawn."
+                : "They lose access to this workspace right away. Their issues and comments stay."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={remove.isPending}
+              onClick={() => {
+                remove.mutate();
+              }}
+              variant="destructive"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 };
 
@@ -292,7 +316,10 @@ const MemberRow = ({
     },
     onError: (error, _role, previous) => {
       queryClient.setQueryData(queryKey, previous);
-      notifyError("Role not changed")(error);
+
+      if (error instanceof ApiError && rejection(error) !== null) {
+        notifyError("Role not changed")(error);
+      }
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey });
@@ -303,8 +330,10 @@ const MemberRow = ({
     },
   });
 
+  const { saveInBackground } = useSettingsSave();
+
   return (
-    <li className={tableRow}>
+    <li className={cn(tableRow, "group/member")}>
       <UserAvatar
         avatarUrl={member.avatarUrl}
         className="size-6"
@@ -326,7 +355,9 @@ const MemberRow = ({
           <RoleSelect
             label={`Role of @${member.username}`}
             onChange={(role) => {
-              changeRole.mutate(role);
+              saveInBackground(`${member.username}:role`, async () => {
+                await changeRole.mutateAsync(role);
+              });
             }}
             size="sm"
             value={member.role}
