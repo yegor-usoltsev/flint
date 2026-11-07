@@ -35,6 +35,7 @@ import {
   setFolderOpen,
   slugify,
   storeKept,
+  subtreeIds,
   wikiDraftId,
   wikiDraftText,
   wikiPageQuery,
@@ -203,6 +204,16 @@ test("recentPages lists a folder's pages at any depth, newest edit first", () =>
     "guides/deploy/s3",
     "guides/setup",
   ]);
+});
+
+test("subtreeIds lists a page and its descendants by id", () => {
+  const pages = [
+    { ...summary("guides", "Guides"), id: "g", kind: "folder" as const },
+    { ...summary("guides/setup", "Setup"), id: "s" },
+    { ...summary("guidesx", "Other"), id: "x" },
+  ];
+
+  expect(subtreeIds(pages, pages[0] ?? summary("", ""))).toEqual(["g", "s"]);
 });
 
 describe("open folders", () => {

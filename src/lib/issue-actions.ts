@@ -11,7 +11,9 @@ import { api, ApiError } from "~/lib/api";
 import type { Issue, IssueSummary } from "~/lib/api-types";
 import { deselect } from "~/lib/issue-selection";
 import { notifyError, notifyWithAction } from "~/lib/notify";
+import { forgetRecentHrefs, issueHref } from "~/lib/recent";
 import { queueIssueRequest } from "~/lib/use-update-issue";
+import { useWorkspace } from "~/lib/use-workspace";
 
 type IssueData = Issue | IssueSummary[] | InfiniteData<IssueSummary[]>;
 
@@ -148,6 +150,7 @@ export const restoreIssues = async (
 
 export const deleteIssues = async (
   queryClient: QueryClient,
+  slug: string,
   issues: IssueSummary[]
 ) => {
   const ids = new Set(issues.map((issue) => issue.id));
@@ -187,6 +190,13 @@ export const deleteIssues = async (
 
   const unremoved = new Set(failed.flatMap(({ issue }) => issue?.id ?? []));
 
+  forgetRecentHrefs(
+    slug,
+    issues.flatMap((issue) =>
+      unremoved.has(issue.id) ? [] : [issueHref(slug, issue.key)]
+    )
+  );
+
   for (const [queryKey, before] of snapshot) {
     queryClient.setQueryData<IssueData>(queryKey, (data) =>
       withRows(data, before, unremoved)
@@ -199,10 +209,11 @@ export const deleteIssues = async (
 
 export const useDeleteIssue = () => {
   const queryClient = useQueryClient();
+  const { slug } = useWorkspace();
 
   return {
     remove: async (issues: IssueSummary[]) => {
-      await deleteIssues(queryClient, issues);
+      await deleteIssues(queryClient, slug, issues);
     },
     restore: async (issues: IssueSummary[]) => {
       await restoreIssues(queryClient, issues);

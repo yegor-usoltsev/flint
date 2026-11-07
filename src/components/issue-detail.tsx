@@ -18,7 +18,7 @@ import {
   RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 import { AttachButton } from "~/components/attach-button";
@@ -72,7 +72,7 @@ import {
   issuesQuery,
   projectQuery,
 } from "~/lib/queries";
-import { useRememberRecent } from "~/lib/recent";
+import { forgetRecentHrefs, issueHref, useRememberRecent } from "~/lib/recent";
 import type { RecentItem } from "~/lib/recent";
 import { usePageTitle } from "~/lib/site";
 import { useIssueDraft } from "~/lib/use-draft";
@@ -571,7 +571,7 @@ const useIssueQuery = (project: ProjectDetail, issueKey: string) => {
 };
 
 const recentIssue = (slug: string, issue: Issue): RecentItem => ({
-  href: `/${slug}/issue/${issue.key}`,
+  href: issueHref(slug, issue.key),
   kind: "issue",
   label: issue.key,
   statusId: issue.statusId,
@@ -583,10 +583,20 @@ const useOpenIssue = (
   issue: Issue | undefined,
   active: boolean
 ) => {
+  const deleted = issue !== undefined && issue.deletedAt !== null;
+  const key = issue?.key;
+
   useContextIssue(issue, active);
+  useEffect(() => {
+    if (deleted && key !== undefined) {
+      forgetRecentHrefs(slug, [issueHref(slug, key)]);
+    }
+  }, [deleted, key, slug]);
   useRememberRecent(
     slug,
-    active && issue !== undefined ? recentIssue(slug, issue) : undefined
+    active && issue !== undefined && !deleted
+      ? recentIssue(slug, issue)
+      : undefined
   );
 };
 

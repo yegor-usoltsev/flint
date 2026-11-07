@@ -335,6 +335,15 @@ export const longestMovedPath = (
 export const inSubtree = (path: string, root: string) =>
   path === root || path.startsWith(`${root}/`);
 
+export const subtreeIds = (pages: WikiPageSummary[], root: WikiPageSummary) => [
+  ...new Set([
+    root.id,
+    ...pages.flatMap((page) =>
+      inSubtree(page.path, root.path) ? [page.id] : []
+    ),
+  ]),
+];
+
 export const movedPath = (path: string, from: string, to: string) =>
   inSubtree(path, from) ? `${to}${path.slice(from.length)}` : path;
 
