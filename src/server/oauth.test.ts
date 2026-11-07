@@ -148,7 +148,7 @@ test("callback exchanges the code with the verifier and opens a session", async 
   expect(await me.json()).toMatchObject({
     avatarUrl: "http://gitea-public.test/avatars/a",
     giteaUrl: "http://gitea-public.test",
-    semanticSearch: false,
+    semanticSearch: env.EMBEDDING_API_KEY !== "",
     trashDays: 30,
     isInstanceAdmin: true,
     username: "alice",
