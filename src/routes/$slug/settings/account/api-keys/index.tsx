@@ -88,12 +88,20 @@ const RevokeToken = ({ token }: { token: ApiToken }) => {
   );
 };
 
-const CopyCode = ({ text, what }: { text: string; what: string }) => (
+const CopyCode = ({
+  copy,
+  text,
+  what,
+}: {
+  copy?: () => string;
+  text: string;
+  what: string;
+}) => (
   <button
     aria-label={`Copy ${text}`}
     className="bg-surface-2 border-hairline hover:bg-surface-3 focus-visible:ring-ring/50 hit-area relative rounded px-1 py-px font-mono text-xs outline-none focus-visible:ring-2"
     onClick={() => {
-      void copyText(text, what);
+      void copyText(copy?.() ?? text, what);
     }}
     type="button"
   >
@@ -138,10 +146,17 @@ const TokenRows = () => {
         <EmptyHeader>
           <EmptyTitle>No API keys yet</EmptyTitle>
           <EmptyDescription>
-            Sign in the flint CLI with{" "}
-            <CopyCode text="flint login" what="command" />, or set a key as{" "}
-            <CopyCode text="FLINT_TOKEN" what="variable name" /> in your
-            scripts.
+            <span className="max-md:leading-11 pointer-coarse:leading-11">
+              Sign in the flint CLI with{" "}
+              <CopyCode
+                copy={() => `flint login --url ${window.location.origin}`}
+                text="flint login"
+                what="command"
+              />
+              , or set a key as{" "}
+              <CopyCode text="FLINT_TOKEN" what="variable name" /> in your
+              scripts.
+            </span>
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

@@ -71,7 +71,7 @@ const ProjectRow = ({
           <ProjectIcon color={project.color} icon={project.icon} />
           <span className="truncate font-medium">{project.name}</span>
         </span>
-        <span className="text-muted-foreground tracking-key w-12 shrink-0">
+        <span className="text-muted-foreground tracking-key w-18 shrink-0">
           {project.key}
         </span>
         <span className={tableNumber}>
@@ -156,7 +156,7 @@ const Projects = () => {
               >
                 Name
               </span>
-              <span className="w-12 shrink-0">Key</span>
+              <span className="w-18 shrink-0">Key</span>
               <span className={tableNumber}>Open</span>
               <span className={tableDate}>Created</span>
               <span className="w-4" />

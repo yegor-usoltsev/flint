@@ -38,7 +38,7 @@ const Preferences = () => {
           />
         </SettingsRow>
         <SettingsRow
-          description="Clicking an issue in a list or board shows it in a side panel next to the list, when the window has room, or on its own page. Alt-click always uses the panel."
+          description="Clicking an issue in a list or board shows it in a side panel next to the list, when the window has room, or on its own page. Alt-click uses the panel whenever there is room."
           label="Open issues in"
         >
           <SettingsChoice
