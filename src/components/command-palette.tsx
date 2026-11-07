@@ -1329,7 +1329,9 @@ export const CommandLayer = ({ children }: { children: ReactNode }) => {
     setHelp(true);
   }, []);
 
-  useVisualViewport(palette.open);
+  const [popup, setPopup] = useState<HTMLDivElement | null>(null);
+
+  useVisualViewport(popup);
 
   const commands = useLayerCommands({
     openHelp: showHelp,
@@ -1351,6 +1353,7 @@ export const CommandLayer = ({ children }: { children: ReactNode }) => {
       <CommandDialog
         className="flex flex-col max-sm:top-[calc(var(--visual-viewport-top,0px)+0.5rem)] max-sm:h-[calc(var(--visual-viewport-height,100dvh)-1rem)] max-sm:max-w-[calc(100%-1rem)] sm:top-32.5 sm:max-h-112.5 sm:max-w-180 [&>[data-slot=dialog-close]]:top-2.5 md:[&>[data-slot=dialog-close]]:hidden"
         description="Run a command, jump to a page or search issues"
+        popupRef={setPopup}
         finalFocus={() => {
           const [issue] = palette.issues;
 

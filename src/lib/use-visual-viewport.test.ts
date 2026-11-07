@@ -1,75 +1,45 @@
-import { afterEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 
-import { holdViewport } from "~/lib/use-visual-viewport";
+import { followViewport } from "~/lib/use-visual-viewport";
 
-const descriptors = new Map<string, PropertyDescriptor | undefined>();
-
-interface StyleStub {
-  removeProperty: (name: string) => void;
-  setProperty: (name: string, value: string) => void;
-}
-
-type BrowserStub =
-  | { documentElement: { style: StyleStub } }
-  | { visualViewport: EventTarget };
-
-const replace = (name: string, value: BrowserStub) => {
-  if (!descriptors.has(name)) {
-    descriptors.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
-  }
-
-  Object.defineProperty(globalThis, name, { configurable: true, value });
-};
-
-afterEach(() => {
-  for (const [name, descriptor] of descriptors) {
-    if (descriptor === undefined) {
-      Reflect.deleteProperty(globalThis, name);
-    } else {
-      Object.defineProperty(globalThis, name, descriptor);
-    }
-  }
-
-  descriptors.clear();
-});
-
-const stubViewport = () => {
-  const viewport = Object.assign(new EventTarget(), {
-    height: 800,
-    offsetTop: 0,
-  });
-
+const sheet = () => {
   const style = new Map<string, string>();
 
-  replace("window", { visualViewport: viewport });
-  replace("document", {
-    documentElement: {
+  return {
+    element: {
       style: {
-        removeProperty: (name: string) => {
-          style.delete(name);
-        },
         setProperty: (name: string, value: string) => {
           style.set(name, value);
         },
       },
     },
-  });
-
-  return { style, viewport };
+    style,
+  };
 };
 
-test("a sheet keeps following the keyboard after another sheet over it closes", () => {
-  const { style, viewport } = stubViewport();
-  const releaseCreate = holdViewport();
-  const releasePalette = holdViewport();
+test("each sheet follows the keyboard on its own element, after another sheet closes", () => {
+  const viewport = Object.assign(new EventTarget(), {
+    height: 800,
+    offsetTop: 0,
+  });
+
+  const create = sheet();
+  const palette = sheet();
+  const releaseCreate = followViewport(create.element, viewport);
+  const releasePalette = followViewport(palette.element, viewport);
 
   releasePalette();
   viewport.height = 400;
+  viewport.offsetTop = 20;
   viewport.dispatchEvent(new Event("resize"));
 
-  expect(style.get("--visual-viewport-height")).toBe("400px");
+  expect(create.style.get("--visual-viewport-height")).toBe("400px");
+  expect(create.style.get("--visual-viewport-top")).toBe("20px");
+  expect(palette.style.get("--visual-viewport-height")).toBe("800px");
 
   releaseCreate();
+  viewport.height = 300;
+  viewport.dispatchEvent(new Event("resize"));
 
-  expect(style.has("--visual-viewport-height")).toBe(false);
+  expect(create.style.get("--visual-viewport-height")).toBe("400px");
 });

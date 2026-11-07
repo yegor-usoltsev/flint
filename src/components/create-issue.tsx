@@ -558,7 +558,9 @@ const CreateDialog = ({
     enabled: open && key !== "",
   });
 
-  useVisualViewport(open);
+  const [popup, setPopup] = useState<HTMLDivElement | null>(null);
+
+  useVisualViewport(popup);
 
   return (
     <Dialog
@@ -574,6 +576,7 @@ const CreateDialog = ({
         finalFocus={() =>
           opener.current?.isConnected === true ? opener.current : true
         }
+        ref={setPopup}
       >
         {project.data === undefined ? (
           <div className="p-4">

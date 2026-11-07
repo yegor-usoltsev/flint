@@ -35,9 +35,11 @@ function CommandDialog({
   className,
   showCloseButton = false,
   finalFocus,
+  popupRef,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, "children"> & {
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
+  popupRef?: React.Ref<HTMLDivElement>;
   title?: string;
   description?: string;
   className?: string;
@@ -52,6 +54,7 @@ function CommandDialog({
           className
         )}
         finalFocus={finalFocus}
+        ref={popupRef}
         showCloseButton={showCloseButton}
       >
         <DialogHeader className="sr-only">

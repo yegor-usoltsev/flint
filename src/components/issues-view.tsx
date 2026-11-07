@@ -26,7 +26,7 @@ import {
   ListFilterIcon,
   PlusIcon,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
 import { useCreateIssue } from "~/components/create-issue";
@@ -94,6 +94,7 @@ import {
   withKnownLabels,
 } from "~/lib/issue-view";
 import type { IssueSearch, Order, ViewKind } from "~/lib/issue-view";
+import { useNearRows } from "~/lib/near-rows";
 import {
   closedIssuesQuery,
   issueCountsQuery,
@@ -133,6 +134,12 @@ const sensors: Customizable<Sensors> = (defaults) => [
         : [new PointerActivationConstraints.Distance({ value: 4 })],
   }),
 ];
+
+const initialRows = 40;
+const initialCards = 12;
+
+const placeholderClass = (card: boolean) =>
+  card ? "min-h-26" : "max-md:min-h-16";
 
 const easeOut = "cubic-bezier(0.23, 1, 0.32, 1)";
 const sortableTransition = { duration: 150, easing: easeOut, idle: false };
@@ -205,71 +212,7 @@ const ChangedBy = ({
   );
 };
 
-const Sortable = ({
-  children,
-  className,
-  group,
-  index,
-  issue,
-  onOpen,
-  shown,
-}: {
-  children: ReactNode;
-  className: string;
-  group: string;
-  index: number;
-  issue: IssueSummary;
-  onOpen: OpenIssue;
-  shown: IssueField[];
-}) => {
-  const { id } = issue;
-
-  const { isDragSource, ref } = useSortable({
-    accept: "item",
-    group,
-    id,
-    index,
-    transition: sortableTransition,
-    type: "item",
-  });
-
-  const selected = useSelected(id);
-  const current = usePanelShows(issue.key);
-  const remote = useRemoteFlash(id, shown).row;
-
-  return (
-    <button
-      className={cn(className, isDragSource && "opacity-40", remote)}
-      data-current={current ? "true" : undefined}
-      data-issue={id}
-      data-selected={selected ? "true" : undefined}
-      onAuxClick={(event) => {
-        if (event.button === 1) {
-          onOpen(issue, "tab");
-        }
-      }}
-      onClick={(event) => {
-        if (
-          !selectByClick(event, id) &&
-          !(event.altKey && openPanel(issue.key))
-        ) {
-          onOpen(issue, "open");
-        }
-      }}
-      onFocus={() => {
-        onOpen(issue, "prefetch");
-      }}
-      onPointerEnter={() => {
-        onOpen(issue, "prefetch");
-      }}
-      ref={ref}
-      type="button"
-    >
-      {selected ? <span className="sr-only">Selected,</span> : null}
-      {children}
-    </button>
-  );
-};
+type RemoteFlash = ReturnType<typeof useRemoteFlash>;
 
 export const rowClass =
   "group/row group/issue relative flex min-h-11 w-full cursor-default flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2 py-2 text-left outline-none select-none hover:bg-row-focus focus-visible:bg-row-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover data-selected:focus-visible:bg-row-selected-hover data-menu-target:bg-row-focus data-current:bg-row-focus data-current:shadow-focus-bar data-selected:data-menu-target:bg-row-selected-hover data-selected:data-current:bg-row-selected-hover md:h-9 md:min-h-0 md:flex-nowrap md:py-0 md:pointer-coarse:h-11";
@@ -300,102 +243,313 @@ export const RowCheck = ({ id }: { id: string }) => {
 export const listClass =
   "@container/list mx-auto flex w-full max-w-list flex-col px-2 pb-16";
 
-export const RowContent = ({
+const RowContent = ({
   assignee = true,
   issue,
   lookup,
+  remote,
 }: {
   assignee?: boolean;
   issue: IssueSummary;
   lookup: IssueLookup;
-}) => {
-  const remote = useRemoteFlash(issue.id, shownFields(issue, assignee, false));
-
-  return (
-    <>
-      <RowCheck id={issue.id} />
+  remote?: RemoteFlash;
+}) => (
+  <>
+    <RowCheck id={issue.id} />
+    <span
+      className={cn(
+        "-m-1 flex shrink-0 rounded-sm p-1",
+        issue.priority === 0 && "invisible",
+        remote?.field("priority")
+      )}
+    >
+      <PriorityIcon priority={issue.priority} />
+    </span>
+    <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
+      {issue.key}
+    </span>
+    <span
+      className={cn(
+        "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate",
+        (!assignee || issue.assigneeId === null) && "max-md:w-full",
+        remote?.field("title")
+      )}
+    >
+      {issue.title}
+    </span>
+    <span
+      className={cn(
+        "flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:w-24 md:@max-xl/list:hidden @5xl/list:hidden"
+      )}
+    >
+      <IssueLabels
+        className="min-w-0 shrink"
+        issue={issue}
+        lookup={lookup}
+        max={1}
+      />
+    </span>
+    <span
+      className={cn(
+        "hidden w-64 shrink-0 items-center justify-end gap-1 overflow-hidden @5xl/list:flex"
+      )}
+    >
+      <IssueLabels issue={issue} lookup={lookup} max={2} />
+    </span>
+    <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1 @max-3xl/list:empty:hidden">
+      <PullRequestIcon state={issue.pullRequestState} />
+      <CiIcon state={issue.ciState} />
+    </span>
+    <span className="contents md:flex md:w-10 md:shrink-0 md:justify-end @max-3xl/list:empty:hidden">
+      <Checklist issue={issue} />
+    </span>
+    {assignee ? (
       <span
         className={cn(
-          "-m-1 flex shrink-0 rounded-sm p-1",
-          issue.priority === 0 && "invisible",
-          remote.field("priority")
+          "order-first flex self-start md:order-none md:w-6 md:shrink-0 md:justify-end md:self-auto",
+          issue.assigneeId === null && "max-md:contents"
         )}
       >
-        <PriorityIcon priority={issue.priority} />
+        <Assignee
+          className={cn(
+            issue.assigneeId !== null && "-m-1 rounded-full p-1",
+            remote?.field("assignee")
+          )}
+          issue={issue}
+          lookup={lookup}
+        />
       </span>
-      <span className="text-muted-foreground tracking-key shrink-0 whitespace-nowrap tabular-nums max-md:text-xs md:min-w-16">
+    ) : null}
+    {remote?.actorId === undefined ? (
+      <time
+        className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0 md:w-16"
+        dateTime={issue.updatedAt}
+      >
+        <span className="sr-only">Updated </span>
+        {formatDate(issue.updatedAt)}
+      </time>
+    ) : (
+      <ChangedBy
+        actorId={remote?.actorId}
+        className="ml-auto w-14 justify-end md:ml-0 md:w-16"
+        lookup={lookup}
+      />
+    )}
+  </>
+);
+
+const cardClass =
+  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 ring-inset text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover data-selected:data-current:bg-row-selected-hover dark:data-selected:data-current:bg-row-selected-hover";
+
+const CardContent = ({
+  assignee = true,
+  issue,
+  lookup,
+  remote,
+}: {
+  assignee?: boolean;
+  issue: IssueSummary;
+  lookup: IssueLookup;
+  remote?: RemoteFlash;
+}) => (
+  <>
+    <span className="flex flex-col gap-0.5">
+      <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
         {issue.key}
+        {remote?.actorId === undefined ? null : (
+          <ChangedBy
+            actorId={remote?.actorId}
+            className="-my-0.5"
+            lookup={lookup}
+          />
+        )}
+        {assignee ? (
+          <span className="ml-auto flex">
+            <Assignee
+              className={cn(
+                issue.assigneeId !== null && "-m-1 rounded-full p-1",
+                remote?.field("assignee")
+              )}
+              issue={issue}
+              lookup={lookup}
+            />
+          </span>
+        ) : null}
       </span>
       <span
         className={cn(
-          "order-first w-[calc(100%-1.875rem)] font-medium break-words max-md:line-clamp-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:truncate",
-          (!assignee || issue.assigneeId === null) && "max-md:w-full",
-          remote.field("title")
+          "line-clamp-2 font-medium break-words",
+          remote?.field("title")
         )}
       >
         {issue.title}
       </span>
-      <span
-        className={cn(
-          "flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden empty:hidden md:w-40 md:max-w-none md:shrink-0 md:justify-end md:@max-3xl/list:w-24 md:@max-xl/list:hidden @5xl/list:hidden"
-        )}
-      >
+    </span>
+    <span className="flex flex-wrap items-center gap-1.5 empty:hidden">
+      {issue.priority === 0 ? null : (
+        <span
+          className={cn("-m-1 flex rounded-sm p-1", remote?.field("priority"))}
+        >
+          <PriorityIcon priority={issue.priority} />
+        </span>
+      )}
+      <span className={cn("flex items-center gap-1.5 empty:hidden")}>
         <IssueLabels
-          className="min-w-0 shrink"
+          className={remote?.field("labels")}
           issue={issue}
           lookup={lookup}
           max={1}
         />
       </span>
-      <span
-        className={cn(
-          "hidden w-64 shrink-0 items-center justify-end gap-1 overflow-hidden @5xl/list:flex"
-        )}
-      >
-        <IssueLabels issue={issue} lookup={lookup} max={2} />
-      </span>
-      <span className="contents md:flex md:w-10 md:shrink-0 md:items-center md:justify-end md:gap-1 @max-3xl/list:empty:hidden">
-        <PullRequestIcon state={issue.pullRequestState} />
-        <CiIcon state={issue.ciState} />
-      </span>
-      <span className="contents md:flex md:w-10 md:shrink-0 md:justify-end @max-3xl/list:empty:hidden">
-        <Checklist issue={issue} />
-      </span>
-      {assignee ? (
-        <span
-          className={cn(
-            "order-first flex self-start md:order-none md:w-6 md:shrink-0 md:justify-end md:self-auto",
-            issue.assigneeId === null && "max-md:contents"
-          )}
-        >
-          <Assignee
-            className={cn(
-              issue.assigneeId !== null && "-m-1 rounded-full p-1",
-              remote.field("assignee")
-            )}
-            issue={issue}
-            lookup={lookup}
-          />
-        </span>
-      ) : null}
-      {remote.actorId === undefined ? (
-        <time
-          className="text-muted-foreground ml-auto w-14 shrink-0 text-right text-xs tabular-nums md:ml-0 md:w-16"
-          dateTime={issue.updatedAt}
-        >
-          <span className="sr-only">Updated </span>
-          {formatDate(issue.updatedAt)}
-        </time>
-      ) : (
-        <ChangedBy
-          actorId={remote.actorId}
-          className="ml-auto w-14 justify-end md:ml-0 md:w-16"
-          lookup={lookup}
-        />
-      )}
+      <PullRequestIcon state={issue.pullRequestState} />
+      <CiIcon state={issue.ciState} />
+      <Checklist issue={issue} />
+    </span>
+  </>
+);
+
+const SortableRow = ({
+  children,
+  element,
+  group,
+  id,
+  index,
+  selected,
+}: {
+  children: ReactNode;
+  element: RefObject<Element | null>;
+  group: string;
+  id: string;
+  index: number;
+  selected: boolean;
+}) => {
+  const { ref } = useSortable({
+    accept: "item",
+    group,
+    id,
+    index,
+    transition: sortableTransition,
+    type: "item",
+  });
+
+  useEffect(() => {
+    ref(element.current);
+  }, [element, ref]);
+
+  return (
+    <>
+      {selected ? <span className="sr-only">Selected,</span> : null}
+      {children}
     </>
   );
 };
+
+interface ItemProps {
+  assignee: boolean | undefined;
+  card: boolean;
+  dragged: boolean;
+  group: string;
+  index: number;
+  initial: boolean;
+  issue: IssueSummary;
+  lookup: IssueLookup;
+  onOpen: OpenIssue;
+}
+
+const Item = ({
+  assignee = true,
+  card,
+  dragged,
+  group,
+  index,
+  initial,
+  issue,
+  lookup,
+  onOpen,
+}: ItemProps) => {
+  const { id } = issue;
+  const element = useRef<HTMLButtonElement>(null);
+  const { height, near } = useNearRows(element, initial);
+  const [focused, setFocused] = useState(false);
+  const shown = near || dragged || focused;
+  const selected = useSelected(id);
+  const current = usePanelShows(issue.key);
+  const remote = useRemoteFlash(id, shownFields(issue, assignee, card));
+  const Content = card ? CardContent : RowContent;
+
+  return (
+    <button
+      aria-label={shown ? undefined : `${issue.key} ${issue.title}`}
+      className={cn(
+        card ? cardClass : rowClass,
+        !shown &&
+          cn(
+            "shrink-0",
+            height === undefined ? placeholderClass(card) : "h-(--row-height)"
+          ),
+        dragged && "opacity-40",
+        remote.row
+      )}
+      data-current={current ? "true" : undefined}
+      data-issue={id}
+      data-selected={selected ? "true" : undefined}
+      onAuxClick={(event) => {
+        if (event.button === 1) {
+          onOpen(issue, "tab");
+        }
+      }}
+      onClick={(event) => {
+        if (
+          !selectByClick(event, id) &&
+          !(event.altKey && openPanel(issue.key))
+        ) {
+          onOpen(issue, "open");
+        }
+      }}
+      onBlur={() => {
+        if (focused) {
+          setFocused(false);
+        }
+      }}
+      onFocus={() => {
+        if (!near) {
+          setFocused(true);
+        }
+
+        onOpen(issue, "prefetch");
+      }}
+      onPointerEnter={() => {
+        onOpen(issue, "prefetch");
+      }}
+      ref={element}
+      style={
+        shown || height === undefined
+          ? undefined
+          : { "--row-height": `${height}px` }
+      }
+      type="button"
+    >
+      {shown ? (
+        <SortableRow
+          element={element}
+          group={group}
+          id={id}
+          index={index}
+          selected={selected}
+        >
+          <Content
+            assignee={assignee}
+            issue={issue}
+            lookup={lookup}
+            remote={remote}
+          />
+        </SortableRow>
+      ) : null}
+    </button>
+  );
+};
+
+const IssueItem = memo(Item);
 
 const ListGroup = ({
   assignee,
@@ -404,11 +558,13 @@ const ListGroup = ({
   ids,
   issues,
   lookup,
+  offset,
   onOpen,
   status,
   total,
 }: Omit<ViewProps, "columns" | "onCreate" | "statuses"> & {
   ids: string[];
+  offset: number;
   status: Status;
 }) => {
   const open = !useStatusCollapsed(status.id);
@@ -454,17 +610,18 @@ const ListGroup = ({
         const issue = issues.get(id);
 
         return issue === undefined ? null : (
-          <Sortable
-            className={rowClass}
+          <IssueItem
+            assignee={assignee}
+            card={false}
+            dragged={id === dragging}
             group={status.id}
             index={index}
+            initial={offset + index < initialRows}
             issue={issue}
             key={id}
+            lookup={lookup}
             onOpen={onOpen}
-            shown={shownFields(issue, assignee, false)}
-          >
-            <RowContent assignee={assignee} issue={issue} lookup={lookup} />
-          </Sortable>
+          />
         );
       })}
       {open ? footer(status) : null}
@@ -472,93 +629,38 @@ const ListGroup = ({
   );
 };
 
+const groupOffsets = (columns: Columns, statuses: Status[]) => {
+  const offsets: number[] = [];
+  let offset = 0;
+
+  for (const status of statuses) {
+    offsets.push(offset);
+    offset += columns[status.id]?.length ?? 0;
+  }
+
+  return offsets;
+};
+
 const List = ({
   columns,
   onCreate: _create,
   statuses,
   ...props
-}: ViewProps) => (
-  <div className={listClass}>
-    {statuses.map((status) => (
-      <ListGroup
-        ids={columns[status.id] ?? []}
-        key={status.id}
-        status={status}
-        {...props}
-      />
-    ))}
-  </div>
-);
-
-const cardClass =
-  "group/issue relative flex w-full cursor-default flex-col gap-2 rounded-md bg-card p-3 ring-inset text-left shadow-card outline-none select-none hover:bg-surface-1 focus-visible:ring-1 focus-visible:ring-ring data-selected:bg-row-selected dark:bg-surface-2 dark:ring-1 dark:ring-border dark:hover:bg-surface-3 dark:data-selected:bg-row-selected data-selected:hover:bg-row-selected-hover dark:data-selected:hover:bg-row-selected-hover data-menu-target:bg-surface-1 dark:data-menu-target:bg-surface-3 data-current:bg-surface-1 data-current:ring-1 data-current:ring-primary dark:data-current:bg-surface-3 data-selected:data-menu-target:bg-row-selected-hover dark:data-selected:data-menu-target:bg-row-selected-hover data-selected:data-current:bg-row-selected-hover dark:data-selected:data-current:bg-row-selected-hover";
-
-const CardContent = ({
-  assignee = true,
-  issue,
-  lookup,
-}: {
-  assignee?: boolean;
-  issue: IssueSummary;
-  lookup: IssueLookup;
-}) => {
-  const remote = useRemoteFlash(issue.id, shownFields(issue, assignee));
+}: ViewProps) => {
+  const offsets = groupOffsets(columns, statuses);
 
   return (
-    <>
-      <span className="flex flex-col gap-0.5">
-        <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
-          {issue.key}
-          {remote.actorId === undefined ? null : (
-            <ChangedBy
-              actorId={remote.actorId}
-              className="-my-0.5"
-              lookup={lookup}
-            />
-          )}
-          {assignee ? (
-            <span className="ml-auto flex">
-              <Assignee
-                className={cn(
-                  issue.assigneeId !== null && "-m-1 rounded-full p-1",
-                  remote.field("assignee")
-                )}
-                issue={issue}
-                lookup={lookup}
-              />
-            </span>
-          ) : null}
-        </span>
-        <span
-          className={cn(
-            "line-clamp-2 font-medium break-words",
-            remote.field("title")
-          )}
-        >
-          {issue.title}
-        </span>
-      </span>
-      <span className="flex flex-wrap items-center gap-1.5 empty:hidden">
-        {issue.priority === 0 ? null : (
-          <span
-            className={cn("-m-1 flex rounded-sm p-1", remote.field("priority"))}
-          >
-            <PriorityIcon priority={issue.priority} />
-          </span>
-        )}
-        <span className={cn("flex items-center gap-1.5 empty:hidden")}>
-          <IssueLabels
-            className={remote.field("labels")}
-            issue={issue}
-            lookup={lookup}
-            max={1}
-          />
-        </span>
-        <PullRequestIcon state={issue.pullRequestState} />
-        <CiIcon state={issue.ciState} />
-        <Checklist issue={issue} />
-      </span>
-    </>
+    <div className={listClass}>
+      {statuses.map((status, index) => (
+        <ListGroup
+          ids={columns[status.id] ?? []}
+          key={status.id}
+          offset={offsets[index] ?? 0}
+          status={status}
+          {...props}
+        />
+      ))}
+    </div>
   );
 };
 
@@ -573,6 +675,7 @@ const toggleRail = (button: HTMLElement, id: string, expanded: boolean) => {
 
 const BoardColumn = ({
   assignee,
+  dragging,
   footer,
   ids,
   issues,
@@ -582,7 +685,7 @@ const BoardColumn = ({
   railed,
   status,
   total,
-}: Omit<ViewProps, "columns" | "dragging" | "statuses"> & {
+}: Omit<ViewProps, "columns" | "statuses"> & {
   ids: string[];
   railed: boolean;
   status: Status;
@@ -660,26 +763,26 @@ const BoardColumn = ({
               </Button>
             ) : null}
           </header>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.25 pb-2 max-md:pt-2.25">
+          <div
+            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.25 pb-2 max-md:pt-2.25"
+            data-rows
+          >
             {ids.map((id, index) => {
               const issue = issues.get(id);
 
               return issue === undefined ? null : (
-                <Sortable
-                  className={cardClass}
+                <IssueItem
+                  assignee={assignee}
+                  card
+                  dragged={id === dragging}
                   group={status.id}
                   index={index}
+                  initial={index < initialCards}
                   issue={issue}
                   key={id}
+                  lookup={lookup}
                   onOpen={onOpen}
-                  shown={shownFields(issue, assignee)}
-                >
-                  <CardContent
-                    assignee={assignee}
-                    issue={issue}
-                    lookup={lookup}
-                  />
-                </Sortable>
+                />
               );
             })}
             {footer(status)}
@@ -1601,6 +1704,7 @@ export const IssuesView = ({
                 "min-h-0 flex-1",
                 view === "list" ? "overflow-y-auto" : "flex flex-col"
               )}
+              data-rows={view === "list" ? "" : undefined}
             >
               <Issues
                 onClearFilters={clearFilters}

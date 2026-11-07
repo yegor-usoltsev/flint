@@ -510,6 +510,7 @@ const MyIssues = () => {
               "min-h-0 flex-1",
               view === "list" ? "overflow-y-auto" : "flex flex-col"
             )}
+            data-rows={view === "list" ? "" : undefined}
           >
             <AssignedIssues
               onClear={clearFilters}
