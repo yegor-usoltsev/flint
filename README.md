@@ -16,10 +16,11 @@
 
 Flint is a self-hosted issue tracker and Markdown wiki for teams on [Gitea](https://about.gitea.com). People sign in with their Gitea accounts, and any branch, commit or pull request that mentions `ENG-12` shows up on that issue with its CI checks. A CLI does everything the UI does, so coding agents can work in Flint too.
 
-- **Issues:** lists, boards, labels, checklists, keyboard shortcuts and a Cmd+K command menu.
-- **Wiki:** nested pages with revision history, Mermaid diagrams and issue links.
+- **Issues:** lists and boards per project and across projects in My issues, labels, checklists, keyboard shortcuts and a Cmd+K command menu that remembers recent issues and pages. An issue opens in a side panel beside the list or as a full page, as you choose in Preferences.
+- **Wiki:** nested pages with revision history, Mermaid diagrams and issue links, listed in a tree you can fold and filter.
 - **Search:** full text, plus optional semantic search through an embeddings API.
-- **Live:** edits and comments reach every open tab.
+- **Live:** edits and comments reach every open tab. A teammate's comment waits behind a pill while you are writing a reply or reading further up, a notice says when their change moves an issue out of your view, and the header shows when the connection drops and Flint reconnects.
+- **Phone to 4K:** every page fits a 393 px phone, and wide screens put the list next to the full issue layout and give wiki diagrams and tables more room.
 
 ## Quick start
 
@@ -58,6 +59,7 @@ alice/ENG-5-format-prices-for-the-customer-s-locale
 - **Gitea only**, and every workspace member sees links from every repository on the instance, private ones included.
 - **No notifications** by email or in the app.
 - **Fixed statuses:** Backlog, Todo, In Progress, In Review, Done and Canceled.
+- **1,000 issues per list:** past that, a list or board loads the first issues of every status and says "Showing N of M" under each status it cuts; filters run on the server, so narrowing them shows issues past the cut, still up to 1,000 per list. `flint issue list` pages with `--offset`.
 - **One container per database:** live updates reach only tabs connected to the container that made the change.
 - **Offline edits:** unsaved issue and page text stays in the browser as a draft, which signing in as another user clears. An open editor whose save failed on a network error, rate limit or server error retries once on reconnect, and a conflict asks you to choose. Drafts restored after a reload, closed editors and rolled-back property edits do not retry.
 - **Images:** only static JPEG, PNG and WebP are scaled down and stripped of metadata; GIF, AVIF, HEIC, APNG and animated WebP are stored as uploaded.
