@@ -1,4 +1,4 @@
-import { afterEach, expect, spyOn, test } from "bun:test";
+import { afterEach, expect, jest, spyOn, test } from "bun:test";
 
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import type { InfiniteData, QueryKey } from "@tanstack/react-query";
@@ -216,6 +216,36 @@ test("an edit patches every cached copy and refetches no list", async () => {
     comments: timeline.comments,
     events: [{ id: "e1" }],
   });
+});
+
+test("edits in a burst load the activity once at once and once after a gap", async () => {
+  jest.useFakeTimers();
+
+  const { queryClient, shown } = setup();
+
+  shown(["timeline", "1"], { comments: [], events: [] });
+
+  const paths = serve(() => Response.json([]));
+
+  const edit = async (version: number) => {
+    await applyEvents(queryClient, "acme", [
+      edited(row("1", { title: String(version), version }), ["title"]),
+    ]);
+  };
+
+  await edit(2);
+  expect(paths).toHaveLength(1);
+  jest.advanceTimersByTime(500);
+  await edit(3);
+  jest.advanceTimersByTime(500);
+  await edit(4);
+  expect(paths).toHaveLength(1);
+  jest.advanceTimersByTime(1000);
+  await Promise.resolve();
+  expect(paths).toHaveLength(2);
+  jest.advanceTimersByTime(5000);
+  expect(paths).toHaveLength(2);
+  jest.useRealTimers();
 });
 
 test("an older or already applied version leaves the row alone", async () => {

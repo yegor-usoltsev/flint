@@ -22,7 +22,6 @@ const useCachedIssueByKey = (key: string) => {
   );
 };
 
-// A chip shows the cached row at once and keeps its own detail query, which SSE events refresh; it never writes to the document.
 export const useMentionedIssue = (key: string) => {
   const workspace = useWorkspace();
   const prefix = key.split("-")[0] ?? "";
@@ -35,7 +34,7 @@ export const useMentionedIssue = (key: string) => {
 
   const detail = useQuery({
     ...issueQuery(project?.id ?? "", key),
-    enabled: project !== undefined,
+    enabled: project !== undefined && cached === null,
     retry: false,
     staleTime: Infinity,
   });
