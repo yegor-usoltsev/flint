@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronRightIcon, SquarePenIcon } from "lucide-react";
+import { ChevronRightIcon, EllipsisIcon, SquarePenIcon } from "lucide-react";
 import { createContext, use, useCallback, useRef, useState } from "react";
 import type { RefObject, ReactNode } from "react";
 
@@ -20,6 +20,7 @@ import {
 } from "~/components/ui/dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -55,6 +56,7 @@ import {
 import { useStoredText, useUploading } from "~/lib/use-draft";
 import { useCommands } from "~/lib/use-hotkey";
 import { withLabelChanges } from "~/lib/use-update-issue";
+import { useVisualViewport } from "~/lib/use-visual-viewport";
 import { useWorkspace } from "~/lib/use-workspace";
 
 interface CreateTarget {
@@ -409,7 +411,7 @@ const CreateForm = ({
 
   return (
     <form
-      className="flex min-h-0 flex-col"
+      className="flex min-h-0 flex-1 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
         create();
@@ -468,7 +470,8 @@ const CreateForm = ({
           label="Description"
           onChange={setDescription}
           onSubmit={create}
-          placeholder="Add a description… Type / for blocks"
+          focusHint="Type / for blocks"
+          placeholder="Add a description…"
           draft={descriptionDraft}
           ref={editor}
           uploadTo={`/projects/${project.key}/attachments`}
@@ -480,7 +483,7 @@ const CreateForm = ({
           <FieldError>Could not create the issue: {failure}</FieldError>
         </div>
       )}
-      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+      <div className="flex flex-wrap gap-1.5 px-4 pb-3 max-sm:gap-x-2 max-sm:gap-y-5">
         <IssueProperties
           issue={draft}
           layout="pills"
@@ -490,9 +493,28 @@ const CreateForm = ({
           project={project}
         />
       </div>
-      <div className="bg-surface-1 flex items-center gap-3 rounded-b-xl border-t px-4 py-2.5">
+      <div className="bg-surface-1 flex items-center gap-3 border-t px-4 py-2.5 sm:rounded-b-xl">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                aria-label="More options"
+                className="sm:hidden"
+                size="icon"
+                variant="ghost"
+              />
+            }
+          >
+            <EllipsisIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top">
+            <DropdownMenuCheckboxItem checked={more} onCheckedChange={setMore}>
+              Create more
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- The Switch renders the control inside the label. */}
-        <label className="text-muted-foreground flex items-center gap-2 text-xs">
+        <label className="text-muted-foreground flex items-center gap-2 text-xs max-sm:hidden">
           <Switch checked={more} onCheckedChange={setMore} size="sm" />
           Create more
         </label>
@@ -548,6 +570,8 @@ const CreateDialog = ({
     enabled: open && key !== "",
   });
 
+  useVisualViewport(open);
+
   return (
     <Dialog
       onOpenChange={(next) => {
@@ -558,7 +582,7 @@ const CreateDialog = ({
     >
       <DialogContent
         // oxlint-disable-next-line shadcn/no-restyle -- The form lays out its own padded sections and footer.
-        className="top-[12vh] flex max-h-[80vh] translate-y-0 flex-col gap-0 p-0 sm:max-w-2xl md:[&>[data-slot=dialog-close]]:hidden"
+        className="top-[12vh] flex max-h-[80vh] translate-y-0 flex-col gap-0 p-0 max-sm:top-[var(--visual-viewport-top,0px)] max-sm:h-[var(--visual-viewport-height,100dvh)] max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none max-sm:ring-0 sm:max-w-2xl md:[&>[data-slot=dialog-close]]:hidden"
         finalFocus={() =>
           opener.current?.isConnected === true ? opener.current : true
         }

@@ -158,16 +158,26 @@ export const SettingsHeader = ({
       orientation="vertical"
     />
     <Breadcrumb className="min-w-0 flex-1">
-      <BreadcrumbList className="flex-nowrap">
+      <BreadcrumbList className="flex-nowrap max-md:flex-col max-md:items-start">
         {parent === undefined ? (
-          <BreadcrumbItem className="md:hidden">Settings</BreadcrumbItem>
+          <BreadcrumbItem className="md:hidden">
+            {label === undefined ? (
+              <span className="text-foreground text-heading font-medium">
+                Settings
+              </span>
+            ) : (
+              <span className="text-xs">Settings</span>
+            )}
+          </BreadcrumbItem>
         ) : (
-          <BreadcrumbItem className="min-w-6 shrink-[100]">
+          <BreadcrumbItem className="min-w-6 shrink-[100] max-md:max-w-full">
             <BreadcrumbLink
               className="hit-area relative min-w-0"
               render={parent.link}
             >
-              <span className="block truncate">{parent.label}</span>
+              <span className="block truncate max-md:text-xs">
+                {parent.label}
+              </span>
             </BreadcrumbLink>
           </BreadcrumbItem>
         )}
@@ -176,8 +186,8 @@ export const SettingsHeader = ({
             {parent === undefined ? null : (
               <BreadcrumbSeparator className="max-md:hidden" />
             )}
-            <BreadcrumbItem className="min-w-12 max-md:hidden">
-              <span className="text-foreground truncate font-medium">
+            <BreadcrumbItem className="min-w-12 max-md:-mt-1 max-md:max-w-full">
+              <span className="text-foreground max-md:text-heading truncate font-medium">
                 {label}
               </span>
             </BreadcrumbItem>

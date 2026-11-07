@@ -91,7 +91,7 @@ import { ApiError, request } from "~/lib/api";
 import type { WikiNodeKind, WikiPage, WikiPageSummary } from "~/lib/api-types";
 import { copyText } from "~/lib/copy";
 import { newId } from "~/lib/ids";
-import { formatRelative } from "~/lib/issue-view";
+import { formatDate, formatRelative } from "~/lib/issue-view";
 import { notifyError } from "~/lib/notify";
 import { PagePane, twoPaneQuery } from "~/lib/page-pane";
 import { forgetRecentHrefs, pageHref, useRememberRecent } from "~/lib/recent";
@@ -221,6 +221,26 @@ const Editor = ({ page }: { page: WikiPageSummary }) => (
   </>
 );
 
+const RowMeta = ({ node }: { node: WikiNode }) => {
+  const { page } = node;
+  const pane = use(PagePane);
+
+  if (page?.kind !== "page") {
+    return pageCount(node);
+  }
+
+  if (pane === "list") {
+    return <time dateTime={page.updatedAt}>{formatDate(page.updatedAt)}</time>;
+  }
+
+  return (
+    <>
+      {formatRelative(page.updatedAt)}
+      <Editor page={page} />
+    </>
+  );
+};
+
 const RowLink = ({
   node,
   wiki,
@@ -242,15 +262,13 @@ const RowLink = ({
     <span className="text-muted-foreground hidden w-0 flex-1 truncate font-mono text-xs opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100 @xl:inline">
       {node.path}
     </span>
-    <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-2 text-xs">
-      {node.page?.kind === "page" ? (
-        <>
-          {formatRelative(node.page.updatedAt)}
-          <Editor page={node.page} />
-        </>
-      ) : (
-        pageCount(node)
+    <span
+      className={cn(
+        "text-muted-foreground ml-auto flex shrink-0 items-center gap-2 text-xs",
+        use(PagePane) === "list" && "max-[100rem]:hidden"
       )}
+    >
+      <RowMeta node={node} />
     </span>
   </Link>
 );
@@ -643,12 +661,6 @@ const useCreate = (wiki: Wiki, parent: string) => {
   };
 };
 
-const latestPages = (pages: WikiPageSummary[], shown: boolean) => {
-  const all = recentPages(pages, "");
-
-  return shown && all.length > 15 ? all.slice(0, 8) : [];
-};
-
 const FilteredPages = ({
   folder,
   nodes,
@@ -713,18 +725,15 @@ const FilteredPages = ({
 };
 
 const NodeList = ({
-  compact = false,
   create,
   folder,
   wiki,
 }: {
-  compact?: boolean;
   create: () => void;
   folder: string;
   wiki: Wiki;
 }) => {
   const pages = useQuery(wikiPagesQuery(wiki));
-  const sort = useWikiSort();
   const pagesTree = buildTree(pages.data ?? []);
 
   const nodes =
@@ -753,45 +762,15 @@ const NodeList = ({
   }
 
   if (nodes.length > 0) {
-    const latest = latestPages(pages.data ?? [], folder === "" && !compact);
-
-    const tree = (
-      <FilteredPages
-        folder={folder}
-        pages={pages.data ?? []}
-        tree={pagesTree}
-        nodes={nodes}
-        wiki={wiki}
-      />
-    );
-
-    if (latest.length === 0 || sort === "edited") {
-      return <div className="mx-auto w-full max-w-3xl">{tree}</div>;
-    }
-
     return (
-      <div className="mx-auto w-full max-w-3xl xl:grid xl:max-w-7xl xl:grid-cols-2 xl:items-start xl:gap-6">
-        <section aria-labelledby="wiki-all" className="min-w-0 xl:pt-2">
-          <h2
-            className="text-muted-foreground hidden px-4 text-xs font-medium xl:block"
-            id="wiki-all"
-          >
-            All pages
-          </h2>
-          {tree}
-        </section>
-        <section
-          aria-labelledby="wiki-recent"
-          className="hidden min-w-0 xl:block xl:pt-2"
-        >
-          <h2
-            className="text-muted-foreground px-4 text-xs font-medium"
-            id="wiki-recent"
-          >
-            Recently edited
-          </h2>
-          <RecentRows label="Recently edited" pages={latest} wiki={wiki} />
-        </section>
+      <div className="mx-auto w-full max-w-180">
+        <FilteredPages
+          folder={folder}
+          pages={pages.data ?? []}
+          tree={pagesTree}
+          nodes={nodes}
+          wiki={wiki}
+        />
       </div>
     );
   }
@@ -840,7 +819,12 @@ const WikiIndex = ({
       switcher={<NavSwitcher place={{ kind: "wiki", path: "" }} />}
       title="Wiki"
     >
-      <NodeList compact={compact} create={create} folder="" wiki={wiki} />
+      {compact ? null : (
+        <h2 className="text-title mx-auto w-full max-w-180 px-4 pt-6 font-semibold md:pt-8">
+          Wiki
+        </h2>
+      )}
+      <NodeList create={create} folder="" wiki={wiki} />
     </Page>
   );
 };
@@ -1367,8 +1351,6 @@ const useRememberPage = (
 const focusEmpty = (page: WikiPage, preview: boolean) =>
   !preview && page.body === "";
 
-const parentLabel = (crumbs: Crumb[]) => crumbs.at(-1)?.label;
-
 const PageEditor = ({
   crumbs,
   deleted,
@@ -1553,7 +1535,6 @@ const PageEditor = ({
       }
       className="flex overflow-hidden"
       crumbs={crumbs}
-      short={parentLabel(crumbs)}
       switcher={<NavSwitcher place={{ kind: "wiki", path: page.path }} />}
       title={title.value.trim() || page.title}
     >
@@ -1946,13 +1927,14 @@ const WikiScreen = ({
     ancestors(target).map((ancestor) => ({
       label: titleOf(ancestor),
       link: <Link {...wikiTarget(wiki, ancestor)} />,
+      short: `Wiki · ${titleOf(ancestor)}`,
     }));
 
   const shown = useShownPage(wiki, path, split);
 
   const fullCrumbs = [
     ...crumbs.map(({ label, link }) => ({ label, link })),
-    { label: "Wiki", link: <Link {...wikiTarget(wiki, "")} /> },
+    { label: "Wiki", link: <Link {...wikiTarget(wiki, "")} />, short: "Wiki" },
   ];
 
   const pageCrumbs = split ? [] : fullCrumbs;
@@ -1962,7 +1944,7 @@ const WikiScreen = ({
     <WikiShown value={split ? (shown ?? null) : null}>
       <div className="flex min-h-0 flex-1">
         {split ? (
-          <div className="flex w-96 shrink-0 flex-col border-r">
+          <div className="flex w-68 shrink-0 flex-col border-r">
             <PagePane value="list">
               <WikiIndex compact crumbs={crumbs} wiki={wiki} />
             </PagePane>

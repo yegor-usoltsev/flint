@@ -578,6 +578,7 @@ export interface MarkdownEditorProps {
   className?: string;
   draft?: DraftRef;
   editable?: boolean;
+  focusHint?: string;
   label: string;
   onCancel?: () => void;
   onChange?: (markdown: string) => void;
@@ -596,6 +597,7 @@ export const MarkdownEditor = ({
   className,
   draft,
   editable = true,
+  focusHint,
   label,
   onCancel,
   onChange,
@@ -705,7 +707,12 @@ export const MarkdownEditor = ({
       // oxlint-disable-next-line react/refs -- The shortcut opens the file picker on a key press, not during render.
       BlockKeys.configure({ pick }),
       TableKeys,
-      Placeholder.configure({ placeholder: placeholder ?? "" }),
+      Placeholder.configure({
+        placeholder: ({ editor: current }) =>
+          current.isFocused && focusHint !== undefined
+            ? `${placeholder ?? ""} ${focusHint}`.trim()
+            : (placeholder ?? ""),
+      }),
       TaskShortcut,
       // oxlint-disable-next-line react/refs -- The plugin reads the upload target on paste or drop, not during render.
       Uploads.configure({ target: () => live.current.target }),
