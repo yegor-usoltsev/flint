@@ -175,6 +175,36 @@ const PullRequestRow = ({ link }: { link: GitLink }) => {
   );
 };
 
+const BranchRow = ({
+  link,
+  withPull,
+}: {
+  link: GitLink;
+  withPull: boolean;
+}) => (
+  <LinkRow
+    action={
+      link.state === "deleted" || withPull ? null : (
+        <>
+          <span aria-hidden>·</span>
+          <a
+            className="hover:text-foreground hit-area relative shrink-0 hover:underline"
+            href={newPullRequestUrl(link.repoUrl, link.externalId)}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Create pull request
+          </a>
+        </>
+      )
+    }
+    icon={<GitBranchIcon aria-hidden className="size-3.5" />}
+    link={link}
+    meta={link.state === "deleted" ? `${link.repo} · deleted` : link.repo}
+    muted={link.state === "deleted"}
+  />
+);
+
 const Group = ({
   children,
   count,
@@ -196,6 +226,50 @@ const Group = ({
     <ul className="flex flex-col">{children}</ul>
   </div>
 );
+
+const CommitGroup = ({
+  commits,
+  manyRepos,
+}: {
+  commits: GitLink[];
+  manyRepos: boolean;
+}) => {
+  const [all, setAll] = useState(false);
+  const hidden = commits.length - shownCommits;
+
+  return (
+    <Group count={commits.length} title="Commits">
+      {(all ? commits : commits.slice(0, shownCommits)).map((link) => (
+        <LinkRow
+          icon={<GitCommitHorizontalIcon aria-hidden className="size-3.5" />}
+          key={link.id}
+          link={link}
+          meta={[
+            link.externalId.slice(0, 7),
+            manyRepos ? link.repo : null,
+            link.authorLogin,
+            formatRelative(link.occurredAt),
+          ]
+            .filter((part) => part !== null)
+            .join(" · ")}
+        />
+      ))}
+      {hidden > 0 ? (
+        <li>
+          <button
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm py-1 text-xs outline-none focus-visible:ring-2"
+            onClick={() => {
+              setAll(!all);
+            }}
+            type="button"
+          >
+            {all ? "Show fewer" : `Show ${hidden} more`}
+          </button>
+        </li>
+      ) : null}
+    </Group>
+  );
+};
 
 const LeadIcon = ({ lead }: { lead: GitLink }) => {
   if (lead.kind === "pull_request") {
@@ -271,134 +345,61 @@ export const IssueDevelopment = ({
 }) => {
   const heading = useId();
   const details = useId();
-  const [allCommits, setAllCommits] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const pulls = issue.links.filter((link) => link.kind === "pull_request");
   const branches = issue.links.filter((link) => link.kind === "branch");
   const commits = issue.links.filter((link) => link.kind === "commit");
-  const hidden = commits.length - shownCommits;
   const manyRepos = new Set(issue.links.map((link) => link.repo)).size > 1;
 
   if (issue.links.length === 0) {
     return null;
   }
 
-  if (collapsible && !expanded) {
-    return (
-      <section aria-labelledby={heading}>
-        <h2 className="sr-only" id={heading}>
-          Development
-        </h2>
+  return (
+    <section aria-labelledby={heading} className="flex flex-col">
+      <h2
+        className={
+          collapsible
+            ? "sr-only"
+            : "text-muted-foreground flex h-7 items-center font-medium"
+        }
+        id={heading}
+      >
+        Development
+      </h2>
+      {collapsible ? (
         <SummaryButton
           details={details}
-          expanded={false}
+          expanded={expanded}
           links={issue.links}
           onToggle={setExpanded}
         />
-      </section>
-    );
-  }
-
-  return (
-    <section aria-labelledby={heading} className="flex flex-col">
-      {collapsible ? (
-        <>
-          <h2 className="sr-only" id={heading}>
-            Development
-          </h2>
-          <SummaryButton
-            details={details}
-            expanded
-            links={issue.links}
-            onToggle={setExpanded}
-          />
-        </>
-      ) : (
-        <h2
-          className="text-muted-foreground flex h-7 items-center font-medium"
-          id={heading}
-        >
-          Development
-        </h2>
-      )}
-      <div className="flex flex-col" id={details}>
-        {pulls.length > 0 ? (
-          <Group count={pulls.length} title="Pull requests">
-            {pulls.map((link) => (
-              <PullRequestRow key={link.id} link={link} />
-            ))}
-          </Group>
-        ) : null}
-        {branches.length > 0 ? (
-          <Group count={branches.length} title="Branches">
-            {branches.map((link) => (
-              <LinkRow
-                action={
-                  link.state === "deleted" ||
-                  pulls.some((pull) => pull.repo === link.repo) ? null : (
-                    <>
-                      <span aria-hidden>·</span>
-                      <a
-                        className="hover:text-foreground hit-area relative shrink-0 hover:underline"
-                        href={newPullRequestUrl(link.repoUrl, link.externalId)}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                      >
-                        Create pull request
-                      </a>
-                    </>
-                  )
-                }
-                icon={<GitBranchIcon aria-hidden className="size-3.5" />}
-                key={link.id}
-                link={link}
-                meta={
-                  link.state === "deleted"
-                    ? `${link.repo} · deleted`
-                    : link.repo
-                }
-                muted={link.state === "deleted"}
-              />
-            ))}
-          </Group>
-        ) : null}
-        {commits.length > 0 ? (
-          <Group count={commits.length} title="Commits">
-            {(allCommits ? commits : commits.slice(0, shownCommits)).map(
-              (link) => (
-                <LinkRow
-                  icon={
-                    <GitCommitHorizontalIcon aria-hidden className="size-3.5" />
-                  }
+      ) : null}
+      {collapsible && !expanded ? null : (
+        <div className="flex flex-col" id={details}>
+          {pulls.length > 0 ? (
+            <Group count={pulls.length} title="Pull requests">
+              {pulls.map((link) => (
+                <PullRequestRow key={link.id} link={link} />
+              ))}
+            </Group>
+          ) : null}
+          {branches.length > 0 ? (
+            <Group count={branches.length} title="Branches">
+              {branches.map((link) => (
+                <BranchRow
                   key={link.id}
                   link={link}
-                  meta={[
-                    link.externalId.slice(0, 7),
-                    manyRepos ? link.repo : null,
-                    link.authorLogin,
-                    formatRelative(link.occurredAt),
-                  ]
-                    .filter((part) => part !== null)
-                    .join(" · ")}
+                  withPull={pulls.some((pull) => pull.repo === link.repo)}
                 />
-              )
-            )}
-            {hidden > 0 ? (
-              <li>
-                <button
-                  className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm py-1 text-xs outline-none focus-visible:ring-2"
-                  onClick={() => {
-                    setAllCommits(!allCommits);
-                  }}
-                  type="button"
-                >
-                  {allCommits ? "Show fewer" : `Show ${hidden} more`}
-                </button>
-              </li>
-            ) : null}
-          </Group>
-        ) : null}
-      </div>
+              ))}
+            </Group>
+          ) : null}
+          {commits.length > 0 ? (
+            <CommitGroup commits={commits} manyRepos={manyRepos} />
+          ) : null}
+        </div>
+      )}
     </section>
   );
 };
