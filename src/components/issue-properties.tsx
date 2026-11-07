@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { PlusIcon, TagIcon, UserRoundIcon } from "lucide-react";
+import { ListChecksIcon, PlusIcon, TagIcon, UserRoundIcon } from "lucide-react";
 import { useState } from "react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 
@@ -196,6 +196,45 @@ const triggerClass = {
 export const PillButton = (props: ComponentProps<"button">) => (
   <button className={triggerClass.pills} type="button" {...props} />
 );
+
+const Checklist = ({
+  issue,
+  layout,
+}: {
+  issue: IssueSummary;
+  layout: Layout;
+}) => {
+  if (issue.checklistTotal === 0) {
+    return null;
+  }
+
+  return (
+    <span
+      className={cn(
+        "text-muted-foreground flex items-center tabular-nums",
+        layout === "pills"
+          ? "h-6 gap-1 px-1 text-xs font-medium"
+          : "min-h-7 gap-2 py-0.5 font-medium"
+      )}
+    >
+      <IconSlot>
+        <ListChecksIcon aria-hidden className="size-4" />
+      </IconSlot>
+      <progress
+        aria-label="Checklist progress"
+        className={cn(
+          "bg-muted [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary h-1 appearance-none overflow-hidden rounded-full",
+          layout === "pills" ? "sr-only" : "w-16"
+        )}
+        max={issue.checklistTotal}
+        value={issue.checklistDone}
+      />
+      <span>
+        {issue.checklistDone}/{issue.checklistTotal}
+      </span>
+    </span>
+  );
+};
 
 const Section = ({
   children,
@@ -436,6 +475,7 @@ export const IssueProperties = ({
         {priorityPicker}
         {assigneePicker}
         {labelsPicker}
+        <Checklist issue={issue} layout={layout} />
       </>
     );
   }
@@ -446,6 +486,7 @@ export const IssueProperties = ({
         {statusPicker}
         {priorityPicker}
         {assigneePicker}
+        <Checklist issue={issue} layout={layout} />
       </Section>
       <Section title="Labels">{labelsPicker}</Section>
     </>

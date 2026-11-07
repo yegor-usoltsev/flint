@@ -72,8 +72,8 @@ interface Timeline {
 
 type EventItem = Extract<ActivityItem, { type: "event" }>;
 
-const cardClass =
-  "bg-card shadow-raised flex flex-col gap-1.5 rounded-md border p-4";
+const composerClass =
+  "bg-card shadow-raised flex flex-col gap-2 rounded-md border p-4 pb-3";
 
 const Time = ({ at }: { at: string }) => (
   <time
@@ -86,14 +86,18 @@ const Time = ({ at }: { at: string }) => (
 );
 
 const Author = ({
+  strong = false,
   user,
   viaApi,
 }: {
+  strong?: boolean;
   user: UserRef | null;
   viaApi: boolean;
 }) => (
   <>
-    <span className="font-medium">{user?.displayName ?? "Someone"}</span>
+    <span className={strong ? "font-semibold" : "font-medium"}>
+      {user?.displayName ?? "Someone"}
+    </span>
     {viaApi ? " via API" : null}
   </>
 );
@@ -266,7 +270,7 @@ const EventRow = ({
   const names = useNames(project);
 
   return (
-    <li className="relative flex items-start gap-3 py-1.5 pl-4.5 text-xs">
+    <li className="relative flex items-start gap-2.75 py-1.5 pl-0.75 text-xs">
       <span className="bg-background relative flex h-4 w-3.5 shrink-0 items-center justify-center">
         <EventIcon item={item} project={project} />
       </span>
@@ -409,62 +413,69 @@ const CommentItem = ({
   };
 
   return (
-    <li className={cn(cardClass, remote)} data-comment={comment.id}>
+    <li
+      className={cn(
+        "group/comment -mx-2 flex flex-col gap-1 rounded-md px-2 py-1",
+        remote
+      )}
+      data-comment={comment.id}
+    >
       <header className="flex min-h-6 items-center gap-2">
         <UserAvatar
           avatarUrl={comment.author.avatarUrl}
-          className="size-4.5"
+          className="size-5"
           name={comment.author.displayName}
         />
         <span className="min-w-0 truncate">
-          <Author user={comment.author} viaApi={comment.viaApi} />
+          <Author strong user={comment.author} viaApi={comment.viaApi} />
         </span>
         <Time at={comment.createdAt} />
         {comment.editedAt === null ? null : (
           <span className="text-muted-foreground">(edited)</span>
         )}
         {own && editing === null ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  aria-label="Comment options"
-                  className="ml-auto"
-                  size="icon-xs"
-                  variant="ghost"
-                />
-              }
-            >
-              <EllipsisIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                disabled={save.isPending}
-                onClick={() => {
-                  startEditing(comment.body, comment.version);
-                }}
+          <div className="ml-auto flex pointer-fine:opacity-0 pointer-fine:group-hover/comment:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-data-popup-open:opacity-100">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    aria-label="Comment options"
+                    size="icon-xs"
+                    variant="ghost"
+                  />
+                }
               >
-                <PencilIcon />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setDeleting(true);
-                }}
-                variant="destructive"
-              >
-                <Trash2Icon />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <EllipsisIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={save.isPending}
+                  onClick={() => {
+                    startEditing(comment.body, comment.version);
+                  }}
+                >
+                  <PencilIcon />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setDeleting(true);
+                  }}
+                  variant="destructive"
+                >
+                  <Trash2Icon />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         ) : null}
       </header>
       {editing === null ? (
         <MarkdownEditor
           attachments={`/issues/${issue.key}/attachments`}
           checkable={own && !save.isPending}
-          className="text-prose"
+          className="text-prose pl-7"
           editable={false}
           label={`Comment by ${comment.author.displayName}`}
           onChange={(body) => {
@@ -476,7 +487,7 @@ const CommentItem = ({
         <>
           <MarkdownEditor
             autoFocus
-            className="text-prose"
+            className="text-prose pl-7"
             label="Edit comment"
             onCancel={stopEditing}
             onChange={setEditing}
@@ -617,7 +628,7 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
   };
 
   return (
-    <div className={cn(cardClass, "gap-2 pb-3")}>
+    <div className={composerClass}>
       <MarkdownEditor
         className="text-prose min-h-12"
         label="Comment"
@@ -842,11 +853,11 @@ export const IssueTimeline = ({
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <ol className="flex flex-col gap-4">
+        <ol className="flex flex-col gap-3">
           {feed.map((entry) =>
             Array.isArray(entry) ? (
               <li key={entry[0]?.id}>
-                <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-6.25 before:w-px">
+                <ol className="before:bg-border relative before:absolute before:inset-y-3 before:left-2.5 before:w-px">
                   {entry.map((item) => (
                     <EventRow item={item} key={item.id} project={project} />
                   ))}

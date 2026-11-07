@@ -6,13 +6,13 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
+import { cn } from "cn";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
   CopyIcon,
   EllipsisIcon,
   GitBranchIcon,
-  GitPullRequestIcon,
   LinkIcon,
   Maximize2Icon,
   PaperclipIcon,
@@ -220,24 +220,6 @@ const useBack = (origin: IssueOrigin) => {
   };
 };
 
-const ChecklistProgress = ({ issue }: { issue: Issue }) => {
-  if (issue.checklistTotal === 0) {
-    return null;
-  }
-
-  return (
-    <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
-      <progress
-        aria-label="Checklist progress"
-        className="bg-muted [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary h-1 w-16 appearance-none overflow-hidden rounded-full"
-        max={issue.checklistTotal}
-        value={issue.checklistDone}
-      />
-      {issue.checklistDone}/{issue.checklistTotal}
-    </span>
-  );
-};
-
 const Title = ({
   editable,
   issue,
@@ -300,87 +282,49 @@ const Title = ({
   );
 };
 
-const sectionId = (issue: Issue, section: "attachments" | "development") =>
-  `${section}-${issue.id}`;
+const attachmentsId = (issue: Issue) => `attachments-${issue.id}`;
 
-const jumpTo = (id: string) => {
-  const section = document.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-
-  section?.scrollIntoView({ behavior: "smooth", block: "start" });
-  section?.focus({ preventScroll: true });
-};
-
-const SectionsChip = ({ issue }: { issue: Issue }) => {
-  const attachments = useQuery({
+const AttachmentsChip = ({ issue }: { issue: Issue }) => {
+  const count = useQuery({
     queryFn: async () =>
       await api<Attachment[]>(`/issues/${issue.key}/attachments`),
     queryKey: ["attachments", issue.id],
   }).data?.length;
 
-  const jumped = useRef<string | null>(null);
-
-  const sections = [
-    {
-      count: issue.links.length,
-      icon: GitPullRequestIcon,
-      id: sectionId(issue, "development"),
-      label: "Development",
-    },
-    {
-      count: attachments ?? 0,
-      icon: PaperclipIcon,
-      id: sectionId(issue, "attachments"),
-      label: "Attachments",
-    },
-  ];
+  if (count === undefined || count === 0) {
+    return null;
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<PillButton aria-label="More sections" />}>
-        <EllipsisIcon className="size-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-48"
-        finalFocus={() => {
-          const id = jumped.current;
-          jumped.current = null;
+    <PillButton
+      aria-label={count === 1 ? "1 attachment" : `${count} attachments`}
+      onClick={() => {
+        const section = document.querySelector<HTMLElement>(
+          `#${CSS.escape(attachmentsId(issue))}`
+        );
 
-          if (id === null) {
-            return true;
-          }
-
-          jumpTo(id);
-
-          return false;
-        }}
-      >
-        {sections.map((section) => (
-          <DropdownMenuItem
-            disabled={section.count === 0}
-            key={section.id}
-            onClick={() => {
-              jumped.current = section.id;
-            }}
-          >
-            <section.icon />
-            {section.label}
-            <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-              {section.count === 0 ? "None" : section.count}
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        section?.scrollIntoView({
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
+          block: "start",
+        });
+        section?.focus({ preventScroll: true });
+      }}
+    >
+      <PaperclipIcon aria-hidden className="text-muted-foreground size-3.5" />
+      <span className="tabular-nums">{count}</span>
+    </PillButton>
   );
 };
 
 const Description = ({
-  sections,
+  attachments,
   editable,
   editor,
   issue,
 }: {
-  sections: boolean;
+  attachments: boolean;
   editable: boolean;
   editor: RefObject<MarkdownEditorHandle | null>;
   issue: Issue;
@@ -388,38 +332,56 @@ const Description = ({
   const description = useIssueDraft(issue, "description", 600);
   const [source, setSource] = useState(false);
 
+  const quiet =
+    !source &&
+    description.status !== "error" &&
+    description.status !== "pending" &&
+    description.status !== "saving";
+
   return (
     <section aria-label="Description" className="flex flex-col gap-2">
-      <MarkdownEditor
-        checkable={editable}
-        className="text-prose focus-within:min-h-24"
-        draft={description.draft}
-        editable={editable}
-        label="Description"
-        onChange={description.handleChange}
-        placeholder="Add a description… Type / for blocks"
-        ref={editor}
-        source={source}
-        uploadTo={`/issues/${issue.key}/attachments`}
-        value={description.value}
-      />
-      <div className="flex min-h-6 items-center gap-3">
-        <ChecklistProgress issue={issue} />
-        <span className="ml-auto" />
-        <SaveState
-          onRetry={description.handleFlush}
-          status={description.status}
+      <div className="group/description flex flex-col gap-2">
+        <MarkdownEditor
+          checkable={editable}
+          className="text-prose focus-within:min-h-24"
+          draft={description.draft}
+          editable={editable}
+          label="Description"
+          onChange={description.handleChange}
+          placeholder="Add a description… Type / for blocks"
+          ref={editor}
+          source={source}
+          uploadTo={`/issues/${issue.key}/attachments`}
+          value={description.value}
         />
-        {editable ? (
-          <>
-            <AttachButton
-              onFiles={(files) => {
-                editor.current?.upload(files);
-              }}
-            />
-            <SourceToggle onChange={setSource} source={source} />
-          </>
-        ) : null}
+        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Pressing a tool keeps focus in the description, so the footer that focus reveals on touch stays open. */}
+        <div
+          className={cn(
+            "flex min-h-6 items-center justify-end gap-3",
+            quiet &&
+              "opacity-0 group-focus-within/description:opacity-100 group-hover/description:opacity-100 pointer-coarse:hidden pointer-coarse:group-focus-within/description:flex"
+          )}
+          onMouseDown={(event) => {
+            if (event.target !== event.currentTarget) {
+              event.preventDefault();
+            }
+          }}
+        >
+          <SaveState
+            onRetry={description.handleFlush}
+            status={description.status}
+          />
+          {editable ? (
+            <>
+              <AttachButton
+                onFiles={(files) => {
+                  editor.current?.upload(files);
+                }}
+              />
+              <SourceToggle onChange={setSource} source={source} />
+            </>
+          ) : null}
+        </div>
       </div>
       <ConflictDialog
         field="description"
@@ -428,23 +390,14 @@ const Description = ({
         onUseTheirs={description.handleDiscard}
         saved={description.conflict}
       />
-      {sections ? (
-        <>
-          <div
-            className="scroll-mt-4 outline-none empty:hidden"
-            id={sectionId(issue, "development")}
-            tabIndex={-1}
-          >
-            <IssueDevelopment issue={issue} />
-          </div>
-          <div
-            className="scroll-mt-4 outline-none empty:hidden"
-            id={sectionId(issue, "attachments")}
-            tabIndex={-1}
-          >
-            <IssueAttachments compact editable={editable} issue={issue} />
-          </div>
-        </>
+      {attachments ? (
+        <div
+          className="scroll-mt-4 outline-none empty:hidden"
+          id={attachmentsId(issue)}
+          tabIndex={-1}
+        >
+          <IssueAttachments compact editable={editable} issue={issue} />
+        </div>
       ) : null}
     </section>
   );
@@ -748,14 +701,17 @@ const IssueBody = ({
           </h2>
         )}
         {wide ? null : (
-          <div className="flex flex-wrap gap-1.5">
-            {properties("pills")}
-            {ready ? <SectionsChip issue={data} /> : null}
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap gap-1.5">
+              {properties("pills")}
+              {ready ? <AttachmentsChip issue={data} /> : null}
+            </div>
+            {ready ? <IssueDevelopment collapsible issue={data} /> : null}
           </div>
         )}
         {ready ? (
           <Description
-            sections={!wide}
+            attachments={!wide}
             editable={editable}
             editor={description}
             issue={data}
@@ -775,7 +731,7 @@ const IssueBody = ({
       {wide ? (
         <aside
           aria-label="Issue details"
-          className="sticky top-0 col-start-3 flex flex-col gap-8 self-start px-1 pt-5.75"
+          className="sticky top-4 col-start-3 flex flex-col gap-8 self-start px-1 pt-5.75"
         >
           {properties("rail")}
           {ready ? (
