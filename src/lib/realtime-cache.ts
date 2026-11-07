@@ -184,6 +184,7 @@ const regroups = (
 
 const latest = new Map<string, symbol>();
 const nextLoad = new WeakMap<Query, number>();
+const waiting = new Map<string, symbol>();
 const activityGapMs = 2000;
 
 const timelinePart = <Value>(
@@ -229,6 +230,7 @@ const timelinePart = <Value>(
     const since = query.state.dataUpdatedAt;
 
     latest.set(slot, token);
+    waiting.delete(slot);
 
     if (gap > 0) {
       nextLoad.set(query, Date.now() + gap);
@@ -263,9 +265,9 @@ const timelinePart = <Value>(
   const later = () => {
     const token = Symbol(slot);
 
-    latest.set(slot, token);
+    waiting.set(slot, token);
     setTimeout(() => {
-      if (latest.get(slot) === token) {
+      if (waiting.get(slot) === token) {
         void run();
       }
     }, delay);

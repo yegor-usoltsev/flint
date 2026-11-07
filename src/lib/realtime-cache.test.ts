@@ -115,6 +115,7 @@ afterEach(() => {
   }
 
   spyOn(globalThis, "fetch").mockRestore();
+  jest.useRealTimers();
 });
 
 const setup = () => {
@@ -245,7 +246,33 @@ test("edits in a burst load the activity once at once and once after a gap", asy
   expect(paths).toHaveLength(2);
   jest.advanceTimersByTime(5000);
   expect(paths).toHaveLength(2);
-  jest.useRealTimers();
+});
+
+test("a scheduled activity load keeps the answer of the one in flight", async () => {
+  jest.useFakeTimers();
+
+  const { queryClient, shown } = setup();
+  const slow = Promise.withResolvers<Response>();
+
+  shown(["timeline", "1"], { comments: [], events: [] });
+  spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(async () => await slow.promise, {
+      preconnect: fetch.preconnect,
+    })
+  );
+
+  const first = applyEvents(queryClient, "acme", [
+    edited(row("1", { title: "2", version: 2 }), ["title"]),
+  ]);
+
+  await applyEvents(queryClient, "acme", [
+    edited(row("1", { title: "3", version: 3 }), ["title"]),
+  ]);
+  slow.resolve(Response.json([{ id: "e1" }]));
+  await first;
+  expect(queryClient.getQueryData(["timeline", "1"])).toMatchObject({
+    events: [{ id: "e1" }],
+  });
 });
 
 test("an older or already applied version leaves the row alone", async () => {
