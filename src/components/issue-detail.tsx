@@ -68,6 +68,7 @@ import { useContextIssue } from "~/lib/issue-focus";
 import {
   stepFromPanel,
   useWideEntry,
+  panelVisible,
   usePanel,
   usePanelFits,
   usePanelOpen,
@@ -985,7 +986,7 @@ const PanelScreen = ({
   const { data } = issue;
   const ready = data !== undefined && !issue.isPlaceholderData;
   const editable = ready && data.deletedAt === null;
-  const { picked } = usePanel();
+  const panel = usePanel();
   const navigate = useNavigate();
 
   const fullPage = linkOptions({
@@ -997,9 +998,11 @@ const PanelScreen = ({
     to: "/$slug/issue/$issueKey",
   });
 
-  useOpenIssue(workspace.slug, data, editable && !picked);
+  useOpenIssue(workspace.slug, data, editable && !panel.picked);
   useHotkey("o", () => {
-    void navigate(fullPage);
+    if (panelVisible(panel)) {
+      void navigate(fullPage);
+    }
   });
 
   return (
