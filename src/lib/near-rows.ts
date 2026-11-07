@@ -40,12 +40,19 @@ const watchNearness = (
 ) => {
   const observer = observerOf(element.closest("[data-rows]") ?? document);
 
+  const recheck = () => {
+    observer.unobserve(element);
+    observer.observe(element);
+  };
+
   listeners.set(element, onChange);
   observer.observe(element);
+  element.addEventListener("focusout", recheck);
 
   return () => {
     observer.unobserve(element);
     listeners.delete(element);
+    element.removeEventListener("focusout", recheck);
   };
 };
 
