@@ -1,7 +1,12 @@
 import { expect, test } from "bun:test";
 
 import type { IssueSummary, ProjectDetail, Status } from "~/lib/api-types";
-import { arrangeMine, mineStatuses } from "~/lib/my-issues";
+import {
+  arrangeMine,
+  createTarget,
+  mergeClosed,
+  mineStatuses,
+} from "~/lib/my-issues";
 
 const status = (
   id: string,
@@ -122,4 +127,29 @@ test("orders by last update when asked", () => {
   );
 
   expect(columns["eng-todo"]).toEqual(["DES-1", "ENG-1"]);
+});
+
+test("creates from a column in a project the filter allows", () => {
+  expect(createTarget([eng, des], "Todo", ["DES"])).toEqual({
+    projectKey: "DES",
+    statusId: "des-todo",
+  });
+  expect(createTarget([eng, des], "Todo", undefined)).toEqual({
+    projectKey: "ENG",
+    statusId: "eng-todo",
+  });
+  expect(createTarget([eng, des], "In Review", ["DES"])).toEqual({
+    projectKey: "ENG",
+    statusId: "eng-review",
+  });
+});
+
+test("keeps one copy of a closed issue repeated across pages", () => {
+  const done = issue("ENG-2", "eng-done");
+
+  expect(
+    mergeClosed([issue("ENG-1", "eng-todo")], [done, done]).map(
+      (item) => item.id
+    )
+  ).toEqual(["ENG-1", "ENG-2"]);
 });

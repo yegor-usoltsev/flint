@@ -317,6 +317,8 @@ const SectionsChip = ({ issue }: { issue: Issue }) => {
     queryKey: ["attachments", issue.id],
   }).data?.length;
 
+  const jumped = useRef<string | null>(null);
+
   const sections = [
     {
       count: issue.links.length,
@@ -337,12 +339,24 @@ const SectionsChip = ({ issue }: { issue: Issue }) => {
       <DropdownMenuTrigger render={<PillButton aria-label="More sections" />}>
         <EllipsisIcon className="size-3.5" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-48">
+      <DropdownMenuContent
+        className="w-48"
+        finalFocus={() => {
+          const id = jumped.current;
+          jumped.current = null;
+
+          return (
+            id === null ||
+            document.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
+          );
+        }}
+      >
         {sections.map((section) => (
           <DropdownMenuItem
             disabled={section.count === 0}
             key={section.id}
             onClick={() => {
+              jumped.current = section.id;
               jumpTo(section.id);
             }}
           >

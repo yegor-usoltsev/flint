@@ -44,10 +44,12 @@ import {
   MineSearchSchema,
   mineViewKey,
   useProjectView,
+  withKnown,
   withKnownLabels,
 } from "~/lib/issue-view";
 import type { MineSearch, ViewKind } from "~/lib/issue-view";
 import {
+  createTarget,
   mineStatuses,
   useMineSearchUpdates,
   useMyIssues,
@@ -322,11 +324,7 @@ const AssignedIssues = ({
         lookup={lookup}
         manualIn={() => false}
         onCreate={(status) => {
-          const project = projects.find((item) =>
-            item.statuses.some((candidate) => candidate.id === status.id)
-          );
-
-          createIssue({ projectKey: project?.key, statusId: status.id });
+          createIssue(createTarget(projects, status.name, search.project));
         }}
         onMove={(issue, to) => {
           const status = targetStatus(issue, to.statusId);
@@ -415,12 +413,24 @@ const MyIssues = () => {
   const labels = useQuery(labelsQuery(workspace.slug)).data;
   const view = useProjectView(mineViewKey);
 
-  const search = withKnownLabels(
-    Route.useSearch({
-      select: ({ issue: _shown, ...filters }) => filters,
-      structuralSharing: true,
-    }),
-    labels
+  const mine = useMyIssues(workspace.slug);
+
+  const search = withKnown(
+    withKnown(
+      withKnownLabels(
+        Route.useSearch({
+          select: ({ issue: _shown, ...filters }) => filters,
+          structuralSharing: true,
+        }),
+        labels
+      ),
+      "project",
+      projects.data?.map((project) => project.key)
+    ),
+    "status",
+    mine.pending || mine.failed
+      ? undefined
+      : mineStatuses(mine.projects).map((status) => status.name)
   );
 
   const { clearFilters, setSearch } = useMineSearchUpdates();

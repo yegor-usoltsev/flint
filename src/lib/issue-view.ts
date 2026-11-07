@@ -87,18 +87,34 @@ export const shownStatuses = (statuses: Status[], search: IssueSearch) => {
     : statuses.filter((status) => shown.has(status.id));
 };
 
-export const withKnownLabels = <Search extends { label?: string[] }>(
+export const withKnown = <
+  Key extends string,
+  Search extends Partial<Record<Key, string[]>>,
+>(
   search: Search,
-  labels: { id: string }[] | undefined
+  key: Key,
+  known: string[] | undefined
 ): Search => {
-  if (labels === undefined || search.label === undefined) {
+  const values = search[key];
+
+  if (known === undefined || values === undefined) {
     return search;
   }
 
-  const known = new Set(labels.map((label) => label.id));
+  const allowed = new Set(known);
 
-  return { ...search, label: search.label.filter((id) => known.has(id)) };
+  return { ...search, [key]: values.filter((value) => allowed.has(value)) };
 };
+
+export const withKnownLabels = <Search extends { label?: string[] }>(
+  search: Search,
+  labels: { id: string }[] | undefined
+): Search =>
+  withKnown(
+    search,
+    "label",
+    labels?.map((label) => label.id)
+  );
 
 export const isFiltered = (
   search: FilterValues,

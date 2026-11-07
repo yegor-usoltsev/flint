@@ -121,7 +121,35 @@ export const mergeClosed = (
 ) => {
   const ids = new Set(open.map((issue) => issue.id));
 
-  return [...open, ...(closed ?? []).filter((issue) => !ids.has(issue.id))];
+  const rest = (closed ?? []).filter((issue) => {
+    if (ids.has(issue.id)) {
+      return false;
+    }
+
+    ids.add(issue.id);
+
+    return true;
+  });
+
+  return [...open, ...rest];
+};
+
+export const createTarget = (
+  projects: ProjectDetail[],
+  statusName: string,
+  filter: string[] | undefined
+) => {
+  const targets = projects.flatMap((project) => {
+    const status = project.statuses.find((item) => item.name === statusName);
+
+    return status === undefined
+      ? []
+      : [{ projectKey: project.key, statusId: status.id }];
+  });
+
+  return (
+    targets.find((target) => matches(filter, [target.projectKey])) ?? targets[0]
+  );
 };
 
 export const useMyIssues = (
