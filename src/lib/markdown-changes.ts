@@ -93,3 +93,48 @@ export const createChangeGate = (initial: string) => {
     },
   };
 };
+
+export const createThrottle = (delay: number) => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: (() => void) | null = null;
+
+  const runPending = () => {
+    const run = pending;
+
+    pending = null;
+    run?.();
+  };
+
+  const tick = () => {
+    timer = null;
+
+    if (pending !== null) {
+      runPending();
+      timer = setTimeout(tick, delay);
+    }
+  };
+
+  const flush = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+
+    runPending();
+  };
+
+  return {
+    flush,
+    run: (run: () => void, throttle: boolean) => {
+      if (timer === null) {
+        run();
+
+        if (throttle) {
+          timer = setTimeout(tick, delay);
+        }
+      } else {
+        pending = run;
+      }
+    },
+  };
+};
