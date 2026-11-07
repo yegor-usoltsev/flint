@@ -1,46 +1,22 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  DownloadIcon,
-  FileIcon,
-  XIcon,
-} from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-import type { KeyboardEvent, PointerEvent } from "react";
+import { DownloadIcon, FileIcon } from "lucide-react";
+import PhotoSwipe from "photoswipe";
+import type { SlideData } from "photoswipe";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
+import { createPortal } from "react-dom";
 
 import { formatBytes } from "~/lib/uploads";
 
 const viewerKinds = ["audio", "file", "image", "video"] as const;
 
 export interface ViewerItem {
+  element?: HTMLImageElement;
   kind: (typeof viewerKinds)[number];
   name: string;
   size?: number;
   src: string;
 }
-
-interface View {
-  scale: number;
-  x: number;
-  y: number;
-}
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface Gesture {
-  distance: number;
-  middle: Point;
-  moved: Point;
-  view: View;
-}
-
-const rest: View = { scale: 1, x: 0, y: 0 };
-
-const maxScale = 8;
 
 const zoomSteps = new Map([
   ["+", 1.5],
@@ -55,235 +31,52 @@ const steps = new Map([
   ["ArrowUp", -1],
 ]);
 
-const control =
-  "hit-area relative flex size-9 shrink-0 items-center justify-center rounded-full text-white outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white [&_svg]:size-5";
+const handleKey = (pswp: PhotoSwipe, key: string) => {
+  const step = steps.get(key);
+  const slide = pswp.currSlide;
+  const zoom = key === "0" ? 1 : zoomSteps.get(key);
 
-const clamp = (value: number, limit: number) =>
-  Math.min(Math.max(value, -limit), limit);
+  if (step !== undefined) {
+    pswp.goTo(pswp.potentialIndex + step);
+  } else if (zoom !== undefined && slide?.isZoomable() === true) {
+    const { initial, max, min } = slide.zoomLevels;
+    const level = key === "0" ? initial : slide.currZoomLevel * zoom;
 
-const clampView = (
-  view: View,
-  stage: HTMLElement | null,
-  media: HTMLElement | null,
-  limit: number
-): View => {
-  const scale = Math.min(Math.max(view.scale, 1), limit);
-
-  if (scale === 1 || stage === null || media === null) {
-    return rest;
-  }
-
-  const width = (media.offsetWidth * scale - stage.clientWidth) / 2;
-  const height = (media.offsetHeight * scale - stage.clientHeight) / 2;
-
-  return {
-    scale,
-    x: clamp(view.x, Math.max(width, 0)),
-    y: clamp(view.y, Math.max(height, 0)),
-  };
-};
-
-const zoomAt = (
-  view: View,
-  point: Point,
-  scale: number,
-  limit = maxScale
-): View => {
-  const ratio = Math.min(Math.max(scale, 1), limit) / view.scale;
-
-  return {
-    scale: view.scale * ratio,
-    x: point.x - ratio * (point.x - view.x),
-    y: point.y - ratio * (point.y - view.y),
-  };
-};
-
-const spread = ([a, b]: Point[]) =>
-  a === undefined || b === undefined ? 0 : Math.hypot(a.x - b.x, a.y - b.y);
-
-const middle = (points: Point[]): Point => ({
-  x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
-  y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
-});
-
-const swipeStep = (gesture: Gesture | null) => {
-  const { x, y } = gesture?.moved ?? rest;
-
-  const swiped =
-    gesture?.view.scale === 1 && Math.abs(x) > 60 && Math.abs(x) > Math.abs(y);
-
-  if (!swiped) {
-    return 0;
-  }
-
-  return x < 0 ? 1 : -1;
-};
-
-const useZoom = ({
-  enabled,
-  limit,
-  media,
-  onSwipe,
-  shown,
-  stage,
-}: {
-  enabled: boolean;
-  limit: number;
-  media: HTMLElement | null;
-  onSwipe: (step: number) => void;
-  shown: number | null;
-  stage: HTMLElement | null;
-}) => {
-  const [view, setView] = useState(rest);
-  const [item, setItem] = useState(shown);
-  const pointers = useRef(new Map<number, Point>());
-  const gesture = useRef<Gesture | null>(null);
-
-  if (item !== shown) {
-    setItem(shown);
-    setView(rest);
-  }
-
-  const update = (next: View) => {
-    setView(clampView(next, stage, media, limit));
-  };
-
-  const local = (event: { clientX: number; clientY: number }): Point => {
-    const box = stage?.getBoundingClientRect();
-
-    return box === undefined
-      ? rest
-      : {
-          x: event.clientX - box.left - box.width / 2,
-          y: event.clientY - box.top - box.height / 2,
-        };
-  };
-
-  const begin = () => {
-    const points = [...pointers.current.values()];
-
-    gesture.current = {
-      distance: spread(points),
-      middle: middle(points),
-      moved: rest,
-      view,
-    };
-  };
-
-  const onWheel = useEffectEvent((event: WheelEvent) => {
-    event.preventDefault();
-    update(
-      zoomAt(
-        view,
-        local(event),
-        view.scale * Math.exp(-event.deltaY / 300),
-        limit
-      )
+    slide.zoomTo(
+      Math.min(Math.max(level, min), max),
+      undefined,
+      pswp.options.zoomAnimationDuration
     );
-  });
+  } else {
+    return false;
+  }
 
-  useEffect(() => {
-    const target = enabled ? stage : null;
+  return true;
+};
 
-    const listener = (event: WheelEvent) => {
-      onWheel(event);
-    };
+const downloadIcon =
+  '<svg aria-hidden="true" class="pswp__icn" viewBox="0 0 32 32" width="32" height="32"><path d="M16 7v12m-5-5 5 5 5-5M8 21v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" style="fill:none;stroke:var(--pswp-icon-color);stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/></svg>';
 
-    // oxlint-disable-next-line github/require-passive-events -- The wheel zooms the image, so it must cancel the page scroll.
-    target?.addEventListener("wheel", listener, { passive: false });
+const sizes = new Map<string, { height: number; width: number }>();
 
-    return () => {
-      target?.removeEventListener("wheel", listener);
-    };
-  }, [enabled, stage]);
+const slideData = (item: ViewerItem): SlideData => {
+  if (item.kind !== "image") {
+    return { type: item.kind };
+  }
+
+  const { element } = item;
+
+  const size =
+    element !== undefined && element.naturalWidth > 0
+      ? { height: element.naturalHeight, width: element.naturalWidth }
+      : sizes.get(item.src);
 
   return {
-    fill: (scale: number) => {
-      update(zoomAt(view, rest, scale, limit));
-    },
-    keys: (key: string) => {
-      const step = zoomSteps.get(key);
-
-      if (key === "0") {
-        update(rest);
-      } else if (step !== undefined) {
-        update(zoomAt(view, rest, view.scale * step, limit));
-      }
-
-      return key === "0" || step !== undefined;
-    },
-    pointer: {
-      onDoubleClick: (event: { clientX: number; clientY: number }) => {
-        if (enabled) {
-          update(
-            view.scale > 1 ? rest : zoomAt(view, local(event), 2.5, limit)
-          );
-        }
-      },
-      onPointerCancel: (event: PointerEvent) => {
-        pointers.current.delete(event.pointerId);
-        gesture.current = null;
-      },
-      onPointerDown: (event: PointerEvent) => {
-        if (enabled) {
-          event.currentTarget.setPointerCapture(event.pointerId);
-          pointers.current.set(event.pointerId, local(event));
-          begin();
-        }
-      },
-      onPointerMove: (event: PointerEvent) => {
-        const start = gesture.current;
-
-        if (start === null || !pointers.current.has(event.pointerId)) {
-          return;
-        }
-
-        pointers.current.set(event.pointerId, local(event));
-
-        const points = [...pointers.current.values()];
-        const center = middle(points);
-
-        const moved = {
-          x: center.x - start.middle.x,
-          y: center.y - start.middle.y,
-        };
-
-        start.moved = moved;
-
-        if (points.length > 1 && start.distance > 0) {
-          const scale = (start.view.scale * spread(points)) / start.distance;
-          const zoomed = zoomAt(start.view, start.middle, scale, limit);
-
-          update({ ...zoomed, x: zoomed.x + moved.x, y: zoomed.y + moved.y });
-        } else if (start.view.scale > 1) {
-          update({
-            ...start.view,
-            x: start.view.x + moved.x,
-            y: start.view.y + moved.y,
-          });
-        }
-      },
-      onPointerUp: (event: PointerEvent) => {
-        const start = gesture.current;
-
-        pointers.current.delete(event.pointerId);
-
-        if (pointers.current.size > 0) {
-          begin();
-
-          return;
-        }
-
-        gesture.current = null;
-
-        const step = swipeStep(start);
-
-        if (step !== 0) {
-          onSwipe(step);
-        }
-      },
-    },
-    view,
+    alt: item.name,
+    element,
+    msrc: element?.currentSrc,
+    src: item.src,
+    ...size,
   };
 };
 
@@ -305,59 +98,23 @@ const FileCard = ({ item }: { item: ViewerItem }) => (
   </div>
 );
 
-const Slide = ({
-  item,
-  media,
-  onFit,
-  view,
-}: {
-  item: ViewerItem;
-  media: (element: HTMLImageElement | null) => void;
-  onFit: (fit: number) => void;
-  view: View;
-}) => {
-  if (item.kind === "image") {
-    return (
-      <img
-        alt={item.name}
-        className="max-h-full max-w-full translate-x-(--zoom-x) translate-y-(--zoom-y) scale-(--zoom) object-contain select-none"
-        draggable={false}
-        onLoad={(event) => {
-          const image = event.currentTarget;
-
-          onFit(image.offsetWidth / image.naturalWidth);
-        }}
-        ref={(image) => {
-          media(image);
-
-          const measure = new ResizeObserver(() => {
-            if (image !== null && image.naturalWidth > 0) {
-              onFit(image.offsetWidth / image.naturalWidth);
-            }
-          });
-
-          if (image !== null) {
-            measure.observe(image);
-          }
-
-          return () => {
-            measure.disconnect();
-            media(null);
-          };
-        }}
-        src={item.src}
-        style={{
-          "--zoom": view.scale,
-          "--zoom-x": `${view.x}px`,
-          "--zoom-y": `${view.y}px`,
-        }}
-      />
-    );
-  }
+const Slide = ({ active, item }: { active: boolean; item: ViewerItem }) => {
+  const media = (element: HTMLMediaElement | null) => {
+    if (!active) {
+      element?.pause();
+    } else if (element?.paused === true) {
+      element.play().catch(() => null);
+    }
+  };
 
   if (item.kind === "video") {
     return (
-      <video autoPlay className="max-h-full max-w-full" controls src={item.src}>
+      <video
+        className="max-h-full max-w-full"
+        controls
+        ref={media}
+        src={item.src}
+      >
         <track kind="captions" />
       </video>
     );
@@ -369,7 +126,7 @@ const Slide = ({
         <span className="w-full truncate text-center font-medium">
           {item.name}
         </span>
-        <audio autoPlay className="w-full" controls src={item.src}>
+        <audio className="w-full" controls ref={media} src={item.src}>
           <track kind="captions" />
         </audio>
       </div>
@@ -379,189 +136,242 @@ const Slide = ({
   return <FileCard item={item} />;
 };
 
-const ZoomLevel = ({
-  fit,
-  onFill,
-  onReset,
-  scale,
-}: {
-  fit: number;
-  onFill: (scale: number) => void;
-  onReset: () => void;
-  scale: number;
-}) => {
-  const percent = Math.round(fit * scale * 100);
-  const actual = percent === 100;
-
-  if (fit >= 1) {
-    return <span className="px-1.5 py-1">{percent}%</span>;
-  }
-
-  return (
-    <button
-      aria-label={actual ? "Fit to screen" : "Zoom to 100%"}
-      className="focus-visible:ring-ring rounded-md px-1.5 py-1 outline-none hover:text-white focus-visible:ring-2"
-      onClick={() => {
-        if (actual) {
-          onReset();
-        } else {
-          onFill(1 / fit);
-        }
-      }}
-      type="button"
-    >
-      {percent}%
-    </button>
-  );
-};
-
-export const MediaViewer = ({
-  index,
-  items,
-  onIndex,
-}: {
+interface ViewerProps {
   index: number | null;
   items: ViewerItem[];
   onIndex: (index: number | null) => void;
-}) => {
-  const [stage, setStage] = useState<HTMLDivElement | null>(null);
-  const [media, setMedia] = useState<HTMLImageElement | null>(null);
-  const count = items.length;
-  const item = index === null ? undefined : items[index];
+}
 
-  const go = (step: number) => {
-    if (index !== null && count > 1) {
-      onIndex((index + step + count) % count);
-    }
-  };
+type Slots = Map<number, HTMLElement>;
 
-  const zoomable = item?.kind === "image";
-  const [fit, setFit] = useState<{ fit: number; src: string } | null>(null);
+const mount = (
+  root: HTMLElement,
+  props: RefObject<ViewerProps>,
+  setSlots: (update: (slots: Slots) => Slots) => void
+) => {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const at = (index: number) => props.current.items[index];
+  let download: HTMLElement | undefined;
+  let disposed = false;
 
-  const zoom = useZoom({
-    enabled: zoomable,
-    limit: Math.max(
-      maxScale,
-      fit !== null && fit.src === item?.src && fit.fit > 0 ? 1 / fit.fit : 1
-    ),
-    media,
-    onSwipe: go,
-    shown: index,
-    stage,
+  const pswp = new PhotoSwipe({
+    appendToEl: root,
+    bgOpacity: 1,
+    dataSource: [],
+    escKey: false,
+    index: props.current.index ?? 0,
+    returnFocus: false,
+    showHideAnimationType: reduced ? "none" : "zoom",
+    trapFocus: false,
+    wheelToZoom: true,
+    zoomAnimationDuration: reduced ? 0 : 333,
   });
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    const plain = !event.metaKey && !event.ctrlKey && !event.altKey;
+  pswp.goTo = (to) => {
+    pswp.mainScroll.moveIndexBy(
+      pswp.getLoopedIndex(to) - pswp.potentialIndex,
+      !reduced
+    );
+  };
 
-    const navigates =
-      plain && !event.shiftKey && !(event.target instanceof HTMLMediaElement);
+  pswp.addFilter("numItems", () => props.current.items.length);
+  pswp.addFilter("itemData", (_, index) => {
+    const shown = at(index);
 
-    const step = navigates ? steps.get(event.key) : undefined;
+    return shown === undefined ? {} : slideData(shown);
+  });
 
-    if (step !== undefined) {
+  pswp.on("contentLoad", (event) => {
+    const { content } = event;
+    const shown = at(content.index);
+
+    if (shown?.kind !== "image") {
       event.preventDefault();
-      go(step);
-    } else if (zoomable && plain && zoom.keys(event.key)) {
+
+      const slot = document.createElement("div");
+
+      slot.className =
+        "absolute flex size-0 items-center justify-center text-sm text-white";
+      content.element = slot;
+      setSlots((current) => new Map(current).set(content.index, slot));
+    } else if (content.width === 0) {
+      event.preventDefault();
+
+      const image = new Image();
+
+      image.addEventListener("load", () => {
+        sizes.set(shown.src, {
+          height: image.naturalHeight || window.innerHeight,
+          width: image.naturalWidth || window.innerWidth,
+        });
+
+        if (!pswp.isDestroying) {
+          pswp.refreshSlideContent(content.index);
+        }
+      });
+      image.addEventListener("error", () => {
+        content.onError();
+      });
+      image.src = shown.src;
+    }
+  });
+
+  pswp.on("contentDestroy", ({ content }) => {
+    setSlots(
+      (current) =>
+        new Map([...current].filter(([, slot]) => slot !== content.element))
+    );
+  });
+
+  pswp.on("pointerDown", (event) => {
+    const { target } = event.originalEvent;
+
+    if (
+      target instanceof Element &&
+      target.closest("a, audio, button, video") !== null
+    ) {
       event.preventDefault();
     }
+  });
+
+  pswp.on("uiRegister", () => {
+    pswp.ui?.registerElement({
+      html: downloadIcon,
+      isButton: true,
+      name: "download",
+      onInit: (button) => {
+        download = button;
+      },
+      order: 8,
+      tagName: "a",
+    });
+  });
+
+  const sync = () => {
+    const shown = at(pswp.currIndex);
+
+    download?.setAttribute("download", shown?.name ?? "");
+    download?.setAttribute("href", shown?.src ?? "");
+    download?.setAttribute("aria-label", `Download ${shown?.name ?? ""}`);
   };
+
+  pswp.on("change", () => {
+    sync();
+    props.current.onIndex(pswp.currIndex);
+  });
+
+  pswp.on("destroy", () => {
+    if (!disposed) {
+      props.current.onIndex(null);
+    }
+  });
+
+  pswp.init();
+  pswp.element?.removeAttribute("role");
+
+  return {
+    dispose: () => {
+      disposed = true;
+
+      if (!pswp.isDestroying) {
+        pswp.isDestroying = true;
+        pswp.destroy();
+      }
+    },
+    pswp,
+    sync,
+  };
+};
+
+export const MediaViewer = (props: ViewerProps) => {
+  const { index, items, onIndex } = props;
+  const [slots, setSlots] = useState<Slots>(new Map());
+  const viewer = useRef<ReturnType<typeof mount> | null>(null);
+  const latest = useRef(props);
+  const item = index === null ? undefined : items[index];
+
+  useEffect(() => {
+    const resized = latest.current.items.length !== props.items.length;
+
+    latest.current = props;
+
+    viewer.current?.sync();
+
+    const pswp = viewer.current?.pswp;
+
+    if (resized && pswp !== undefined) {
+      const { currIndex } = pswp;
+
+      for (const step of [-1, 1]) {
+        const neighbor = pswp.getLoopedIndex(currIndex + step);
+
+        if (neighbor !== currIndex) {
+          pswp.refreshSlideContent(neighbor);
+        }
+      }
+    }
+  });
+
+  const attach = useCallback((root: HTMLDivElement) => {
+    const mounted = mount(root, latest, setSlots);
+
+    viewer.current = mounted;
+
+    return () => {
+      viewer.current = null;
+      mounted.dispose();
+    };
+  }, []);
 
   return (
     <DialogPrimitive.Root
       onOpenChange={(open) => {
-        if (!open) {
+        if (open) {
+          return;
+        }
+
+        if (viewer.current === null) {
           onIndex(null);
+        } else {
+          viewer.current.pswp.close();
         }
       }}
       open={item !== undefined}
     >
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black transition-opacity duration-150 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <DialogPrimitive.Popup
-          className="fixed inset-0 z-50 flex flex-col text-sm text-white transition-opacity duration-150 ease-out outline-none data-ending-style:opacity-0 data-starting-style:opacity-0"
-          onKeyDown={onKeyDown}
+          className="fixed inset-0 z-50 outline-none"
+          onKeyDown={(event) => {
+            const pswp = viewer.current?.pswp;
+
+            const plain =
+              !event.metaKey &&
+              !event.ctrlKey &&
+              !event.altKey &&
+              !(event.target instanceof HTMLMediaElement);
+
+            if (plain && pswp !== undefined && handleKey(pswp, event.key)) {
+              event.preventDefault();
+            }
+          }}
         >
-          {item === undefined ? null : (
-            <>
-              <header className="flex shrink-0 items-center gap-1 py-2 pr-2 pl-4">
-                <DialogPrimitive.Title className="sr-only">
-                  {item.name}
-                </DialogPrimitive.Title>
-                <span className="flex-1 text-white/70 tabular-nums">
-                  {zoomable && fit?.src === item.src ? (
-                    <ZoomLevel
-                      fit={fit.fit}
-                      onFill={(next) => {
-                        zoom.fill(next);
-                      }}
-                      onReset={() => {
-                        zoom.keys("0");
-                      }}
-                      scale={zoom.view.scale}
-                    />
-                  ) : null}
-                  {count > 1 ? (
-                    <span className="ml-3">
-                      {(index ?? 0) + 1} / {count}
-                    </span>
-                  ) : null}
-                </span>
-                <a
-                  aria-label={`Download ${item.name}`}
-                  className={control}
-                  download={item.name}
-                  href={item.src}
-                >
-                  <DownloadIcon aria-hidden />
-                </a>
-                {count > 1 ? (
-                  <>
-                    <button
-                      aria-label="Previous"
-                      className={control}
-                      onClick={() => {
-                        go(-1);
-                      }}
-                      type="button"
-                    >
-                      <ChevronLeftIcon aria-hidden />
-                    </button>
-                    <button
-                      aria-label="Next"
-                      className={control}
-                      onClick={() => {
-                        go(1);
-                      }}
-                      type="button"
-                    >
-                      <ChevronRightIcon aria-hidden />
-                    </button>
-                  </>
-                ) : null}
-                <DialogPrimitive.Close aria-label="Close" className={control}>
-                  <XIcon aria-hidden />
-                </DialogPrimitive.Close>
-              </header>
-              <div
-                className="relative flex min-h-0 flex-1 touch-none items-center justify-center overflow-hidden p-4"
-                ref={setStage}
-                {...zoom.pointer}
-              >
-                <Slide
-                  item={item}
-                  media={setMedia}
-                  onFit={(value) => {
-                    setFit((current) =>
-                      current?.src === item.src && current.fit === value
-                        ? current
-                        : { fit: value, src: item.src }
-                    );
-                  }}
-                  view={zoom.view}
-                />
-              </div>
-            </>
-          )}
+          <DialogPrimitive.Title className="sr-only">
+            {item?.name}
+          </DialogPrimitive.Title>
+          <div ref={attach} />
+          {[...slots].map(([at, element]) => {
+            const shown = items[at];
+
+            return shown === undefined
+              ? null
+              : createPortal(
+                  <div className="flex h-svh w-screen shrink-0 items-center justify-center px-4 pt-16 pb-4">
+                    <Slide active={at === index} item={shown} />
+                  </div>,
+                  element,
+                  String(at)
+                );
+          })}
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

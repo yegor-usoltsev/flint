@@ -27,6 +27,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun with Gitea sign-in. [R
 - `cli/` imports only `node:*`, types and pure helpers from `src/lib`. Keep `cli/guide.md`, which `flint skill` prints, in step with the commands.
 - Bun SQL encodes `${value}::jsonb` itself, so pass the raw value; pass arrays as `any(${tx.array(ids, "uuid")})`; detect unique violations with `UniqueViolationSchema`.
 - `src/lib/markdown.ts` wraps Tiptap's ordered-list tokenizer for letter and Roman markers, start values and mixed `.`/`)` delimiters (normalized to `.`). Keep it re-lexing block-first content and continuation blocks at the full marker-prefix width, keeping initial paragraph text, reusing tokenized nested lists (re-parsing them is exponential) and merging bare markers into the previous item.
+- `src/components/media-viewer.tsx` mounts PhotoSwipe inside a Base UI dialog, so it nests above other dialogs and their focus traps. Base UI popups stop arrow-key propagation, so the viewer forwards keys itself; unmount with `dispose`, as `pswp.destroy()` only closes an opening viewer.
 - `src/routeTree.gen.ts` is generated.
 - Realtime transports deliver `open` through `useRealtime`; keep draft retry and full query catch-up there, so SharedWorker joins and the direct fallback behave alike.
 
