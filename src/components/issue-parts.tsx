@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CheckIcon, UserRoundIcon } from "lucide-react";
 import type { ReactElement } from "react";
 
+import { Keys } from "~/components/shortcuts-dialog";
 import { Swatch } from "~/components/swatch";
 import {
   Tooltip,
@@ -18,6 +19,7 @@ import type {
   Status,
 } from "~/lib/api-types";
 import { ciStyles, pullRequestStyles } from "~/lib/pull-requests";
+import type { Hotkey } from "~/lib/use-hotkey";
 
 export interface IssueLookup {
   labels: Map<string, Label>;
@@ -46,14 +48,19 @@ export const CheckBox = ({
 
 export const Hint = ({
   children,
+  hotkey,
   label,
 }: {
   children: ReactElement;
+  hotkey?: Hotkey;
   label: string;
 }) => (
   <Tooltip>
     <TooltipTrigger render={children} />
-    <TooltipContent>{label}</TooltipContent>
+    <TooltipContent>
+      {label}
+      {hotkey === undefined ? null : <Keys hotkey={hotkey} />}
+    </TooltipContent>
   </Tooltip>
 );
 

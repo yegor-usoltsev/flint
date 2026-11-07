@@ -91,6 +91,7 @@ const sections: { rows: Row[]; title: string }[] = [
       },
       { hotkeys: [{ keys: "enter" }], label: "Open issue" },
       { hotkeys: [{ keys: "space" }], label: "Peek in the issue panel" },
+      { hotkeys: [{ keys: "o" }], label: "Open the panel issue as a page" },
       {
         hotkeys: [{ keys: "space", shift: true }],
         label: "Move the issue with arrows",

@@ -478,6 +478,9 @@
   * {
     @apply border-border outline-ring/50;
   }
+  [data-closed] {
+    --tw-animation-fill-mode: forwards;
+  }
   html {
     @apply font-sans;
     -webkit-tap-highlight-color: transparent;
@@ -507,6 +510,15 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+::view-transition-group(root) {
+  animation-duration: var(--duration-fast);
 }
 
 @layer components {

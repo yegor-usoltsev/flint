@@ -497,7 +497,8 @@ export const AppSidebar = ({
             <Link
               aria-label="Flint home"
               className="hit-area focus-visible:ring-ring relative mr-auto flex h-7 items-center gap-2 rounded-md px-2 outline-none focus-visible:ring-2"
-              to="/"
+              params={{ slug }}
+              to="/$slug/my-issues"
             >
               <FlintMark className="size-4.5" />
               <span className="font-strong">Flint</span>
