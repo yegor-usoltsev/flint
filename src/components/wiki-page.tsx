@@ -439,6 +439,7 @@ const moveFocus = (event: KeyboardEvent<HTMLDivElement>, folding: Folding) => {
   const link = event.target;
 
   if (
+    event.defaultPrevented ||
     !(link instanceof HTMLAnchorElement) ||
     link.dataset["wikiRow"] === undefined
   ) {
@@ -480,37 +481,37 @@ const moveFocus = (event: KeyboardEvent<HTMLDivElement>, folding: Folding) => {
   }
 };
 
-const useFolding = (
-  wiki: Wiki,
-  folder: string,
-  query: string,
-  forced: Set<string>
-) => {
+const useFolding = (wiki: Wiki, folder: string, nodes: WikiNode[]) => {
   const stored = useOpenFolders(wiki, folder);
 
-  const [overrides, setOverrides] = useState({
+  const [state, setState] = useState({
     open: new Map<string, boolean>(),
-    query,
+    query: "",
   });
 
-  const local =
-    overrides.query === query ? overrides.open : new Map<string, boolean>();
-
+  const { open: local, query } = state;
+  const filtered = filterTree(nodes, query);
   const filtering = query.trim() !== "";
 
-  return {
-    isOpen: (path: string) =>
+  const folding: Folding = {
+    isOpen: (path) =>
       filtering
-        ? (local.get(path) ?? (forced.has(path) || stored.has(path)))
+        ? (local.get(path) ?? (filtered.open.has(path) || stored.has(path)))
         : stored.has(path),
-    toggle: (path: string, open: boolean) => {
+    toggle: (path, open) => {
       if (filtering) {
-        setOverrides({ open: new Map(local).set(path, open), query });
+        setState({ open: new Map(local).set(path, open), query });
       } else {
         setFolderOpen(wiki, path, open);
       }
     },
-  } satisfies Folding;
+  };
+
+  const setQuery = (next: string) => {
+    setState({ open: new Map(), query: next });
+  };
+
+  return { filtered, folding, query, setQuery };
 };
 
 const SortMenu = () => {
@@ -650,10 +651,14 @@ const FilteredPages = ({
   wiki: Wiki;
 }) => {
   const sort = useWikiSort();
-  const [query, setQuery] = useState("");
   const list = useRef<HTMLDivElement>(null);
-  const filtered = filterTree(nodes, query);
-  const folding = useFolding(wiki, folder, query, filtered.open);
+
+  const { filtered, folding, query, setQuery } = useFolding(
+    wiki,
+    folder,
+    nodes
+  );
+
   const needle = query.trim().toLocaleLowerCase();
 
   const recent =
