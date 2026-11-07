@@ -5,6 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
 import {
   clampWidth,
   closePanel,
+  issueOpening,
   listMin,
   openIssueRow,
   openPanel,
@@ -104,6 +105,17 @@ const firstRowClient = () => {
 
   return queryClient;
 };
+
+test("a wide window starts with the panel closed and the preference falls back to the last list width", () => {
+  withBrowser(() => {
+    syncPanelIssue(null, "acme", "list", "/acme/project/ENG");
+    setPanelSpace(2000, true);
+    expect(panelShown()).toBe(false);
+
+    setPanelSpace(0, false);
+    expect(issueOpening()).toBe("panel");
+  });
+});
 
 test("an automatic preview stays out of the URL until the user opens it", () => {
   withBrowser((location) => {

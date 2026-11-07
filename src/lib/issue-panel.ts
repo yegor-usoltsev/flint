@@ -239,7 +239,7 @@ export const setPanelSpace = (
   update({
     available: enabled && fits,
     fits,
-    roomy: enabled && space >= panelByDefault(rem),
+    roomy: enabled ? space >= panelByDefault(rem) : state.roomy,
   });
 };
 
@@ -326,12 +326,10 @@ export const showInPanel = (key: string) => panelShown() && openPanel(key);
 const effectiveOpening = (current: PanelState): IssueOpening =>
   current.opening ?? (current.open || current.roomy ? "panel" : "page");
 
+export const issueOpening = () => effectiveOpening(snapshot());
+
 export const useIssueOpening = () =>
-  useSyncExternalStore(
-    subscribe,
-    () => effectiveOpening(snapshot()),
-    () => "panel" as const
-  );
+  useSyncExternalStore(subscribe, issueOpening, () => "panel" as const);
 
 export const setIssueOpening = (opening: IssueOpening) => {
   localStorage.setItem(openingKey, opening);
