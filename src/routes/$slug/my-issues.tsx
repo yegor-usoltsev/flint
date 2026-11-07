@@ -249,7 +249,7 @@ const AssignedIssues = ({
     search.closed === true && closed.hasNextPage ? (
       <Button
         className="m-1.5 self-start"
-        disabled={closed.isFetchingNextPage}
+        disabled={closed.isFetching}
         onClick={() => {
           void closed.fetchNextPage();
         }}
