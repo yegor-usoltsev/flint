@@ -272,7 +272,7 @@ const coarsePointer = () => window.matchMedia("(pointer: coarse)").matches;
 const phoneQuery = "(width < 40rem)";
 
 const diagramFrame =
-  "group-data-selected/code:ring-ring flex min-h-16 justify-center-safe overflow-x-auto rounded-lg border p-4 group-data-selected/code:ring-2";
+  "group-data-selected/code:ring-ring flex min-h-16 justify-center-safe overflow-x-auto rounded-lg border p-4 max-sm:pt-14 group-data-selected/code:ring-2";
 
 const DiagramSheet = ({
   onClose,
@@ -337,7 +337,13 @@ const useDiagramViewer = () => {
   const open = (svg: string, dark: boolean) => {
     const phone = window.matchMedia(phoneQuery).matches;
     const background = dark ? themeColors.dark : themeColors.light;
-    const image = diagramImage(svg, phone ? null : background);
+
+    const image = phone
+      ? diagramImage(svg, null)
+      : diagramImage(svg, background, {
+          height: innerHeight,
+          width: innerWidth,
+        });
 
     if (image !== null) {
       setSheet(phone);

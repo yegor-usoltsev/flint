@@ -339,7 +339,11 @@ export const prefetchDiagrams = async (
   await Promise.race([render().catch(() => null), wait.promise]);
 };
 
-export const diagramImage = (svg: string, background: string | null) => {
+export const diagramImage = (
+  svg: string,
+  background: string | null,
+  fill?: DiagramSize
+) => {
   const root = new DOMParser()
     .parseFromString(svg, "text/html")
     .querySelector("svg");
@@ -350,8 +354,16 @@ export const diagramImage = (svg: string, background: string | null) => {
     return null;
   }
 
-  root.setAttribute("width", String(size.width));
-  root.setAttribute("height", String(size.height));
+  const scale =
+    fill === undefined
+      ? 1
+      : Math.max(
+          1,
+          2 * Math.min(fill.width / size.width, fill.height / size.height)
+        );
+
+  root.setAttribute("width", String(size.width * scale));
+  root.setAttribute("height", String(size.height * scale));
   root.style.removeProperty("max-width");
 
   if (background !== null) {
