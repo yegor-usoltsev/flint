@@ -206,8 +206,8 @@ const mount = (
 
       image.addEventListener("load", () => {
         sizes.set(shown.src, {
-          height: image.naturalHeight,
-          width: image.naturalWidth,
+          height: image.naturalHeight || window.innerHeight,
+          width: image.naturalWidth || window.innerWidth,
         });
 
         if (!pswp.isDestroying) {
