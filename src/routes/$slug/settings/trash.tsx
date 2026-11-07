@@ -433,9 +433,7 @@ const PageRow = ({
         className="text-muted-foreground mt-2 size-4 shrink-0"
       />
       <span className="flex min-w-0 flex-col py-1.5">
-        <span className="line-clamp-2 font-medium wrap-anywhere">
-          {page.title}
-        </span>
+        <span className="font-medium wrap-anywhere">{page.title}</span>
         <span className="text-muted-foreground text-xs wrap-anywhere md:truncate">
           {page.path}
           {page.descendants > 0 ? ` · ${page.descendants} inside` : ""}
