@@ -59,7 +59,7 @@ alice/ENG-5-format-prices-for-the-customer-s-locale
 - **Gitea only**, and every workspace member sees links from every repository on the instance, private ones included.
 - **No notifications** by email or in the app.
 - **Fixed statuses:** Backlog, Todo, In Progress, In Review, Done and Canceled.
-- **1,000 issues per list:** past that, a list or board loads the first issues of every status and says "Showing N of M" under each status it cuts; filters then run on the server and reach the rest. `flint issue list` pages with `--offset`.
+- **1,000 issues per list:** past that, a list or board loads the first issues of every status and says "Showing N of M" under each status it cuts; filters run on the server, so narrowing them shows issues past the cut, still up to 1,000 per list. `flint issue list` pages with `--offset`.
 - **One container per database:** live updates reach only tabs connected to the container that made the change.
 - **Offline edits:** unsaved issue and page text stays in the browser as a draft, which signing in as another user clears. An open editor whose save failed on a network error, rate limit or server error retries once on reconnect, and a conflict asks you to choose. Drafts restored after a reload, closed editors and rolled-back property edits do not retry.
 - **Images:** only static JPEG, PNG and WebP are scaled down and stripped of metadata; GIF, AVIF, HEIC, APNG and animated WebP are stored as uploaded.
