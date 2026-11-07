@@ -325,6 +325,21 @@ test("worker startup failure falls back once without leaking retry timers", () =
   expect(Source.instances).toHaveLength(1);
 });
 
+test("a hidden tab whose worker fails to start waits until shown to connect", () => {
+  Worker.behavior.mode = "throw";
+
+  const document = Object.assign(new EventTarget(), { hidden: true });
+
+  replace("document", document);
+  replace("window", new EventTarget());
+  replace("SharedWorker", Worker);
+  cleanups.push(subscribeRealtime("acme", "alice", () => {}));
+  expect(Source.instances).toHaveLength(0);
+  document.hidden = false;
+  document.dispatchEvent(new Event("visibilitychange"));
+  expect(Source.instances).toHaveLength(1);
+});
+
 test("a silent worker falls back after startup timeout", () => {
   Worker.behavior.mode = "silent";
   client(Worker);

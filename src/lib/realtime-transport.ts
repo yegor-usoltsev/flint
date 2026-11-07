@@ -156,7 +156,7 @@ export const subscribeRealtime = (
       link = direct ? connectDirect() : connectShared();
     } catch {
       direct = true;
-      link = connectDirect();
+      link = document.hidden ? null : connectDirect();
     }
   };
 
