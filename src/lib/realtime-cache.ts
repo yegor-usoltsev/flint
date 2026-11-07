@@ -66,6 +66,22 @@ export const refresh = async (
   ]);
 };
 
+const patch = <Data>(
+  queryClient: QueryClient,
+  query: Query,
+  update: (data: Data | undefined) => Data | undefined
+) => {
+  const { dataUpdatedAt, isInvalidated } = query.state;
+
+  queryClient.setQueryData<Data>(query.queryKey, update, {
+    updatedAt: dataUpdatedAt,
+  });
+
+  if (isInvalidated) {
+    query.invalidate();
+  }
+};
+
 const markStale = (cache: QueryCache, plan: Plan, queryKey: QueryKey) => {
   for (const query of cache.findAll({ queryKey })) {
     plan.stale.add(query);
@@ -205,6 +221,7 @@ const timelinePart = <Value>(
 
   const run = async () => {
     const token = Symbol(slot);
+    const since = query.state.dataUpdatedAt;
 
     latest.set(slot, token);
 
@@ -219,11 +236,16 @@ const timelinePart = <Value>(
 
     latest.delete(slot);
 
-    if (loaded === null || query.state.fetchStatus === "fetching") {
+    if (
+      loaded === null ||
+      query.state.fetchStatus === "fetching" ||
+      query.state.dataUpdatedAt !== since
+    ) {
       await refresh(queryClient, (item) => item === query);
     } else {
-      queryClient.setQueryData<Timeline>(
-        query.queryKey,
+      patch<Timeline>(
+        queryClient,
+        query,
         (timeline) => timeline && merge(timeline, loaded.value)
       );
     }
@@ -313,7 +335,7 @@ const changedIssue = (
     }
 
     if (present) {
-      queryClient.setQueryData<IssueData>(query.queryKey, (current) =>
+      patch<IssueData>(queryClient, query, (current) =>
         withIssue(current, issue)
       );
     }
@@ -419,7 +441,7 @@ const changedPage = (
   }
 
   for (const tree of trees) {
-    queryClient.setQueryData<WikiPageSummary[]>(tree.queryKey, (pages) =>
+    patch<WikiPageSummary[]>(queryClient, tree, (pages) =>
       pages?.map((row) =>
         row.id === id && row.revision < page.revision
           ? { ...row, ...page }

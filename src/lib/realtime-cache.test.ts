@@ -474,6 +474,50 @@ test("the newest request for a comment wins over a slower older one", async () =
   });
 });
 
+test("a patch keeps a pending refetch of a hidden detail", async () => {
+  const { queryClient } = setup();
+  const key = ["issues", "p", "detail", "ENG-1"];
+
+  queryClient.setQueryData(key, detail(row("1")));
+  await applyEvents(queryClient, "acme", [
+    edited(row("1", { version: 2 }), ["description"]),
+  ]);
+  await applyEvents(queryClient, "acme", [
+    edited(row("1", { title: "New", version: 3 }), ["title"]),
+  ]);
+
+  expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+  expect(queryClient.getQueryData(key)).toMatchObject({ title: "New" });
+});
+
+test("an activity answer older than a finished full fetch refetches instead", async () => {
+  const { queryClient, shown, was } = setup();
+  const slow = Promise.withResolvers<Response>();
+
+  shown(["timeline", "1"], { comments: [], events: [] });
+  spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(async () => await slow.promise, {
+      preconnect: fetch.preconnect,
+    })
+  );
+
+  const applied = applyEvents(queryClient, "acme", [
+    edited(row("1", { title: "New", version: 2 }), ["title"]),
+  ]);
+
+  queryClient.setQueryData(
+    ["timeline", "1"],
+    { comments: [], events: [{ id: "newer" }] },
+    { updatedAt: Date.now() + 1 }
+  );
+  slow.resolve(Response.json([{ id: "older" }]));
+  await applied;
+  expect(was(["timeline", "1"])).toBe(true);
+  expect(queryClient.getQueryData(["timeline", "1"])).toMatchObject({
+    events: [{ id: "newer" }],
+  });
+});
+
 test("wiki content edits patch the tree and refetch only that page", async () => {
   const { queryClient, shown, was } = setup();
 

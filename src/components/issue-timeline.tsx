@@ -402,7 +402,9 @@ const CommentItem = ({
     },
     onSuccess: (saved) => {
       cache.update((comments) =>
-        comments.map((item) => (item.id === saved.id ? saved : item))
+        comments.map((item) =>
+          item.id === saved.id && item.version <= saved.version ? saved : item
+        )
       );
     },
   });
@@ -622,7 +624,9 @@ const CommentBox = ({ issue }: { issue: Issue }) => {
     },
     onSuccess: (saved) => {
       cache.update((comments) =>
-        comments.map((item) => (item.id === saved.id ? saved : item))
+        comments.map((item) =>
+          item.id === saved.id && item.version <= saved.version ? saved : item
+        )
       );
     },
   });

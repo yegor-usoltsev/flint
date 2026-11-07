@@ -463,20 +463,27 @@ export const setPage = (
   page: WikiPage
 ) => {
   const { queryKey } = wikiPagesQuery(wiki);
+  const tree = queryClient.getQueryState(queryKey);
 
-  const listed = queryClient
-    .getQueryData(queryKey)
-    ?.some((row) => row.id === page.id && row.path === page.path);
+  const listed =
+    tree?.fetchStatus === "idle" &&
+    !tree.isInvalidated &&
+    queryClient
+      .getQueryData(queryKey)
+      ?.some((row) => row.id === page.id && row.path === page.path);
 
   queryClient.setQueryData(wikiPageQuery(wiki, page.path).queryKey, page);
 
   if (listed === true) {
-    queryClient.setQueryData(queryKey, (pages) =>
-      pages?.map((row) =>
-        row.id === page.id && row.revision < page.revision
-          ? pageSummary(page)
-          : row
-      )
+    queryClient.setQueryData(
+      queryKey,
+      (pages) =>
+        pages?.map((row) =>
+          row.id === page.id && row.revision < page.revision
+            ? pageSummary(page)
+            : row
+        ),
+      { updatedAt: tree.dataUpdatedAt }
     );
   } else {
     void queryClient.invalidateQueries({ queryKey });

@@ -832,4 +832,12 @@ test("a saved page updates its tree row in place, while moved or new pages refet
     revision: page.revision + 2,
   });
   expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
+  queryClient.setQueryData(queryKey, [page]);
+  const pending = Promise.withResolvers<WikiPage[]>();
+
+  void queryClient
+    .query({ queryFn: async () => await pending.promise, queryKey })
+    .catch(() => null);
+  setPage(queryClient, wiki, { ...page, revision: page.revision + 3 });
+  expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
 });
