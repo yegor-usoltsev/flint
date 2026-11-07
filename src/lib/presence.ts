@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { request, useMe } from "~/lib/api";
 import type { Presence, RealtimeEvent } from "~/lib/api-types";
 import { endpointPath } from "~/lib/endpoints";
+import { newId } from "~/lib/ids";
 import { membersQuery } from "~/lib/queries";
 
 const heartbeatMs = 25_000;
@@ -48,7 +49,7 @@ export const applyPresence = (
   );
 };
 
-const tab = typeof crypto === "undefined" ? "" : crypto.randomUUID();
+const tab = newId();
 const viewed = new Map<string, Map<string, number>>();
 let timer: ReturnType<typeof setInterval> | null = null;
 
