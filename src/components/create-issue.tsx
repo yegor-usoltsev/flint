@@ -163,9 +163,13 @@ const useSubmitIssue = () => {
     draft: NewIssue,
     submitted: Submitted
   ) => {
-    const { queryKey } = issuesQuery(project);
+    const lists = issueListKeys(project.id);
 
-    await queryClient.cancelQueries({ queryKey });
+    await Promise.all(
+      lists.map(async (queryKey) => {
+        await queryClient.cancelQueries({ queryKey });
+      })
+    );
     updateLists(queryClient, project, (issues) => [
       ...issues,
       pendingIssue(project, draft),
@@ -212,8 +216,8 @@ const useSubmitIssue = () => {
     }
 
     await Promise.all(
-      issueListKeys(project.id).map(async (key) => {
-        await queryClient.invalidateQueries({ queryKey: key });
+      lists.map(async (queryKey) => {
+        await queryClient.invalidateQueries({ queryKey });
       })
     );
   };
