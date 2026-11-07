@@ -360,15 +360,15 @@
   );
   margin-inline: auto;
 
-  & > svg {
+  & > section > svg {
     height: auto;
     min-width: var(--diagram-min, 0px);
     max-width: min(100%, var(--diagram-width, 100%)) !important;
   }
-  &[data-fit] > svg {
+  & > [data-fit] > svg {
     min-width: 0;
   }
-  &[data-fade] {
+  & > [data-fade] {
     mask-image: linear-gradient(to right, black calc(100% - 1rem), transparent);
   }
 }
