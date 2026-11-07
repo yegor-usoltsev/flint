@@ -3,7 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { request, useMe } from "~/lib/api";
-import type { Member, Presence, RealtimeEvent } from "~/lib/api-types";
+import type { Presence, RealtimeEvent } from "~/lib/api-types";
 import { endpointPath } from "~/lib/endpoints";
 import { membersQuery } from "~/lib/queries";
 
@@ -103,22 +103,6 @@ const leaveAll = () => {
 
 let listening = false;
 
-const start = () => {
-  timer = setInterval(beat, heartbeatMs);
-
-  if (!listening) {
-    listening = true;
-    document.addEventListener("visibilitychange", beat);
-    window.addEventListener("pageshow", beat);
-    window.addEventListener("pagehide", leaveAll);
-  }
-};
-
-const stop = () => {
-  clearInterval(timer ?? undefined);
-  timer = null;
-};
-
 export const viewTarget = (slug: string, targetId: string) => {
   const targets = viewed.get(slug) ?? new Map<string, number>();
   const count = targets.get(targetId) ?? 0;
@@ -126,8 +110,13 @@ export const viewTarget = (slug: string, targetId: string) => {
   targets.set(targetId, count + 1);
   viewed.set(slug, targets);
 
-  if (timer === null) {
-    start();
+  timer ??= setInterval(beat, heartbeatMs);
+
+  if (!listening) {
+    listening = true;
+    document.addEventListener("visibilitychange", beat);
+    window.addEventListener("pageshow", beat);
+    window.addEventListener("pagehide", leaveAll);
   }
 
   if (count === 0 && document.visibilityState === "visible") {
@@ -151,7 +140,8 @@ export const viewTarget = (slug: string, targetId: string) => {
     }
 
     if (viewed.size === 0) {
-      stop();
+      clearInterval(timer ?? undefined);
+      timer = null;
     }
   };
 };
@@ -163,12 +153,13 @@ export const usePresence = (slug: string, targetId: string) => {
 
   useEffect(() => viewTarget(slug, targetId), [slug, targetId]);
 
-  const userIds =
-    presence?.find((item) => item.targetId === targetId)?.userIds ?? [];
+  const userIds = new Set(
+    presence?.find((item) => item.targetId === targetId)?.userIds
+  );
 
-  return userIds.flatMap((userId): Member[] => {
-    const member = members?.find((item) => item.userId === userId);
-
-    return userId === me || member === undefined ? [] : [member];
-  });
+  return (
+    members?.filter(
+      (member) => member.userId !== me && userIds.has(member.userId ?? "")
+    ) ?? []
+  );
 };
