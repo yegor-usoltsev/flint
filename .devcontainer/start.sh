@@ -18,7 +18,8 @@ if flock -n "$state/server.lock" true; then
 fi
 
 deadline=$((SECONDS + 120))
-until curl -fsS --max-time 5 http://localhost:4700/api/health >/dev/null 2>&1; do
+until curl -fsS --max-time 5 http://localhost:4700/api/health >/dev/null 2>&1 &&
+	docker compose exec -T gitea curl -fsS --max-time 5 http://host-relay:4700/api/health >/dev/null 2>&1; do
 	if ((SECONDS >= deadline)); then
 		tail -80 "$state/server.log"
 		echo "Flint did not become healthy at http://localhost:4700/api/health" >&2
@@ -27,5 +28,4 @@ until curl -fsS --max-time 5 http://localhost:4700/api/health >/dev/null 2>&1; d
 	sleep 1
 done
 
-docker compose exec -T gitea curl -fsS --retry 10 --retry-all-errors --retry-delay 1 --max-time 5 http://host-relay:4700/api/health
 DEMO_HEALTH_URL=http://localhost:4700 bun run demo
