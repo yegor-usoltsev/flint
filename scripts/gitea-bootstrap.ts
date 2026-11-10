@@ -55,7 +55,6 @@ const EnvSchema = v.object({
   GITEA_CLIENT_ID: v.optional(v.string()),
   GITEA_CLIENT_SECRET: v.optional(v.pipe(v.string(), v.trim(), v.nonEmpty())),
   GITEA_WEBHOOK_SECRET: Required,
-  GITEA_STALE_WEBHOOK_URL: v.optional(v.pipe(Required, v.url())),
   GITEA_WEBHOOK_URL: v.optional(v.pipe(Required, v.url())),
 });
 
@@ -109,15 +108,6 @@ const bootstrap = async () => {
   console.log(
     `${hook === undefined ? "Created" : "Updated"} the Gitea system webhook for ${webhookUrl}`
   );
-
-  const stale = hooks.find(
-    (candidate) => candidate.config.url === env.GITEA_STALE_WEBHOOK_URL
-  );
-
-  if (stale !== undefined) {
-    await api(v.null(), `/admin/hooks/${stale.id}`, { method: "DELETE" });
-    console.log(`Deleted the Gitea system webhook for ${stale.config.url}`);
-  }
 
   const apps = await api(
     v.array(v.omit(AppSchema, ["client_secret"])),

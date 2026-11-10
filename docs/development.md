@@ -2,9 +2,7 @@
 
 [README.md](../README.md#quick-start) starts the stack and [AGENTS.md](../AGENTS.md) lists checks and conventions. [mise](https://mise.jdx.dev) installs Bun and the pre-commit hook.
 
-## Bootstrap modes
-
-`bun run bootstrap --storage-only` prepares storage for tests. For the containerized app, stop `bun run dev`, then run `bun run build && bun run bootstrap --app`. To return to host mode, run `docker compose --profile app stop app`, `bun run bootstrap`, then `bun run dev`. Both modes use port 4700.
+Docker runs only dependencies; Flint always runs with `bun run dev`. `bun run bootstrap --storage-only` prepares PostgreSQL and S3 for tests. Dependency ports are PostgreSQL `4702`, S3 `4703` and its console `4704`, plus Gitea `4701`. `PUBLIC_HOST_BIND` controls their host binding. Webhooks use `host-relay`; bootstrap verifies its Docker-to-host target, which can be overridden with `DEV_SERVER_HOST` in `.env`.
 
 ## Worktrees
 
@@ -39,7 +37,7 @@ Every checkout, dev server and test run shares the bucket `flint`. The storage s
 
 ## Codespaces
 
-To try a pull request without a local setup, choose **Code → Codespaces → Create codespace** on its branch. In about four minutes the container builds Flint, starts the compose `app` profile and runs the demo; then open port 4700 from **Ports** and sign in as `alice` with the password `password`. After pulling, run `bun install --frozen-lockfile && bun run build && bun run bootstrap --app`.
+Choose **Code → Codespaces → Create codespace** on the branch, then open port 4700 from **Ports** and sign in as `alice` with the password `password`. The dev container runs the same bootstrap and `bun run dev`, waits for `/api/health` and seeds the demo. Repeated starts reuse one background server; its log and PID are in `tmp/dev-server/`. After pulling, run `bun install --frozen-lockfile`, stop the managed server with `kill "$(cat tmp/dev-server/server.pid)"`, then run `.devcontainer/start.sh`.
 
 The ports are private: their URLs need your GitHub sign-in, so the demo checks Flint at `DEMO_HEALTH_URL=http://localhost:4700` instead of `APP_URL`. Pull request code runs with your repository token, so open only pull requests you trust. Stop or delete codespaces at <https://github.com/codespaces>; a short idle timeout and retention period in [your settings](https://github.com/settings/codespaces) keep a forgotten one from using up the free quota.
 

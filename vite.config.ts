@@ -104,7 +104,10 @@ export default defineConfig({
   optimizeDeps: { exclude: ["bun"] },
   resolve: { tsconfigPaths: true },
   server: {
-    allowedHosts: ["host-relay"],
+    allowedHosts: [
+      "host-relay",
+      new URL(process.env["APP_URL"] ?? "http://localhost:4700").hostname,
+    ],
     host: true,
     port: 4700,
     strictPort: true,
