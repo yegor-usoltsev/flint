@@ -49,16 +49,27 @@ if (!storageOnly) {
   const env = v.parse(GiteaEnvSchema, process.env);
   const api = giteaClient(env);
 
-  const organizations = await api(
-    v.array(v.object({ username: v.string() })),
-    "/user/orgs"
+  const authorization =
+    env.GITEA_ADMIN_TOKEN === undefined
+      ? `Basic ${btoa([env.GITEA_ADMIN_USER ?? "", env.GITEA_ADMIN_PASSWORD ?? ""].join(":"))}`
+      : `token ${env.GITEA_ADMIN_TOKEN}`;
+
+  const organization = await fetch(
+    new URL("/api/v1/orgs/acme", env.GITEA_URL),
+    {
+      headers: { Authorization: authorization },
+    }
   );
 
-  if (!organizations.some((organization) => organization.username === "acme")) {
+  await organization.body?.cancel();
+
+  if (organization.status === 404) {
     await api(v.unknown(), "/orgs", {
       body: JSON.stringify({ username: "acme" }),
       method: "POST",
     });
+  } else if (!organization.ok) {
+    throw new Error(`Gitea GET /orgs/acme: HTTP ${organization.status}`);
   }
 
   const webhook = new URL("/api/webhooks/gitea", process.env["APP_URL"]);
