@@ -26,7 +26,8 @@
     "cli:smoke": "bun scripts/dev/cli-smoke.ts",
     "flint": "bun cli/flint.ts",
     "storage:sweep": "bun scripts/storage-sweep.ts",
-    "start": "bun .output/server/index.mjs"
+    "start": "bun .output/server/index.mjs",
+    "bootstrap": "bun scripts/dev/bootstrap.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",

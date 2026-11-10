@@ -2,9 +2,13 @@
 
 [README.md](../README.md#quick-start) starts the stack and [AGENTS.md](../AGENTS.md) lists checks and conventions. [mise](https://mise.jdx.dev) installs Bun and the pre-commit hook.
 
+## Bootstrap modes
+
+`bun run bootstrap --storage-only` prepares storage for tests. For the containerized app, stop `bun run dev`, then run `bun run build && bun run bootstrap --app`. To return to host mode, run `docker compose --profile app stop app`, `bun run bootstrap`, then `bun run dev`. Both modes use port 4700.
+
 ## Worktrees
 
-Only the main checkout runs `docker compose`: a second stack would take the same ports and rewrite `.env.local`. A worktree links the main checkout's env files and serves on a free port:
+Only the main checkout runs `bun run bootstrap`: a second stack would take the same ports and rewrite `.env.local`. A worktree links the main checkout's env files and serves on a free port:
 
 ```sh
 ln -s ../flint/.env ../flint/.env.local .   # paths to the main checkout
@@ -35,7 +39,7 @@ Every checkout, dev server and test run shares the bucket `flint`. The storage s
 
 ## Codespaces
 
-To try a pull request without a local setup, choose **Code → Codespaces → Create codespace** on its branch. In about four minutes the container builds Flint, starts the compose `app` profile and runs the demo; then open port 4700 from **Ports** and sign in as `alice` with the password `password`. After pulling, run `bun install --frozen-lockfile && bun run build && docker compose --profile app up -d --wait --build`.
+To try a pull request without a local setup, choose **Code → Codespaces → Create codespace** on its branch. In about four minutes the container builds Flint, starts the compose `app` profile and runs the demo; then open port 4700 from **Ports** and sign in as `alice` with the password `password`. After pulling, run `bun install --frozen-lockfile && bun run build && bun run bootstrap --app`.
 
 The ports are private: their URLs need your GitHub sign-in, so the demo checks Flint at `DEMO_HEALTH_URL=http://localhost:4700` instead of `APP_URL`. Pull request code runs with your repository token, so open only pull requests you trust. Stop or delete codespaces at <https://github.com/codespaces>; a short idle timeout and retention period in [your settings](https://github.com/settings/codespaces) keep a forgotten one from using up the free quota.
 

@@ -53,7 +53,7 @@ const EnvSchema = v.object({
   ...GiteaEnvSchema.entries,
   APP_URL: v.pipe(Required, v.url()),
   GITEA_CLIENT_ID: v.optional(v.string()),
-  GITEA_CLIENT_SECRET: v.optional(v.string()),
+  GITEA_CLIENT_SECRET: v.optional(v.pipe(v.string(), v.trim(), v.nonEmpty())),
   GITEA_WEBHOOK_SECRET: Required,
   GITEA_STALE_WEBHOOK_URL: v.optional(v.pipe(Required, v.url())),
   GITEA_WEBHOOK_URL: v.optional(v.pipe(Required, v.url())),
@@ -132,6 +132,10 @@ const bootstrap = async () => {
     env.GITEA_CLIENT_SECRET !== undefined &&
     existing.redirect_uris.join(",") === redirectUri
   ) {
+    await writeEnv(envPath, {
+      GITEA_CLIENT_ID: existing.client_id,
+      GITEA_CLIENT_SECRET: env.GITEA_CLIENT_SECRET,
+    });
     console.log(`Gitea OAuth app ${appName} is up to date`);
 
     return;
