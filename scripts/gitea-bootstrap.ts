@@ -109,6 +109,20 @@ const bootstrap = async () => {
     `${hook === undefined ? "Created" : "Updated"} the Gitea system webhook for ${webhookUrl}`
   );
 
+  const legacyWebhook = new URL(webhookUrl);
+
+  if (legacyWebhook.hostname === "host-relay") {
+    legacyWebhook.hostname = "app";
+
+    await Promise.all(
+      hooks
+        .filter((candidate) => candidate.config.url === legacyWebhook.href)
+        .map(async (stale) => {
+          await api(v.null(), `/admin/hooks/${stale.id}`, { method: "DELETE" });
+        })
+    );
+  }
+
   const apps = await api(
     v.array(v.omit(AppSchema, ["client_secret"])),
     "/user/applications/oauth2"
