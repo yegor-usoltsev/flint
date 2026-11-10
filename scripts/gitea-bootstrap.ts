@@ -132,6 +132,10 @@ const bootstrap = async () => {
     env.GITEA_CLIENT_SECRET !== undefined &&
     existing.redirect_uris.join(",") === redirectUri
   ) {
+    await writeEnv(envPath, {
+      GITEA_CLIENT_ID: existing.client_id,
+      GITEA_CLIENT_SECRET: env.GITEA_CLIENT_SECRET,
+    });
     console.log(`Gitea OAuth app ${appName} is up to date`);
 
     return;

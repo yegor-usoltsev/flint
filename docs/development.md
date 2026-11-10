@@ -6,6 +6,8 @@
 
 `bun run bootstrap` starts PostgreSQL, S3, Gitea, the webhook relay and runner, creates the bucket, demo users and Acme organization, and configures OAuth and the system webhook. It is safe to rerun and leaves existing data intact. Start `bun run dev` separately on the host, then run `bun run demo`. There are no init containers. `bun run bootstrap --storage-only` prepares PostgreSQL and the S3 bucket for tests; after `bun run build`, `bun run bootstrap --app` targets the containerized app instead of the host dev server.
 
+Compose reads OAuth credentials from the owner-only `.env.local` and passes them to the app as environment variables; the container does not mount that file or require the host user’s UID.
+
 Stop `bun run dev` before running `bun run bootstrap --app`, because both servers bind port 4700. To switch back, run `docker compose --profile app stop app`, then `bun run bootstrap` and `bun run dev`.
 
 The `host-relay` container forwards port 4700 to `host.docker.internal:4700`. Gitea rejects OrbStack's reserved host-gateway IP as a webhook destination, so its webhook targets the relay's private Docker address. The app profile targets `app:4700` directly; bootstrap removes the stale webhook when switching modes.
