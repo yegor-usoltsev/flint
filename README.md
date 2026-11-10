@@ -24,7 +24,7 @@ Flint is a self-hosted issue tracker and Markdown wiki for teams on [Gitea](http
 
 ## Quick start
 
-You need [Bun](https://bun.sh) and Docker Compose.
+You need [Bun](https://bun.sh) and Docker Compose 2.24.0 or newer.
 
 ```sh
 git clone https://github.com/yegor-usoltsev/flint.git && cd flint
