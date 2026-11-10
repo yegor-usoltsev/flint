@@ -30,14 +30,14 @@ You need [Bun](https://bun.sh) and Docker Compose.
 git clone https://github.com/yegor-usoltsev/flint.git && cd flint
 bun install
 cp .env.example .env
-docker compose up -d --wait   # PostgreSQL, S3, and Gitea with users and a CI runner
+bun run bootstrap             # PostgreSQL, S3, and Gitea with users and a CI runner
 bun run dev                   # leave it running
 bun run demo                  # in a second terminal
 ```
 
 Open <http://localhost:4700>, choose **Continue with Gitea** and sign in as `alice` with the password `password` (or `bob`, or `carol`). The demo fills the Acme Corp workspace with issues, comments and wiki pages, and opens a pull request in Gitea (<http://localhost:4701>) that shows up on ENG-5. Without it, Flint first asks for a workspace, and **Include demo data** there adds a Getting started project and wiki page.
 
-To use Flint from another device, set `PUBLIC_HOST` in `.env` to this machine's IP or host name (the app and Gitea URLs follow it) and `PUBLIC_HOST_BIND` to `0.0.0.0` so Gitea listens on the network too (the dev server already does), rerun `docker compose up -d --wait`, restart `bun run dev` and open `http://<PUBLIC_HOST>:4700`. Anyone who reaches that address can then sign in to Gitea as `alice`, a site admin, with the password `password`, so publish only on a network you trust. `docker compose down -v` deletes all data.
+To use Flint from another device, set `PUBLIC_HOST` in `.env` to this machine's IP or host name (the app and Gitea URLs follow it) and `PUBLIC_HOST_BIND` to `0.0.0.0` so Gitea listens on the network too (the dev server already does), rerun `bun run bootstrap`, restart `bun run dev` and open `http://<PUBLIC_HOST>:4700`. Anyone who reaches that address can then sign in to Gitea as `alice`, a site admin, with the password `password`, so publish only on a network you trust. `docker compose down -v` deletes all data.
 
 ## Self-hosting
 

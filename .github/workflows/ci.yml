@@ -17,7 +17,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - uses: j178/prek-action@v3.1.0
-      - run: docker compose up -d --wait postgres silo && docker compose run --rm silo-init
+      - run: bun run bootstrap --storage-only
       - run: bun test --coverage --coverage-reporter=lcov
       - uses: actions/upload-artifact@v7
         continue-on-error: true

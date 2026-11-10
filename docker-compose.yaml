@@ -39,8 +39,8 @@ services:
       - "${PUBLIC_HOST_BIND:-127.0.0.1}:4700:4700"
     depends_on:
       postgres: { condition: service_healthy }
-      silo-init: { condition: service_completed_successfully }
-      flint-init-app: { condition: service_completed_successfully }
+      silo: { condition: service_healthy }
+      gitea: { condition: service_healthy }
 
   postgres:
     image: pgvector/pgvector:pg18
@@ -75,15 +75,6 @@ services:
       timeout: 5s
       retries: 15
 
-  silo-init:
-    image: pgsty/silo:RELEASE.2026-10-18T00-00-00Z
-    command:
-      - sh
-      - -c
-      - mc alias set local http://silo:9000 flint flint-silo-secret && mc mb --ignore-existing local/flint
-    depends_on:
-      silo: { condition: service_healthy }
-
   gitea:
     image: gitea/gitea:28-rootless
     environment:
@@ -115,53 +106,6 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
-  gitea-init:
-    image: gitea/gitea:28-rootless
-    volumes:
-      - gitea-config:/etc/gitea
-      - gitea-data:/var/lib/gitea
-    command:
-      - sh
-      - -c
-      - |
-        set -e
-        for user in alice bob carol; do
-          gitea admin user list | awk -v user=$$user '$$2 == user { found = 1 } END { exit !found }' ||
-            gitea admin user create --username $$user --password password --email $$user@example.com \
-              --must-change-password=false $$([ $$user = alice ] && echo --admin)
-        done
-        api="curl -fsS -o /dev/null -u alice:password -H Content-Type:application/json http://gitea:3000/api/v1"
-        $$api/orgs/acme 2>/dev/null || $$api/orgs -d '{"username":"acme"}'
-    depends_on:
-      gitea: { condition: service_healthy }
-
-  flint-init:
-    image: oven/bun:1.4-alpine
-    user: bun
-    working_dir: /app
-    environment:
-      <<: *flint-env
-      GITEA_ADMIN_PASSWORD: password
-      GITEA_ADMIN_USER: alice
-      GITEA_STALE_WEBHOOK_URL: http://app:4700/api/webhooks/gitea
-      GITEA_WEBHOOK_URL: http://host-relay:4700/api/webhooks/gitea
-    volumes:
-      - .:/app
-    # Keeps one system webhook: this one for `bun run dev` on the host, flint-init-app's for the
-    # app profile.
-    command: ["bun", "scripts/gitea-bootstrap.ts"]
-    depends_on:
-      gitea-init: { condition: service_completed_successfully }
-
-  flint-init-app:
-    extends: flint-init
-    profiles: [app]
-    environment:
-      GITEA_STALE_WEBHOOK_URL: http://host-relay:4700/api/webhooks/gitea
-      GITEA_WEBHOOK_URL: http://app:4700/api/webhooks/gitea
-    depends_on:
-      flint-init: { condition: service_completed_successfully }
-
   runner:
     image: gitea/runner:5
     environment:
@@ -174,11 +118,8 @@ services:
     volumes:
       - runner:/data
       - /var/run/docker.sock:/var/run/docker.sock
-    # The init dependencies let `docker compose up --wait` accept their exit.
     depends_on:
       gitea: { condition: service_healthy }
-      flint-init: { condition: service_completed_successfully }
-      silo-init: { condition: service_completed_successfully }
 
 configs:
   runner.yaml:
