@@ -6,7 +6,7 @@ Issue tracker and Markdown wiki on TanStack Start and Bun with Gitea sign-in. [R
 
 - Track deferred work as Flint issues in Backlog with fitting labels, not `.backlog/` files.
 - Only the main checkout runs `bun run bootstrap` and `bun run dev` (port 4700); worktrees link its `.env` and `.env.local` and use another port ([how](docs/development.md#worktrees)). Gitea users `alice` (admin), `bob` and `carol` have the password `password`; `bun run demo` fills the Acme Corp workspace.
-- Browser URLs use `PUBLIC_HOST` from `.env` (default `localhost`); dependency ports bind to `PUBLIC_HOST_BIND` (loopback by default). Bootstrap verifies Docker-to-host reachability and routes webhooks through `host-relay`; `DEV_SERVER_HOST` overrides its detected target.
+- Browser URLs use `PUBLIC_HOST` from `.env` (default `localhost`); dependency ports bind to `PUBLIC_HOST_BIND` (loopback by default). Webhooks use `host-relay`; `DEV_SERVER_HOST` overrides its target, and devcontainers pass their own IP (Docker-in-Docker's `host-gateway` need not point there). Vite config reads `.env` with `loadEnv`, not `process.env`.
 - The pre-commit hook runs `bun run lint` (tsc and Ultracite; `bun run lint:fix` fixes) on the whole working tree, so parallel writers need separate worktrees.
 - `bun test` needs the compose Postgres and makes a database per checkout. Call `resetDatabase` in `beforeEach`, test routes with `callRoute(Route, request)` from `test/helpers.ts`, and stub Gitea by spying on `fetch`.
 - A new endpoint in `src/lib/endpoints.ts` needs an entry in the outsider matrix of `src/server/access.test.ts` (`tsc` enforces it), so every route answers 404 outside the caller's workspaces; add routes outside that map, such as the stream and file routes, to `allCalls` by hand.

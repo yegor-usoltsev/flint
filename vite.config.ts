@@ -7,7 +7,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import type { Plugin } from "vite";
 
 import { licenseNotice } from "./scripts/licenses.ts";
@@ -64,7 +64,7 @@ const privateSourcemaps = (): Plugin => ({
   },
 });
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   build: { license: true, sourcemap: "hidden" },
   define: { "process.env.FLINT_COMMIT": JSON.stringify(commit()) },
   plugins: [
@@ -106,10 +106,12 @@ export default defineConfig({
   server: {
     allowedHosts: [
       "host-relay",
-      new URL(process.env["APP_URL"] ?? "http://localhost:4700").hostname,
+      new URL(
+        loadEnv(mode, process.cwd(), "")["APP_URL"] ?? "http://localhost:4700"
+      ).hostname,
     ],
     host: true,
     port: 4700,
     strictPort: true,
   },
-});
+}));

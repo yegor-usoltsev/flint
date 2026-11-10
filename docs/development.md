@@ -2,7 +2,7 @@
 
 [README.md](../README.md#quick-start) starts the stack and [AGENTS.md](../AGENTS.md) lists checks and conventions. [mise](https://mise.jdx.dev) installs Bun and the pre-commit hook.
 
-Docker runs only dependencies; Flint always runs with `bun run dev`. `bun run bootstrap --storage-only` prepares PostgreSQL and S3 for tests. Dependency ports are PostgreSQL `4702`, S3 `4703` and its console `4704`, plus Gitea `4701`. `PUBLIC_HOST_BIND` controls their host binding. Webhooks use `host-relay`; bootstrap verifies its Docker-to-host target, which can be overridden with `DEV_SERVER_HOST` in `.env`.
+Docker runs only dependencies; Flint always runs with `bun run dev`. `bun run bootstrap --storage-only` prepares PostgreSQL and S3 for tests. Dependency ports are PostgreSQL `4702`, S3 `4703` and its console `4704`, plus Gitea `4701`. `PUBLIC_HOST_BIND` controls their host binding. Webhooks use `host-relay`; its target defaults to `host.docker.internal` and can be overridden with `DEV_SERVER_HOST` in `.env`. Devcontainers pass their own IP instead and check reachability before seeding.
 
 ## Worktrees
 
@@ -37,7 +37,7 @@ Every checkout, dev server and test run shares the bucket `flint`. The storage s
 
 ## Codespaces
 
-Choose **Code → Codespaces → Create codespace** on the branch, then open port 4700 from **Ports** and sign in as `alice` with the password `password`. The dev container runs the same bootstrap and `bun run dev`, waits for `/api/health` and seeds the demo. Repeated starts reuse one background server; its log and PID are in `tmp/dev-server/`. After pulling, run `bun install --frozen-lockfile`, stop the managed server with `kill "$(cat tmp/dev-server/server.pid)"`, then run `.devcontainer/start.sh`.
+Choose **Code → Codespaces → Create codespace** on the branch, then open port 4700 from **Ports** and sign in as `alice` with the password `password`. The dev container runs the same bootstrap and `bun run dev`, waits for `/api/health` and seeds the demo. Repeated starts reuse one background server; its log and PID are in `tmp/dev-server/`. After pulling, run `bun install --frozen-lockfile`, stop the managed server with `kill -- -"$(cat tmp/dev-server/server.pid)"`, then run `.devcontainer/start.sh`.
 
 The ports are private: their URLs need your GitHub sign-in, so the demo checks Flint at `DEMO_HEALTH_URL=http://localhost:4700` instead of `APP_URL`. Pull request code runs with your repository token, so open only pull requests you trust. Stop or delete codespaces at <https://github.com/codespaces>; a short idle timeout and retention period in [your settings](https://github.com/settings/codespaces) keep a forgotten one from using up the free quota.
 
