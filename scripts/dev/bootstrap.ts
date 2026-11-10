@@ -11,7 +11,7 @@ if ([...flags].some((flag) => flag !== "--storage-only")) {
   throw new Error("Usage: bun run bootstrap [--storage-only]");
 }
 
-await $`docker compose up -d --wait postgres silo`;
+await $`docker compose up -d --wait --remove-orphans postgres silo`;
 
 await $`docker compose exec -T silo mc alias set local http://localhost:9000 flint flint-silo-secret`;
 
