@@ -24,7 +24,7 @@ Flint is a self-hosted issue tracker and Markdown wiki for teams on [Gitea](http
 
 ## Quick start
 
-You need [Bun](https://bun.sh) and Docker Compose 2.24.0 or newer.
+You need [Bun](https://bun.sh) and Docker Compose 2.24.0 or newer. Docker runs the dependencies; Flint runs with `bun run dev`, locally and in [Codespaces](docs/development.md#codespaces).
 
 ```sh
 git clone https://github.com/yegor-usoltsev/flint.git && cd flint
@@ -37,7 +37,7 @@ bun run demo                  # in a second terminal
 
 Open <http://localhost:4700>, choose **Continue with Gitea** and sign in as `alice` with the password `password` (or `bob`, or `carol`). The demo fills the Acme Corp workspace with issues, comments and wiki pages, and opens a pull request in Gitea (<http://localhost:4701>) that shows up on ENG-5. Without it, Flint first asks for a workspace, and **Include demo data** there adds a Getting started project and wiki page.
 
-To use Flint from another device, set `PUBLIC_HOST` in `.env` to this machine's IP or host name (the app and Gitea URLs follow it) and `PUBLIC_HOST_BIND` to `0.0.0.0` so Gitea listens on the network too (the dev server already does), rerun `bun run bootstrap`, restart `bun run dev` and open `http://<PUBLIC_HOST>:4700`. Anyone who reaches that address can then sign in to Gitea as `alice`, a site admin, with the password `password`, so publish only on a network you trust. `docker compose down -v` deletes all data.
+For another device, set `PUBLIC_HOST` in `.env` to this machine's IP or host name and `PUBLIC_HOST_BIND=0.0.0.0`, rerun `bun run bootstrap`, restart `bun run dev` and open `http://<PUBLIC_HOST>:4700`. This exposes Gitea, PostgreSQL, S3 and its console with fixed development credentials: use a trusted network only. `docker compose down -v` deletes all data.
 
 ## Self-hosting
 

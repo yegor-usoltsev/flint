@@ -5,17 +5,13 @@ import * as v from "valibot";
 import { GiteaEnvSchema, giteaClient } from "../gitea-client";
 
 const flags = new Set(process.argv.slice(2));
-const appMode = flags.has("--app");
 const storageOnly = flags.has("--storage-only");
 
-if (
-  [...flags].some((flag) => flag !== "--app" && flag !== "--storage-only") ||
-  (appMode && storageOnly)
-) {
-  throw new Error("Usage: bun run bootstrap [--app | --storage-only]");
+if ([...flags].some((flag) => flag !== "--storage-only")) {
+  throw new Error("Usage: bun run bootstrap [--storage-only]");
 }
 
-await $`docker compose up -d --wait postgres silo`;
+await $`docker compose up -d --wait --remove-orphans postgres silo`;
 
 await $`docker compose exec -T silo mc alias set local http://localhost:9000 flint flint-silo-secret`;
 
@@ -72,20 +68,9 @@ if (!storageOnly) {
     throw new Error(`Gitea GET /orgs/acme: HTTP ${organization.status}`);
   }
 
-  const webhook = new URL("/api/webhooks/gitea", process.env["APP_URL"]);
-  webhook.protocol = "http:";
-  webhook.port = "4700";
-  webhook.hostname = appMode ? "app" : "host-relay";
-  const staleWebhook = new URL(webhook);
-  staleWebhook.hostname = appMode ? "host-relay" : "app";
-
   await $`bun run gitea:bootstrap`.env({
     ...process.env,
-    GITEA_STALE_WEBHOOK_URL: staleWebhook.href,
-    GITEA_WEBHOOK_URL: webhook.href,
+    // oxlint-disable-next-line sonarjs/no-clear-text-protocols -- The relay is on the private development network.
+    GITEA_WEBHOOK_URL: "http://host-relay:4700/api/webhooks/gitea",
   });
-
-  if (appMode) {
-    await $`docker compose --profile app up -d --wait --build app`;
-  }
 }

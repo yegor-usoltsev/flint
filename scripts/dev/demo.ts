@@ -40,7 +40,7 @@ const health = await fetch(new URL("/api/health", healthUrl)).catch(() => null);
 
 if (health?.ok !== true) {
   throw new Error(
-    `Flint is not answering at ${healthUrl}; start it first (bun run dev or the app profile), because Gitea links the demo pull request through its webhook`
+    `Flint is not answering at ${healthUrl}; start it first (bun run dev), because Gitea links the demo pull request through its webhook`
   );
 }
 

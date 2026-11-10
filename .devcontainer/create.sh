@@ -13,4 +13,3 @@ sed -e "s|^APP_URL=.*|APP_URL=$origin-4700.$domain|" \
 	.env.example >.env
 
 bun install --frozen-lockfile
-bun run build
