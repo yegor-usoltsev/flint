@@ -2,19 +2,13 @@
 
 [README.md](../README.md#quick-start) starts the stack and [AGENTS.md](../AGENTS.md) lists checks and conventions. [mise](https://mise.jdx.dev) installs Bun and the pre-commit hook.
 
-## Local bootstrap
+## Bootstrap modes
 
-`bun run bootstrap` starts PostgreSQL, S3, Gitea, the webhook relay and runner, creates the bucket, demo users and Acme organization, and configures OAuth and the system webhook. It is safe to rerun and leaves existing data intact. Start `bun run dev` separately on the host, then run `bun run demo`. There are no init containers. `bun run bootstrap --storage-only` prepares PostgreSQL and the S3 bucket for tests; after `bun run build`, `bun run bootstrap --app` targets the containerized app instead of the host dev server.
-
-Compose reads OAuth credentials from the owner-only `.env.local` and passes them to the app as environment variables; the container does not mount that file or require the host user’s UID.
-
-Stop `bun run dev` before running `bun run bootstrap --app`, because both servers bind port 4700. To switch back, run `docker compose --profile app stop app`, then `bun run bootstrap` and `bun run dev`.
-
-The `host-relay` container forwards port 4700 to `host.docker.internal:4700`. Gitea rejects OrbStack's reserved host-gateway IP as a webhook destination, so its webhook targets the relay's private Docker address. The app profile targets `app:4700` directly; bootstrap removes the stale webhook when switching modes.
+`bun run bootstrap --storage-only` prepares storage for tests. For the containerized app, stop `bun run dev`, then run `bun run build && bun run bootstrap --app`. To return to host mode, run `docker compose --profile app stop app`, `bun run bootstrap`, then `bun run dev`. Both modes use port 4700.
 
 ## Worktrees
 
-Only the main checkout runs `bun run bootstrap` (which calls `docker compose`): a second stack would take the same ports and rewrite `.env.local`. A worktree links the main checkout's env files and serves on a free port:
+Only the main checkout runs `bun run bootstrap`: a second stack would take the same ports and rewrite `.env.local`. A worktree links the main checkout's env files and serves on a free port:
 
 ```sh
 ln -s ../flint/.env ../flint/.env.local .   # paths to the main checkout

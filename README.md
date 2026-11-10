@@ -30,7 +30,7 @@ You need [Bun](https://bun.sh) and Docker Compose 2.24.0 or newer.
 git clone https://github.com/yegor-usoltsev/flint.git && cd flint
 bun install
 cp .env.example .env
-bun run bootstrap             # PostgreSQL, S3, and Gitea with users and a CI runner
+bun run bootstrap
 bun run dev                   # leave it running
 bun run demo                  # in a second terminal
 ```

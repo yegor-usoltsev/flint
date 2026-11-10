@@ -6,7 +6,6 @@ Issue tracker and Markdown wiki on TanStack Start and Bun with Gitea sign-in. [R
 
 - Track deferred work as Flint issues in Backlog with fitting labels, not `.backlog/` files.
 - Only the main checkout runs `bun run bootstrap` and `bun run dev` (port 4700); worktrees link its `.env` and `.env.local` and use another port ([how](docs/development.md#worktrees)). Gitea users `alice` (admin), `bob` and `carol` have the password `password`; `bun run demo` fills the Acme Corp workspace.
-- `bun run bootstrap` provisions the local services, S3 bucket, Gitea users/org, OAuth app and system webhook with `Bun.$`; use `--app` for the containerized app and `--storage-only` for tests. Keep `host-relay`: Gitea rejects OrbStack's reserved host-gateway IP, so the relay forwards webhooks to the host dev server.
 - Browser URLs use `PUBLIC_HOST` from `.env` (default `localhost`); Gitea listens only on `PUBLIC_HOST_BIND`.
 - The pre-commit hook runs `bun run lint` (tsc and Ultracite; `bun run lint:fix` fixes) on the whole working tree, so parallel writers need separate worktrees.
 - `bun test` needs the compose Postgres and makes a database per checkout. Call `resetDatabase` in `beforeEach`, test routes with `callRoute(Route, request)` from `test/helpers.ts`, and stub Gitea by spying on `fetch`.
