@@ -53,7 +53,7 @@ const EnvSchema = v.object({
   ...GiteaEnvSchema.entries,
   APP_URL: v.pipe(Required, v.url()),
   GITEA_CLIENT_ID: v.optional(v.string()),
-  GITEA_CLIENT_SECRET: v.optional(v.string()),
+  GITEA_CLIENT_SECRET: v.optional(v.pipe(v.string(), v.trim(), v.nonEmpty())),
   GITEA_WEBHOOK_SECRET: Required,
   GITEA_STALE_WEBHOOK_URL: v.optional(v.pipe(Required, v.url())),
   GITEA_WEBHOOK_URL: v.optional(v.pipe(Required, v.url())),
