@@ -66,7 +66,12 @@ const relayWebhook = publicWebhook.replace("localhost", "host-relay");
 const legacyWebhook = publicWebhook.replace("localhost", "app");
 
 const bootstrapCases = [
-  ["persists reused OAuth credentials", publicWebhook, [], [publicWebhook]],
+  [
+    "persists reused OAuth credentials with the default webhook",
+    undefined,
+    [],
+    [publicWebhook],
+  ],
   [
     "removes the obsolete dev hook",
     relayWebhook,
@@ -100,7 +105,7 @@ test.each(bootstrapCases)(
 
     const server = Bun.serve({
       port: 0,
-      fetch: (request) => {
+      fetch: async (request) => {
         const url = new URL(request.url);
 
         if (url.pathname === "/api/v1/admin/hooks") {
@@ -108,7 +113,14 @@ test.each(bootstrapCases)(
             return Response.json(hooks);
           }
 
-          const hook = { config: { url: webhookUrl }, id: hooks.length + 1 };
+          expect(await request.json()).toMatchObject({
+            config: { url: webhookUrl ?? publicWebhook },
+          });
+
+          const hook = {
+            config: { url: webhookUrl ?? publicWebhook },
+            id: hooks.length + 1,
+          };
 
           hooks.push(hook);
 
