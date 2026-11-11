@@ -67,7 +67,7 @@ services:
       - host.docker.internal:host-gateway
 
   runner:
-    image: gitea/runner:5
+    image: gitea/runner:6
     environment:
       CONFIG_FILE: /runner.yaml
       GITEA_INSTANCE_URL: http://gitea:3000

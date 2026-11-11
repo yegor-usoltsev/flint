@@ -196,7 +196,7 @@ const useNeighbors = (project: ProjectDetail, key: string, ready: boolean) => {
     keys,
     next: keys[index + 1],
     origin,
-    previous: index > 0 ? keys[index - 1] : undefined,
+    previous: keys[index - 1],
     statuses: mine
       ? assigned.statuses
       : new Map(project.statuses.map((item) => [item.id, item])),
