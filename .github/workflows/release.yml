@@ -75,7 +75,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           # npm trusted publishing needs npm 11.5.1 or later.
-          node-version: 24
+          node-version: 26
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - run: >-

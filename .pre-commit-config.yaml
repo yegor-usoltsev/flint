@@ -20,7 +20,7 @@ repos:
       - id: trailing-whitespace
         args: ["--markdown-linebreak-ext=md,mdx"]
   - repo: https://github.com/yegor-usoltsev/pre-commit-hooks
-    rev: v1.0.2
+    rev: v1.0.3
     hooks:
       - id: gitleaks
       - id: shellcheck
