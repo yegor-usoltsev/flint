@@ -67,7 +67,9 @@ test("the web client sends no path that leaves its endpoint", async () => {
   ]) {
     expect(
       // oxlint-disable-next-line no-await-in-loop -- Each path is checked on its own.
-      await api(path, { method: "DELETE" }).then(() => false, isNotFound)
+      await api(path, { method: "DELETE" })
+        .then(() => false)
+        .catch(isNotFound)
     ).toBe(true);
   }
 

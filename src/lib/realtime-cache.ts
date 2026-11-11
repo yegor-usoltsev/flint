@@ -236,10 +236,9 @@ const timelinePart = <Value>(
       nextLoad.set(query, Date.now() + gap);
     }
 
-    const loaded = await load().then(
-      (value) => ({ value }),
-      () => null
-    );
+    const loaded = await load()
+      .then((value) => ({ value }))
+      .catch(() => null);
 
     if (latest.get(slot) !== token) {
       return;
