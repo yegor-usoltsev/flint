@@ -271,6 +271,16 @@ const withLeadingParagraph = (content: JSONContent[] = []) => {
 
 const listItem = ListItem.extend({
   parseMarkdown(token, helpers) {
+    if (
+      token.tokens?.[0]?.type === "heading" &&
+      /^#{1,6}(?:[ \t]|$)/u.test(token.tokens[0].raw ?? "")
+    ) {
+      return {
+        content: withLeadingParagraph(helpers.parseChildren(token.tokens)),
+        type: "listItem",
+      };
+    }
+
     const item = this.parent?.(token, helpers);
 
     return item === undefined || Array.isArray(item)
@@ -284,7 +294,7 @@ const listItem = ListItem.extend({
       this.parent?.({ ...node, content }, helpers, context) ?? "";
 
     return isEmptyParagraph(content[0]) && content.length > 1
-      ? markdown.replace(/^(?<marker>[^\n]*)\n[ \t]*/u, "$<marker>")
+      ? markdown.replace(/^(?<marker>[^\n]*?)(?:&nbsp;)?\n[ \t]*/u, "$<marker>")
       : markdown;
   },
 });
